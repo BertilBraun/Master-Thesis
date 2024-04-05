@@ -2,3 +2,4 @@ torch
 transformers
 numpy
 tqdm
+lmql
