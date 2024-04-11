@@ -1,0 +1,26 @@
+"""Task Description:
+
+Extract and summarize key competencies from scientific paper abstracts, aiming for a general overview suitable across disciplines. Begin with a concise profile summary that captures the main area of expertise in about ten words, abstract enough to apply broadly within a scientific context. Then, list three to eight specific competencies with brief descriptions based on the abstract.
+
+
+{examples}
+
+Your Task:
+
+
+Abstract:
+{abstract}
+
+
+Profile Summary: "[PROFILE]"
+
+
+Competencies:
+""" where len(WORDS(PROFILE)) < 10 and STOPS_BEFORE(PROFILE, '"')
+
+competencies = []
+for i in range(8):
+    "-[COMPETENCY]: [DESCRIPTION]\n" where len(WORDS(COMPETENCY)) < 7 and len(WORDS(DESCRIPTION)) < 25 and STOPS_BEFORE(DESCRIPTION, '\n') and STOPS_BEFORE(COMPETENCY, ':')
+    competencies.append((COMPETENCY, DESCRIPTION))
+
+#return PROFILE, competencies

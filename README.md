@@ -1,5 +1,4 @@
-  
-
+# Masters Thesis
 
 ## Running
 
@@ -8,7 +7,7 @@ With LMQL:
 Start LMQL Model Serve:
 
 ```bash
-lmql serve-model (--dtype 8bit only if a GPU is supported)
+lmql serve-model (--dtype 8bit - only if a GPU is supported)
 ```
 
 Run the Script itself:
@@ -35,3 +34,9 @@ def say(phrase):
 
 print(say('Hello World!'))
 ```
+
+Reference to all the available LMQL operations can be found [here](https://github.com/eth-sri/lmql/blob/main/src/lmql/ops/ops.py#L917).
+
+LMQL Seems to take twice as long as transformers to generate the output.
+
+Is this fast enough? Any alternatives? Guidance? Langchain with YAML (Idk how much that fucks up the prompt though)?

@@ -1,0 +1,35 @@
+Task Description:
+
+Extract and summarize key competencies from scientific paper abstracts, aiming for a general overview suitable across disciplines. Begin with a concise profile summary that captures the main area of expertise in about ten words, abstract enough to apply broadly within a scientific context. Then, list three to eight specific competencies with brief descriptions based on the abstract.
+
+Example 1:
+
+Abstract: "Through the application of deep learning techniques to satellite imagery, this research uncovers new patterns in urban development, contributing to more sustainable city planning."
+
+Profile Summary: "Expert in applying AI for sustainable urban development."
+
+Competencies:
+- AI in Urban Planning: Utilizes deep learning to analyze satellite images for city planning.
+- Sustainable Development: Innovates in sustainable urban development strategies.
+- Pattern Recognition: Identifies key urban development patterns using AI.
+- Data Analysis: Expert in analyzing large-scale geographical data.
+
+Example 2:
+
+Abstract: "Examining social media's impact on political discourse, this study employs natural language processing (NLP) to analyze sentiment and influence in online discussions, shedding light on digital communication's role in shaping public opinion."
+
+Profile Summary: "Specialist in digital communication and political discourse analysis."
+
+Competencies:
+- NLP and Sentiment Analysis: Applies NLP to understand social media influence.
+- Digital Communication: Studies the impact of online platforms on communication.
+- Public Opinion Research: Analyzes how digital discourse shapes political opinions.
+- Data-Driven Insights: Generates insights into political discussions using data analysis.
+
+Your Task:
+
+Abstract: [Insert the abstract of the scientific paper here.]
+
+Profile Summary: [Provide a general statement summarizing the main area of expertise derived from the abstract, in about ten words, suitable for a broad scientific context.]
+
+Competencies: [List three to eight competencies extracted from the abstract, each with a brief description.]
