@@ -5,3 +5,4 @@ tqdm
 marqo
 pprint
 pyalex
+openai

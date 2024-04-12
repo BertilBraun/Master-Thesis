@@ -2,38 +2,65 @@ import os
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
-from transformers import AutoTokenizer, AutoModelForCausalLM, StoppingCriteria, StoppingCriteriaList
+import openai
+
+from transformers import TextGenerationPipeline, pipeline
+
+from src.log import log, LogLevel
+from src.util import timeit
 
 
-class KeywordsStoppingCriteria(StoppingCriteria):
-    # Stop generation when the last token is in the keywords list
-
-    def __init__(self, keywords_ids: list[int]):
-        self.keywords = keywords_ids
-
-    def __call__(self, input_ids, scores, **kwargs) -> bool:
-        if input_ids[0][-1] in self.keywords:
-            return True
-        return False
+generators: dict[str, TextGenerationPipeline] = {}
 
 
-class Model:
-    def __init__(self, model: str):
-        self.model_name = model
-        self.tokenizer = AutoTokenizer.from_pretrained(model)
-        self.model = AutoModelForCausalLM.from_pretrained(model, pad_token_id=self.tokenizer.eos_token_id).eval()
+@timeit('Querying transformers')
+def query_transformers(
+    prompt: str,
+    model: str,
+    max_new_tokens: int = 250,
+    num_return_sequences: int = 1,
+    stop_sequence: str = '\n\n',
+) -> str:
+    if model not in generators:
+        generators[model] = pipeline('text-generation', model=model)  # type: ignore
 
-    def generate(self, prompt: str, max_new_tokens: int, num_return_sequences: int, stop_sequence: str) -> str:
-        keywords = self.tokenizer.encode(stop_sequence)
-        stopping_criteria = KeywordsStoppingCriteria(keywords)
+    # Generate the response
+    response = generators[model](
+        prompt,
+        max_new_tokens=max_new_tokens,
+        num_return_sequences=num_return_sequences,
+        # stop_sequence=stop_sequence, # Seems to cut off the response early
+    )
 
-        inputs = self.tokenizer(prompt, return_tensors='pt', add_special_tokens=False)
+    generated_text: str = response[0]['generated_text']  # type: ignore
 
-        output = self.model.generate(
-            inputs,
-            max_length=len(inputs['input_ids'][0]) + max_new_tokens,  # type: ignore
-            num_return_sequences=num_return_sequences,
-            stopping_criteria=StoppingCriteriaList([stopping_criteria]),
+    log('Query Transformer generated Text:', generated_text, level=LogLevel.DEBUG)
+
+    generated_text = generated_text.replace(prompt, '')  # Remove the prompt from the generated text
+
+    return generated_text
+
+
+@timeit('Querying OpenAI')
+def query_openai(
+    prompt: str,
+    model: str = 'GPT4',
+    max_new_tokens: int = 250,
+    num_return_sequences: int = 1,
+    stop_sequence: str = '\n\n',
+) -> str:
+    generated_text = (
+        openai.completions.create(
+            model=model,
+            prompt=prompt,
+            max_tokens=max_new_tokens,
+            n=num_return_sequences,
+            stop=stop_sequence,
         )
+        .choices[0]
+        .text
+    )
 
-        return self.tokenizer.decode(*output)
+    log('Query OpenAI generated Text:', generated_text, level=LogLevel.DEBUG)
+
+    return generated_text

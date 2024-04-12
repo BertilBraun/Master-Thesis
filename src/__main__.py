@@ -1,10 +1,5 @@
-import os
 from pprint import pprint
-
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
-from transformers import pipeline, TextGenerationPipeline
-
+from src.gpt import query_openai, query_transformers
 from src.db import DB
 from src.util import timeit
 from src.log import log, LogLevel
@@ -13,11 +8,8 @@ from src.types import Profile, Example, Query
 
 MODEL = 'TinyLlama/TinyLlama-1.1B-Chat-v1.0'
 
-generator: TextGenerationPipeline = pipeline('text-generation', model=MODEL)  # type: ignore
 
-
-@timeit('Extracting competencies')
-def extract(query: Query, examples: list[Example]) -> Profile:
+def generate_prompt(query: Query, examples: list[Example]) -> str:
     # Define the prompt
     prompt = f"""Task Description:
 
@@ -28,11 +20,13 @@ The following is now your task. Please generate a profile summary and competenci
 Abstract: "{query.abstract}"
 
 """
-    if examples:
-        # If there are examples, add them to the start of the prompt
-        examples_str = '\n\n'.join(f'Example {i + 1}:\n\n{e}' for i, e in enumerate(examples))
+    if not examples:
+        return prompt
 
-        prompt = f"""Examples:
+    # If there are examples, add them to the start of the prompt
+    examples_str = '\n\n'.join(f'Example {i + 1}:\n\n{e}' for i, e in enumerate(examples))
+
+    return f"""Examples:
 
 ---
 {examples_str}
@@ -40,29 +34,29 @@ Abstract: "{query.abstract}"
 
 {prompt}"""
 
-    # Generate the response
-    response = generator(
-        prompt,
-        max_new_tokens=250,
-        num_return_sequences=1,
-        # stop_sequence='\n\n', # Seems to cut off the response early
-    )
 
-    generated_text: str = response[0]['generated_text']  # type: ignore
-
-    log(generated_text, level=LogLevel.DEBUG)
-
-    generated_text = generated_text.replace(prompt, '')  # Remove the prompt from the generated text
-
+def process_generated_text(generated_text: str, query: Query, is_reference: bool = False) -> Profile:
+    # Parse the generated text into a Profile object
     profile = Profile.parse(generated_text)
+
+    log('Profile:', profile, level=LogLevel.DEBUG)
 
     DB.add(
         Example(abstract=query.abstract, profile=profile),
         query.author,
-        is_reference=False,
+        is_reference=is_reference,
     )
 
     return profile
+
+
+@timeit('Extracting competencies')
+def extract(query: Query, examples: list[Example]) -> Profile:
+    prompt = generate_prompt(query, examples)
+
+    generated_text = query_transformers(prompt, model=MODEL)
+
+    return process_generated_text(generated_text, query)
 
 
 def extract_with_good_examples(query: Query, number_of_examples: int = 2) -> Profile:
@@ -75,6 +69,17 @@ def extract_with_bad_examples(query: Query, number_of_examples: int = 2) -> Prof
     examples = DB.search_negative(query.abstract, limit=number_of_examples)
 
     return extract(query, examples)
+
+
+@timeit('Extracting competencies as reference')
+def extract_as_reference(query: Query) -> None:
+    examples = DB.search(query.abstract, limit=2)
+
+    prompt = generate_prompt(query, examples)
+
+    generated_text = query_openai(prompt)
+
+    process_generated_text(generated_text, query, is_reference=True)
 
 
 def add_as_reference(abstract: str, profile: Profile, author: str) -> None:
