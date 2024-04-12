@@ -40,3 +40,13 @@ Reference to all the available LMQL operations can be found [here](https://githu
 LMQL Seems to take twice as long as transformers to generate the output.
 
 Is this fast enough? Any alternatives? Guidance? Langchain with YAML (Idk how much that fucks up the prompt though)?
+
+## Vector Database (Marqo)
+
+Follow: [Marqo Docs](https://github.com/marqo-ai/marqo)
+
+```bash
+docker rm -f marqo
+docker pull marqoai/marqo:latest
+docker run --name marqo -p 8882:8882 marqoai/marqo:latest
+```

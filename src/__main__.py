@@ -1,88 +1,13 @@
-from enum import Enum
 import os
-import re
-import time
-from dataclasses import dataclass
 
 os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 from transformers import pipeline, TextGenerationPipeline
 
-
-def datetime_str() -> str:
-    return time.strftime('%Y-%m-%d %H %M %S')
-
-
-def time_str() -> str:
-    return time.strftime('%H:%M:%S')
-
-
-class LogLevel(Enum):
-    DEBUG = 10
-    INFO = 20
-    WARNING = 30
-    ERROR = 40
-    CRITICAL = 50
-
-
-LOG_FILE = f'logs/log {datetime_str()}.txt'
-LOG_LEVEL = LogLevel.INFO
-os.makedirs('logs', exist_ok=True)
-log_file = open(LOG_FILE, 'w')
-
-
-def log(*args, level: LogLevel = LogLevel.INFO, **kwargs) -> None:
-    timestamp = f'[{time_str()}]'
-    print(timestamp, *args, **kwargs, file=log_file)
-    if level.value >= LOG_LEVEL.value:
-        print(timestamp, *args, **kwargs)
-
-
-def timeit(message: str, level: LogLevel = LogLevel.INFO):
-    def decorator(func):
-        def wrapper(*args, **kwargs):
-            start = time.time()
-            res = func(*args, **kwargs)
-            log(f'{message}: {time.time() - start} seconds', level=level)
-            return res
-
-        return wrapper
-
-    return decorator
-
-
-@dataclass
-class Competency:
-    name: str
-    description: str
-
-    def __str__(self) -> str:
-        return f'{self.name}: {self.description}'
-
-
-@dataclass
-class Profile:
-    profile_summary: str
-    competencies: list[Competency]
-
-
-@dataclass
-class Example:
-    abstract: str
-    profile: Profile
-
-    def __str__(self) -> str:
-        competencies = '\n'.join(f'- {c}' for c in self.profile.competencies)
-        return f"""
-Abstract:
-{self.abstract}
-
-Profile Summary: "{self.profile.profile_summary}"
-
-Competencies:
-{competencies}
-"""
-
+from src.db import DB
+from src.util import timeit
+from src.logging import log, LogLevel
+from src.types import Profile, Competency, Example, Query
 
 EXAMPLES = [
     Example(
@@ -135,43 +60,9 @@ MODEL = 'TinyLlama/TinyLlama-1.1B-Chat-v1.0'
 generator: TextGenerationPipeline = pipeline('text-generation', model=MODEL)  # type: ignore
 
 
-def parse_profile_summary(text: str) -> str:
-    # Return the text between the first occurrence of 'Profile Summary: "' and the next '"'
-    assert 'Profile Summary: "' in text, 'Profile Summary not found in text'
-    return text.split('Profile Summary: "')[1].split('"')[0]
-
-
-def parse_competencies(text: str) -> list[Competency]:
-    # Returns the list of competencies after the first occurrence of 'Competencies:\n' while the competencies are not empty and the line matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
-    assert 'Competencies:\n' in text, 'Competencies not found in text'
-
-    pattern = re.compile(r'- (.+?): (.+)')
-
-    text = text.split('Competencies:\n')[1]
-
-    competencies: list[Competency] = []
-    for line in text.split('\n'):
-        match = pattern.match(line)
-        if match:
-            name, description = match.groups()
-            competencies.append(Competency(name=name, description=description))
-        elif competencies:
-            # If the line doesn't match the pattern and we have already found competencies, we break
-            break
-
-    return competencies
-
-
-def parse_profile(text: str) -> Profile:
-    return Profile(
-        profile_summary=parse_profile_summary(text),
-        competencies=parse_competencies(text),
-    )
-
-
 @timeit('Extracting competencies')
-def extract(abstract: str, examples: list[Example]) -> Profile:
-    examples_str = '\n\n\n'.join(f'Example {i + 1}:\n{e}' for i, e in enumerate(examples))
+def extract(query: Query, examples: list[Example]) -> Profile:
+    examples_str = '\n\n\n'.join(f'Example {i + 1}:\n\n{e}' for i, e in enumerate(examples))
 
     # Define the prompt
     prompt = f"""Examples:
@@ -186,7 +77,7 @@ Extract and summarize key competencies from scientific paper abstracts, aiming f
 
 The following is now your task. Please generate a profile summary and competencies based on the following abstract. Do not generate anything except the profile summary and competencies based on the abstract.
 
-Abstract: "{abstract}"
+Abstract: "{query.abstract}"
 
 """
 
@@ -199,12 +90,49 @@ Abstract: "{abstract}"
 
     generated_text = generated_text.replace(prompt, '')  # Remove the prompt from the generated text
 
-    return parse_profile(generated_text)
+    profile = Profile.parse(generated_text)
+
+    DB.add(
+        Example(abstract=query.abstract, profile=profile),
+        query.author,
+        is_reference=False,
+    )
+
+    return profile
 
 
-res = extract(
-    'Investigating the efficacy of machine learning algorithms in predicting stock market trends, this paper presents a model that outperforms traditional analytical methods.',
-    EXAMPLES,
-)
+def extract_with_good_examples(query: Query) -> Profile:
+    examples = DB.search(query.abstract, limit=2)
 
-log(res)
+    return extract(query, examples)
+
+
+def extract_with_bad_examples(query: Query) -> Profile:
+    examples = DB.search_negative(query.abstract, limit=2)
+
+    return extract(query, examples)
+
+
+def add_as_reference(abstract: str, profile: Profile, author: str) -> None:
+    DB.add(
+        Example(abstract=abstract, profile=profile),
+        author,
+        rating=100,
+        is_reference=True,
+    )
+
+
+if __name__ == '__main__':
+    import sys
+
+    if len(sys.argv) <= 2:
+        sys.exit('Usage: python -m src <command> <query>')
+
+    if sys.argv[1] == 'db':
+        print(DB.search(sys.argv[2]))
+
+    if sys.argv[1] == 'good':
+        print(extract_with_good_examples(Query(abstract=sys.argv[2], author='user')))
+
+    if sys.argv[1] == 'bad':
+        print(extract_with_bad_examples(Query(abstract=sys.argv[2], author='user')))
