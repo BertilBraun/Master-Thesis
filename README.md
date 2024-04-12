@@ -50,3 +50,7 @@ docker rm -f marqo
 docker pull marqoai/marqo:latest
 docker run --name marqo -p 8882:8882 marqoai/marqo:latest
 ```
+
+## Papers by Author
+
+Uses OpenAlex / pyalex to fetch from a gigantic free database of publications. One can fetch the top n papers by a authors name using `def get_papers_by_author(name: str) -> list[Query]:`.

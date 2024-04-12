@@ -1,9 +1,17 @@
+from dataclasses import dataclass
 from pyalex import Works, Authors
 
 from src.types import Query
 from src.util import timeit
 
 KIT_INSTITUTION_ID = 'i102335020'
+
+
+@dataclass
+class Author:
+    name: str
+    id: str
+    count: int
 
 
 @timeit('Get Author Id by Name')
@@ -33,7 +41,7 @@ def get_papers_by_author(name: str) -> list[Query]:
     ]
 
 
-def get_authors_of_kit(count: int = 100):
+def get_authors_of_kit(count: int = 100) -> list[Author]:
     authors = (
         Works()
         .filter(authorships={'institutions': {'lineage': KIT_INSTITUTION_ID}})
@@ -42,11 +50,11 @@ def get_authors_of_kit(count: int = 100):
     )
 
     return [
-        {
-            'name': author['key_display_name'],  # type: ignore
-            'id': author['key'],  # type: ignore
-            'count': author['count'],  # type: ignore
-        }
+        Author(
+            name=author['key_display_name'],  # type: ignore
+            id=author['key'],  # type: ignore
+            count=author['count'],  # type: ignore
+        )
         for author in authors
     ]
 
