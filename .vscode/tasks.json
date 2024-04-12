@@ -1,0 +1,42 @@
+{
+    // See https://go.microsoft.com/fwlink/?LinkId=733558
+    // for the documentation about the tasks.json format
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Start Marqo",
+            "type": "shell",
+            "command": "docker run --name marqo -p 8882:8882 marqoai/marqo:latest"
+        },
+        {
+            "label": "Start Main",
+            "type": "shell",
+            "command": "python -m src"
+        },
+        {
+            "label": "Query DB",
+            "type": "shell",
+            "command": "python -m src db \"${input:query}\"",
+            "problemMatcher": []
+        },
+        {
+            "label": "Query Good",
+            "type": "shell",
+            "command": "python -m src good \"${input:query}\"",
+            "problemMatcher": []
+        },
+        {
+            "label": "Query Bad",
+            "type": "shell",
+            "command": "python -m src bad \"${input:query}\"",
+            "problemMatcher": []
+        }
+    ],
+    "inputs": [
+        {
+            "id": "query",
+            "type": "promptString",
+            "description": "Enter the query to run"
+        }
+    ]
+}

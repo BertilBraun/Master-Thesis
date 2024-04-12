@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import re
 
-__COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
+_COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 
 
 @dataclass
@@ -17,7 +17,7 @@ class Competency:
     def parse(text: str) -> Competency | None:
         # Return a Competency object if the text matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
 
-        match = __COMPETENCY_PATTERN.match(text)
+        match = _COMPETENCY_PATTERN.match(text)
         if match:
             name, description = match.groups()
             return Competency(name=name, description=description)
@@ -40,13 +40,13 @@ Competencies:
     @staticmethod
     def _parse_profile_summary(text: str) -> str:
         # Return the text between the first occurrence of 'Profile Summary: "' and the next '"'
-        assert 'Profile Summary: "' in text, 'Profile Summary not found in text'
+        assert 'Profile Summary: "' in text, f'Profile Summary not found in text: {text}'
         return text.split('Profile Summary: "')[1].split('"')[0]
 
     @staticmethod
     def _parse_competencies(text: str) -> list[Competency]:
         # Returns the list of competencies after the first occurrence of 'Competencies:\n' while the competencies are not empty and the line matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
-        assert 'Competencies:\n' in text, 'Competencies not found in text'
+        assert 'Competencies:\n' in text, f'Competencies not found in text: {text}'
 
         text = text.split('Competencies:\n')[1]
 
@@ -83,9 +83,9 @@ class Example:
 
     @staticmethod
     def _parse_abstract(text: str) -> str:
-        # Return the text between the first occurrence of 'Abstract: "' and the next '"'
-        assert 'Abstract: "' in text, 'Abstract not found in text'
-        return text.split('Abstract: "')[1].split('"')[0]
+        # Return the text between the first occurrence of 'Abstract:' and the next '\n\n'
+        assert 'Abstract:' in text, f'Abstract not found in text: {text}'
+        return text.split('Abstract:')[1].split('\n\n')[0]
 
     @staticmethod
     def parse(text: str) -> Example:

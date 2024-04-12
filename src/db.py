@@ -6,7 +6,21 @@ from src.util import timeit
 
 mq = marqo.Client(url='http://localhost:8882')
 
-mq.create_index('index')
+INDEX_NAME = 'index'
+
+
+def does_index_exist(index_name: str) -> bool:
+    results = mq.get_indexes()['results']
+    return any(index['indexName'] == index_name for index in results)
+
+
+def create_index(index_name: str) -> None:
+    print('Creating index')
+    mq.create_index(index_name)
+
+
+if not does_index_exist(INDEX_NAME):
+    create_index(INDEX_NAME)
 
 
 def _append_to_log(msg: str) -> None:
@@ -24,7 +38,7 @@ class DB:
         rating: int | None = None,
         is_reference: bool = False,
     ) -> None:
-        mq.index('index').add_documents(
+        mq.index(INDEX_NAME).add_documents(
             [
                 {
                     'text': str(example),
@@ -49,12 +63,12 @@ Reference: {is_reference}
     @timeit('DB.search')
     def search(query: str | dict[str, float], limit: int = 10):
         # Return the top `limit` results which match the query as best as possible
-        results = mq.index('index').search(
+        results = mq.index(INDEX_NAME).search(
             q=query,
             limit=limit,
             show_highlights=False,
-            filter_string='reference:false',  # 'reference:false AND rating:[60 TO 100]',
-            searchable_attributes=['text'],
+            filter_string='reference:true',  # 'reference:false AND rating:[60 TO 100]',
+            # searchable_attributes=['text'],
         )
 
         return [Example.parse(result['text']) for result in results['hits']]
@@ -68,13 +82,13 @@ Reference: {is_reference}
     @timeit('DB.update')
     def update(example: Example, rating: int, is_reference: bool) -> None:
         # Update the rating and reference status of the example
-        hit = mq.index('index').search(
+        hit = mq.index(INDEX_NAME).search(
             str(example),
             limit=1,
             search_method=marqo.SearchMethods.LEXICAL,
         )['hits'][0]
 
-        mq.index('index').update_documents(
+        mq.index(INDEX_NAME).update_documents(
             [
                 {
                     '_id': hit['id'],
@@ -91,3 +105,11 @@ Rating: {rating}
 Reference: {is_reference}
 """
         )
+
+    @staticmethod
+    def clear():
+        # Clear the database
+        mq.index(INDEX_NAME).delete()
+        create_index(INDEX_NAME)
+
+        _append_to_log('Cleared DB\n')
