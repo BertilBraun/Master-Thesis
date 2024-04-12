@@ -22,13 +22,13 @@
         {
             "label": "Query Good",
             "type": "shell",
-            "command": "python -m src good \"${input:query}\"",
+            "command": "python -m src good \"${input:abstract}\"",
             "problemMatcher": []
         },
         {
             "label": "Query Bad",
             "type": "shell",
-            "command": "python -m src bad \"${input:query}\"",
+            "command": "python -m src bad \"${input:abstract}\"",
             "problemMatcher": []
         }
     ],
@@ -37,6 +37,12 @@
             "id": "query",
             "type": "promptString",
             "description": "Enter the query to run"
+        },
+        {
+            "id": "abstract",
+            "type": "promptString",
+            "description": "Enter the abstract to run",
+            "default": "Online job ads serve as a valuable source of information for skill requirements, playing a crucial role in labor market analysis and e-recruitment processes. Since such ads are typically formatted in free text, natural language processing (NLP) technologies are required to automatically process them. We specifically focus on the task of detecting skills (mentioned literally, or implicitly described) and linking them to a large skill ontology, making it a challenging case of extreme multi-label classification (XMLC). Given that there is no sizable labeled (training) dataset are available for this specific XMLC task, we propose techniques to leverage general Large Language Models (LLMs). We describe a cost-effective approach to generate an accurate, fully synthetic labeled dataset for skill extraction, and present a contrastive learning strategy that proves effective in the task. Our results across three skill extraction benchmarks show a consistent increase of between 15 to 25 percentage points in R-Precision@5 compared to previously published results that relied solely on distant supervision through literal matches."
         }
     ]
 }

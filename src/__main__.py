@@ -7,53 +7,8 @@ from transformers import pipeline, TextGenerationPipeline
 
 from src.db import DB
 from src.util import timeit
-from src.logging import log, LogLevel
-from src.types import Profile, Competency, Example, Query
-
-EXAMPLES = [
-    Example(
-        abstract='Through the application of deep learning techniques to satellite imagery, this research uncovers new patterns in urban development, contributing to more sustainable city planning.',
-        profile=Profile(
-            profile_summary='Expert in applying AI for sustainable urban development.',
-            competencies=[
-                Competency(
-                    name='AI in Urban Planning',
-                    description='Utilizes deep learning to analyze satellite images for city planning.',
-                ),
-                Competency(
-                    name='Sustainable Development', description='Innovates in sustainable urban development strategies.'
-                ),
-                Competency(
-                    name='Pattern Recognition', description='Identifies key urban development patterns using AI.'
-                ),
-                Competency(name='Data Analysis', description='Expert in analyzing large-scale geographical data.'),
-            ],
-        ),
-    ),
-    Example(
-        abstract="Examining social media's impact on political discourse, this study employs natural language processing (NLP) to analyze sentiment and influence in online discussions, shedding light on digital communication's role in shaping public opinion.",
-        profile=Profile(
-            profile_summary='Specialist in digital communication and political discourse analysis.',
-            competencies=[
-                Competency(
-                    name='NLP and Sentiment Analysis',
-                    description='Applies NLP to understand social media influence.',
-                ),
-                Competency(
-                    name='Digital Communication', description='Studies the impact of online platforms on communication.'
-                ),
-                Competency(
-                    name='Public Opinion Research',
-                    description='Analyzes how digital discourse shapes political opinions.',
-                ),
-                Competency(
-                    name='Data-Driven Insights',
-                    description='Generates insights into political discussions using data analysis.',
-                ),
-            ],
-        ),
-    ),
-]
+from src.log import log, LogLevel
+from src.types import Profile, Example, Query
 
 
 MODEL = 'TinyLlama/TinyLlama-1.1B-Chat-v1.0'
@@ -63,16 +18,8 @@ generator: TextGenerationPipeline = pipeline('text-generation', model=MODEL)  # 
 
 @timeit('Extracting competencies')
 def extract(query: Query, examples: list[Example]) -> Profile:
-    examples_str = '\n\n\n'.join(f'Example {i + 1}:\n\n{e}' for i, e in enumerate(examples))
-
     # Define the prompt
-    prompt = f"""Examples:
-
----
-{examples_str}
----
-
-Task Description:
+    prompt = f"""Task Description:
 
 Extract and summarize key competencies from scientific paper abstracts, aiming for a general overview suitable across disciplines. Begin with a concise profile summary that captures the main area of expertise in about ten words, abstract enough to apply broadly within a scientific context. Then, list three to eight specific competencies with brief descriptions based on the abstract.
 
@@ -81,10 +28,25 @@ The following is now your task. Please generate a profile summary and competenci
 Abstract: "{query.abstract}"
 
 """
+    if examples:
+        # If there are examples, add them to the start of the prompt
+        examples_str = '\n\n'.join(f'Example {i + 1}:\n\n{e}' for i, e in enumerate(examples))
+
+        prompt = f"""Examples:
+
+---
+{examples_str}
+---
+
+{prompt}"""
 
     # Generate the response
-    # TODO some stop at criteria '\n\n\n' or something
-    response = generator(prompt, max_new_tokens=200, num_return_sequences=1)
+    response = generator(
+        prompt,
+        max_new_tokens=250,
+        num_return_sequences=1,
+        # stop_sequence='\n\n', # Seems to cut off the response early
+    )
 
     generated_text: str = response[0]['generated_text']  # type: ignore
 
@@ -103,14 +65,14 @@ Abstract: "{query.abstract}"
     return profile
 
 
-def extract_with_good_examples(query: Query) -> Profile:
-    examples = DB.search(query.abstract, limit=2)
+def extract_with_good_examples(query: Query, number_of_examples: int = 2) -> Profile:
+    examples = DB.search(query.abstract, limit=number_of_examples)
 
     return extract(query, examples)
 
 
-def extract_with_bad_examples(query: Query) -> Profile:
-    examples = DB.search_negative(query.abstract, limit=2)
+def extract_with_bad_examples(query: Query, number_of_examples: int = 2) -> Profile:
+    examples = DB.search_negative(query.abstract, limit=number_of_examples)
 
     return extract(query, examples)
 
@@ -176,7 +138,6 @@ if __name__ == '__main__':
         pprint(DB.search(sys.argv[2]))
 
     if sys.argv[1] == 'good':
-        print('Extracting with good examples for:', sys.argv[2])
         pprint(extract_with_good_examples(Query(abstract=sys.argv[2], author='user')))
 
     if sys.argv[1] == 'bad':

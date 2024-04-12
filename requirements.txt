@@ -4,3 +4,4 @@ numpy
 tqdm
 marqo
 pprint
+pyalex

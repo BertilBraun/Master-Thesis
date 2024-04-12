@@ -1,4 +1,4 @@
-from src.logging import LogLevel, log
+from src.log import LogLevel, log
 import time
 
 
