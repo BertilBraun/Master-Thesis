@@ -1,4 +1,7 @@
 from pprint import pprint
+
+from tqdm import tqdm
+from src.papers import get_authors_of_kit, get_papers_by_author
 from src.gpt import query_openai, query_transformers
 from src.db import DB
 from src.util import timeit
@@ -131,10 +134,18 @@ Competencies:
     )
 
 
+def add_references():
+    authors = get_authors_of_kit(10)
+
+    for author in authors:
+        print(f'Adding reference of {author.name}.')
+        for paper in tqdm(get_papers_by_author(author.name), desc=author.name):
+            extract_as_reference(paper)
+        print('Reference added.')
+
+
 if __name__ == '__main__':
     import sys
-
-    # add_initial_references()
 
     if len(sys.argv) <= 2:
         sys.exit('Usage: python -m src <command> <query>')
@@ -147,3 +158,7 @@ if __name__ == '__main__':
 
     if sys.argv[1] == 'bad':
         pprint(extract_with_bad_examples(Query(abstract=sys.argv[2], author='user')))
+
+    if sys.argv[1] == 'ref':
+        # add_initial_references()
+        add_references()
