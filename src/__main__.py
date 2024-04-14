@@ -1,6 +1,7 @@
-from pprint import pprint
-
 from tqdm import tqdm
+from pprint import pprint
+from typing import Callable
+
 from src.papers import get_authors_of_kit, get_papers_by_author
 from src.gpt import query_openai, query_transformers
 from src.db import DB
@@ -20,7 +21,7 @@ Extract and summarize key competencies from scientific paper abstracts, aiming f
 
 The following is now your task. Please generate a profile summary and competencies based on the following abstract. Do not generate anything except the profile summary and competencies based on the abstract.
 
-Abstract: "{query.abstract}"
+Abstract: "{query.abstracts}"
 
 """
     if not examples:
@@ -45,7 +46,7 @@ def process_generated_text(generated_text: str, query: Query, is_reference: bool
     log('Profile:', profile, level=LogLevel.DEBUG)
 
     DB.add(
-        Example(abstract=query.abstract, profile=profile),
+        Example(abstract=query.abstracts, profile=profile),
         query.author,
         is_reference=is_reference,
     )
@@ -55,6 +56,7 @@ def process_generated_text(generated_text: str, query: Query, is_reference: bool
 
 @timeit('Extracting competencies')
 def extract(query: Query, examples: list[Example]) -> Profile:
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the abstract
     prompt = generate_prompt(query, examples)
 
     generated_text = query_transformers(prompt, model=MODEL)
@@ -63,20 +65,23 @@ def extract(query: Query, examples: list[Example]) -> Profile:
 
 
 def extract_with_good_examples(query: Query, number_of_examples: int = 2) -> Profile:
-    examples = DB.search(query.abstract, limit=number_of_examples)
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the abstract
+    examples = DB.search(query.abstracts, limit=number_of_examples)
 
     return extract(query, examples)
 
 
 def extract_with_bad_examples(query: Query, number_of_examples: int = 2) -> Profile:
-    examples = DB.search_negative(query.abstract, limit=number_of_examples)
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the abstract
+    examples = DB.search_negative(query.abstracts, limit=number_of_examples)
 
     return extract(query, examples)
 
 
 @timeit('Extracting competencies as reference')
 def extract_as_reference(query: Query) -> None:
-    examples = DB.search(query.abstract, limit=2)
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the abstract
+    examples = DB.search(query.abstracts, limit=2)
 
     prompt = generate_prompt(query, examples)
 
@@ -144,6 +149,31 @@ def add_references():
         print('Reference added.')
 
 
+def combine_profiles(profiles: list[Profile]) -> Profile:
+    # TODO Combine multiple profiles into one using a LLM
+    return profiles[0]
+
+
+def process_author(
+    name: str,
+    number_of_papers: int,
+    extract_func: Callable[[Query], Profile],
+    combine_func: Callable[[list[Profile]], Profile],
+) -> Profile:
+    papers = get_papers_by_author(name, number_of_papers=number_of_papers)
+
+    profiles: list[Profile] = []
+
+    for paper in tqdm(papers, desc='Extracting from Abstract'):
+        try:
+            profile = extract_func(paper)
+            profiles.append(profile)
+        except AssertionError as e:
+            print(f'Failed to extract Profile for: "{paper}" with error: {e}')
+
+    return combine_func(profiles)
+
+
 if __name__ == '__main__':
     import sys
 
@@ -154,11 +184,21 @@ if __name__ == '__main__':
         pprint(DB.search(sys.argv[2]))
 
     if sys.argv[1] == 'good':
-        pprint(extract_with_good_examples(Query(abstract=sys.argv[2], author='user')))
+        pprint(extract_with_good_examples(Query(abstracts=sys.argv[2], author='user')))
 
     if sys.argv[1] == 'bad':
-        pprint(extract_with_bad_examples(Query(abstract=sys.argv[2], author='user')))
+        pprint(extract_with_bad_examples(Query(abstracts=sys.argv[2], author='user')))
 
     if sys.argv[1] == 'ref':
         # add_initial_references()
         add_references()
+
+    if sys.argv[1] == 'author':
+        pprint(
+            process_author(
+                sys.argv[2],
+                number_of_papers=5,
+                extract_func=extract_with_good_examples,
+                combine_func=combine_profiles,
+            )
+        )

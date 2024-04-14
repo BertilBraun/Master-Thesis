@@ -63,6 +63,7 @@ Competencies:
 
     @staticmethod
     def parse(text: str) -> Profile:
+        # NOTE: Throws AssertionError if the text does not contain a valid profile summary and competencies
         return Profile(
             profile_summary=Profile._parse_profile_summary(text),
             competencies=Profile._parse_competencies(text),
@@ -89,6 +90,7 @@ class Example:
 
     @staticmethod
     def parse(text: str) -> Example:
+        # NOTE: Throws AssertionError if the text does not contain a valid abstract and profile
         return Example(
             abstract=Example._parse_abstract(text),
             profile=Profile.parse(text),
@@ -97,5 +99,7 @@ class Example:
 
 @dataclass
 class Query:
-    abstract: str
+    full_texts: list[str]
+    abstracts: list[str]
+    titles: list[str]
     author: str

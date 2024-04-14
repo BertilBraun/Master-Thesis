@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from functools import cache
 from pyalex import Works, Authors
 
 from src.types import Query
@@ -15,32 +16,45 @@ class Author:
 
 
 @timeit('Get Author Id by Name')
+@cache
 def get_author_id_by_name(name: str) -> str:
     # Get the OpenAlex author ID by the author's display name
-    return Authors().search_filter(display_name=name).get()[0]['id']  # type: ignore
+    return (
+        Authors()
+        .filter(affiliations={'institution': {'lineage': KIT_INSTITUTION_ID}})
+        .search_filter(display_name=name)
+        .get()[0]['id']
+    )  # type: ignore
+
+
+def load_paper_full_text(paper_id: str) -> str:
+    # TODO strip references and appendix
+    return Works().get(paper_id)['full_text']  # type: ignore
 
 
 @timeit('Get Papers by Author')
-def get_papers_by_author(name: str) -> list[Query]:
-    # Get the top 5 most cited papers by the author with the given name
+@cache
+def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
+    # Get the top number_of_papers most cited papers by the author with the given name
 
     papers = (
         Works()
         .filter(author={'id': get_author_id_by_name(name)})
         .filter(has_abstract=True)
         .sort(cited_by_count='desc')
-        .get(per_page=5)
+        .get(per_page=number_of_papers)
     )
 
-    return [
-        Query(
-            abstract=paper['abstract'],  # type: ignore
-            author=name,
-        )
-        for paper in papers
-    ]
+    return Query(
+        abstracts=[paper['abstract'] for paper in papers],  # type: ignore
+        full_texts=[paper['full_text'] for paper in papers],  # TODO strip references and appendix  # type: ignore
+        titles=[paper['title'] for paper in papers],  # type: ignore
+        author=name,
+    )
 
 
+@timeit('Get Authors of KIT')
+@cache
 def get_authors_of_kit(count: int = 100) -> list[Author]:
     authors = (
         Works()

@@ -7,7 +7,7 @@ def timeit(message: str, level: LogLevel = LogLevel.INFO):
         def wrapper(*args, **kwargs):
             start = time.time()
             res = func(*args, **kwargs)
-            log(f'{message}: {time.time() - start} seconds', level=level)
+            log(f'{func.__name__} - {message}: {time.time() - start} seconds', level=level)
             return res
 
         return wrapper

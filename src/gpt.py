@@ -19,7 +19,7 @@ def query_transformers(
     model: str,
     max_new_tokens: int = 250,
     num_return_sequences: int = 1,
-    stop_sequence: str = '\n\n',
+    stop_sequence: str | None = None,
 ) -> str:
     if model not in generators:
         generators[model] = pipeline('text-generation', model=model)  # type: ignore
@@ -29,7 +29,7 @@ def query_transformers(
         prompt,
         max_new_tokens=max_new_tokens,
         num_return_sequences=num_return_sequences,
-        # stop_sequence=stop_sequence, # Seems to cut off the response early
+        stop_sequence=stop_sequence,  # WARNING: Seems to cut off the response early
     )
 
     generated_text: str = response[0]['generated_text']  # type: ignore
@@ -44,10 +44,10 @@ def query_transformers(
 @timeit('Querying OpenAI')
 def query_openai(
     prompt: str,
-    model: str = 'GPT4',
+    model: str = 'gpt-4-turbo',
     max_new_tokens: int = 250,
     num_return_sequences: int = 1,
-    stop_sequence: str = '\n\n',
+    stop_sequence: str | None = None,
 ) -> str:
     generated_text = (
         openai.completions.create(
