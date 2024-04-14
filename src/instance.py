@@ -22,14 +22,14 @@ class LLMExecution(Protocol):
         ...
 
 
-@dataclass
+@dataclass(frozen=True)
 class ExtractionResult:
     profile: Profile
     titles: list[str]
     author: str
 
 
-@dataclass
+@dataclass(frozen=True)
 class Instance:
     # - Different Models (Types and Sizes)
     # - Abstract vs Automatic Summary vs Full Text
@@ -153,9 +153,9 @@ def extract_from_full_texts(
     return Profile.parse(llm_execution(prompt))
 
 
-# TODO function which runs all the instances for a given author
+# --- TODO function which runs all the instances for a given author
 # TODO prompts (test out '---' as a stop token)
 # TODO batched
-# TODO proper full text paper loading
+# --- TODO proper full text paper loading
 # TODO add the interface to compare the different approaches
 # TODO add the automatic comparison of the results based on an LLM

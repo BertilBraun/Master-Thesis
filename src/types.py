@@ -5,7 +5,7 @@ import re
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 
 
-@dataclass
+@dataclass(frozen=True)
 class Competency:
     name: str
     description: str
@@ -24,7 +24,7 @@ class Competency:
         return None
 
 
-@dataclass
+@dataclass(frozen=True)
 class Profile:
     profile_summary: str
     competencies: list[Competency]
@@ -70,7 +70,7 @@ Competencies:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Example:
     abstract: str
     profile: Profile
@@ -97,7 +97,7 @@ class Example:
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class Query:
     full_texts: list[str]
     abstracts: list[str]

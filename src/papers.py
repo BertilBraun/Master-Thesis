@@ -1,14 +1,15 @@
 from dataclasses import dataclass
 from functools import cache
 from pyalex import Works, Authors
+from pypdf import PdfReader
 
 from src.types import Query
-from src.util import timeit
+from src.util import TempFile, download, timeit
 
 KIT_INSTITUTION_ID = 'i102335020'
 
 
-@dataclass
+@dataclass(frozen=True)
 class Author:
     name: str
     id: str
@@ -27,9 +28,34 @@ def get_author_id_by_name(name: str) -> str:
     )  # type: ignore
 
 
-def load_paper_full_text(paper_id: str) -> str:
-    # TODO strip references and appendix
-    return Works().get(paper_id)['full_text']  # type: ignore
+@timeit('Load Paper Full Text')
+def load_paper_full_text(paper_oa_url: str) -> str | None:
+    # Load the full text of a paper from the given Open Access URL
+
+    # Use a temporary file to store the PDF content
+    with TempFile('.pdf') as file_name:
+        # Download the paper
+        if not download(paper_oa_url, file_name):
+            # Failed to download the paper -> Cannot extract the full text
+            return None
+
+        # Extract the full text from the PDF
+        reader = PdfReader(file_name)
+        texts = [page.extract_text() for page in reader.pages]
+
+    # Strip the references and appendix
+    for i, page_text in enumerate(texts):
+        if 'References' in page_text:
+            texts = texts[:i]
+            # add the last page up to the references as well
+            texts.append(page_text[: page_text.index('References')])
+            break
+
+    # Remove the line breaks
+    texts = [text.replace('-\n', '').replace('\n', ' ') for text in texts]
+
+    # Return the full text
+    return '\n'.join(texts)
 
 
 @timeit('Get Papers by Author')
@@ -41,14 +67,32 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
         Works()
         .filter(author={'id': get_author_id_by_name(name)})
         .filter(has_abstract=True)
+        .filter(has_fulltext=True)
+        .filter(fulltext_origin='pdf')
         .sort(cited_by_count='desc')
-        .get(per_page=number_of_papers)
+        .get(per_page=number_of_papers * 5)
     )
 
+    full_texts: list[str] = []
+    abstracts: list[str] = []
+    titles: list[str] = []
+
+    for paper in papers:
+        if len(full_texts) >= number_of_papers:
+            break
+
+        full_text = load_paper_full_text(paper['open_access']['oa_url'])  # type: ignore
+        if not full_text:
+            continue
+
+        full_texts.append(full_text)
+        abstracts.append(paper['abstract'])  # type: ignore
+        titles.append(paper['title'])  # type: ignore
+
     return Query(
-        abstracts=[paper['abstract'] for paper in papers],  # type: ignore
-        full_texts=[paper['full_text'] for paper in papers],  # TODO strip references and appendix  # type: ignore
-        titles=[paper['title'] for paper in papers],  # type: ignore
+        abstracts=abstracts,
+        full_texts=full_texts,
+        titles=titles,
         author=name,
     )
 
@@ -76,8 +120,8 @@ def get_authors_of_kit(count: int = 100) -> list[Author]:
 if __name__ == '__main__':
     from pprint import pprint
 
+    pprint(get_authors_of_kit())
+
     print(get_author_id_by_name('Peter Sanders'))
 
     pprint(get_papers_by_author('Peter Sanders'))
-
-    pprint(get_authors_of_kit())

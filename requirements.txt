@@ -6,3 +6,4 @@ marqo
 pprint
 pyalex
 openai
+pypdf
