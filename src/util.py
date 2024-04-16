@@ -1,3 +1,4 @@
+from functools import wraps
 import os
 import random
 import requests
@@ -7,6 +8,7 @@ import time
 
 def timeit(message: str, level: LogLevel = LogLevel.INFO):
     def decorator(func):
+        @wraps(func)
         def wrapper(*args, **kwargs):
             start = time.time()
             res = func(*args, **kwargs)

@@ -159,3 +159,4 @@ def extract_from_full_texts(
 # --- TODO proper full text paper loading
 # TODO add the interface to compare the different approaches
 # TODO add the automatic comparison of the results based on an LLM
+# TODO different indices in the database for extraction examples, summarization examples, and comparison examples

@@ -1,18 +1,21 @@
+from dataclasses import dataclass
 from tqdm import tqdm
 from pprint import pprint
 from itertools import product
 
 from src.instance import Instance, extract_from_abstracts, extract_from_full_texts, extract_from_summaries
 from src.types import Profile
-
-
-MODEL = 'TinyLlama/TinyLlama-1.1B-Chat-v1.0'
+from src.util import timeit
 
 
 MODELS = [
     # 'OpenAI/gpt-3.5-turbo',
     'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
     'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
+    # Some Hugging Face models
+    # 'Mistral'
+    # 'Mixtral'
+    # 'Llama'?
 ]
 
 NUMBER_OF_EXAMPLES = [0, 1, 2]
@@ -23,15 +26,36 @@ EXTRACTORS = [
     extract_from_full_texts,
 ]
 
+GOOD_OR_BAD_EXAMPLES = [True, False]
 
-def process_author(name: str, number_of_papers: int = 5) -> tuple[list[Profile], list[str]]:
-    profiles: list[Profile] = []
+
+@dataclass
+class ExtractedProfile:
+    profile: Profile
+    model: str
+    number_of_examples: int
+    good_or_bad_examples: bool
+    extract_func: str
+
+
+@dataclass
+class AuthorExtractionResult:
+    profiles: list[ExtractedProfile]
+    titles: list[str]
+
+
+@timeit('Processing Author')
+def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResult:
+    profiles: list[ExtractedProfile] = []
     titles: set[str] = set()
 
     for model, number_of_examples, good_or_bad_examples, extract_func in tqdm(
-        product(MODELS, NUMBER_OF_EXAMPLES, [True, False], EXTRACTORS),
+        product(MODELS, NUMBER_OF_EXAMPLES, GOOD_OR_BAD_EXAMPLES, EXTRACTORS),
         desc='Processing different models and extractors',
     ):
+        if not good_or_bad_examples and number_of_examples == 0:
+            continue
+
         result = Instance(
             model,
             number_of_examples,
@@ -39,10 +63,21 @@ def process_author(name: str, number_of_papers: int = 5) -> tuple[list[Profile],
             extract_func,
         ).run_for_author(name, number_of_papers=number_of_papers)
 
-        profiles.append(result.profile)
+        profiles.append(
+            ExtractedProfile(
+                profile=result.profile,
+                model=model,
+                number_of_examples=number_of_examples,
+                good_or_bad_examples=good_or_bad_examples,
+                extract_func=extract_func.__name__,
+            )
+        )
         titles.update(result.titles)
 
-    return profiles, list(titles)
+    return AuthorExtractionResult(
+        profiles=profiles,
+        titles=list(titles),
+    )
 
 
 if __name__ == '__main__':
