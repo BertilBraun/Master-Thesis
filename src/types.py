@@ -26,22 +26,22 @@ class Competency:
 
 @dataclass(frozen=True)
 class Profile:
-    profile_summary: str
+    domain: str
     competencies: list[Competency]
 
     def __str__(self) -> str:
         competencies = '\n'.join(f'- {c}' for c in self.competencies)
-        return f"""Profile Summary: "{self.profile_summary}"
+        return f"""Domain: "{self.domain}"
 
 Competencies:
 {competencies}
 """
 
     @staticmethod
-    def _parse_profile_summary(text: str) -> str:
-        # Return the text between the first occurrence of 'Profile Summary: "' and the next '"'
-        assert 'Profile Summary: "' in text, f'Profile Summary not found in text: {text}'
-        return text.split('Profile Summary: "')[1].split('"')[0]
+    def _parse_domain(text: str) -> str:
+        # Return the text between the first occurrence of 'Domain: "' and the next '"'
+        assert 'Domain: "' in text, f'Domain not found in text: {text}'
+        return text.split('Domain: "')[1].split('"')[0]
 
     @staticmethod
     def _parse_competencies(text: str) -> list[Competency]:
@@ -63,9 +63,9 @@ Competencies:
 
     @staticmethod
     def parse(text: str) -> Profile:
-        # NOTE: Throws AssertionError if the text does not contain a valid profile summary and competencies
+        # NOTE: Throws AssertionError if the text does not contain a valid domain and competencies
         return Profile(
-            profile_summary=Profile._parse_profile_summary(text),
+            domain=Profile._parse_domain(text),
             competencies=Profile._parse_competencies(text),
         )
 

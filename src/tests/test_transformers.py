@@ -18,7 +18,7 @@ Example 1:
 
 Abstract: "Through the application of deep learning techniques to satellite imagery, this research uncovers new patterns in urban development, contributing to more sustainable city planning."
 
-Profile Summary: "Expert in applying AI for sustainable urban development."
+Domain: "Expert in applying AI for sustainable urban development."
 
 Competencies:
 - AI in Urban Planning: Utilizes deep learning to analyze satellite images for city planning.
@@ -30,7 +30,7 @@ Example 2:
 
 Abstract: "Examining social media's impact on political discourse, this study employs natural language processing (NLP) to analyze sentiment and influence in online discussions, shedding light on digital communication's role in shaping public opinion."
 
-Profile Summary: "Specialist in digital communication and political discourse analysis."
+Domain: "Specialist in digital communication and political discourse analysis."
 
 Competencies:
 - NLP and Sentiment Analysis: Applies NLP to understand social media influence.
@@ -42,9 +42,9 @@ Competencies:
 
 Task Description:
 
-Extract and summarize key competencies from scientific paper abstracts, aiming for a general overview suitable across disciplines. Begin with a concise profile summary that captures the main area of expertise in about ten words, abstract enough to apply broadly within a scientific context. Then, list three to eight specific competencies with brief descriptions based on the abstract.
+Extract and summarize key competencies from scientific paper abstracts, aiming for a general overview suitable across disciplines. Begin with a concise Domain that captures the main area of expertise in about ten words, abstract enough to apply broadly within a scientific context. Then, list three to eight specific competencies with brief descriptions based on the abstract.
 
-The following is now your task. Please generate a profile summary and competencies based on the following abstract. Do not generate anything except the profile summary and competencies based on the abstract.
+The following is now your task. Please generate a Domain and competencies based on the following abstract. Do not generate anything except the Domain and competencies based on the abstract.
 
 Abstract: "{abstract}"
 
