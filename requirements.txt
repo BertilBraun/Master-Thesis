@@ -1,9 +1,8 @@
-torch
-transformers
 numpy
 tqdm
 marqo
-pprint
 pyalex
-openai
 pypdf
+langchain-core 
+langchain-community 
+langchain-openai

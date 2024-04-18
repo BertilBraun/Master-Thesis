@@ -1,3 +1,5 @@
+import os
+
 from dataclasses import dataclass
 from tqdm import tqdm
 from pprint import pprint
@@ -7,15 +9,20 @@ from src.instance import Instance, extract_from_abstracts, extract_from_full_tex
 from src.types import Profile
 from src.util import timeit
 
+os.environ['OPENAI_API_KEY'] = 'sk-...'
+os.environ['OPENAI_BASE_URL'] = 'http://http://coder.aifb.kit.edu:8080/v1'
+
+# Remove base_url for OpenAI API and set the API key and use one of the following models to run the inference on the OpenAI API
+# MODELS = [
+#     'gpt-3.5-turbo',
+#     'gpt-4-turbo',
+#     'gpt-4',
+# ]
 
 MODELS = [
-    # 'OpenAI/gpt-3.5-turbo',
-    'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
-    'TinyLlama/TinyLlama-1.1B-Chat-v1.0',
-    # Some Hugging Face models
-    # 'Mistral'
-    # 'Mixtral'
-    # 'Llama'?
+    'mistral',
+    'mixtral',
+    'neural',
 ]
 
 NUMBER_OF_EXAMPLES = [0, 1, 2]

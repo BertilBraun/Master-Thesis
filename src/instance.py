@@ -2,8 +2,14 @@ from tqdm import tqdm
 from typing import Callable, Protocol
 from dataclasses import dataclass
 
+from langchain_openai import ChatOpenAI
+from langchain_core.output_parsers import StrOutputParser, BaseOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.language_models import LanguageModelInput
+from langchain_core.runnables import Runnable
+
+
 from src.papers import get_papers_by_author
-from src.gpt import query_openai, query_transformers
 from src.db import DB
 from src.util import timeit
 from src.log import LogLevel, log
@@ -16,10 +22,7 @@ class ExampleGetter(Protocol):
         ...
 
 
-# Queries the model with the prompt parameter and returns the generated text, additional parameters can be passed as kwargs
-class LLMExecution(Protocol):
-    def __call__(self, prompt: str, **kwargs) -> str:
-        ...
+LLM = Runnable[LanguageModelInput, str]
 
 
 @dataclass(frozen=True)
@@ -40,21 +43,7 @@ class Instance:
     model: str  # Identifier from Hugging Face or "OpenAI/" + Model Name
     number_of_examples: int  # 0, 1, 2, 3, 4, 5
     good_or_bad_examples: bool  # Good (True) or Bad (False) Examples
-    extract: Callable[[Query, ExampleGetter, LLMExecution], Profile]
-
-    def _get_llm_execution(self) -> LLMExecution:
-        if self.model.startswith('OpenAI/'):
-            return lambda prompt, **kwargs: query_openai(
-                prompt,
-                model=self.model.removeprefix('OpenAI/'),
-                **kwargs,
-            )
-        else:
-            return lambda prompt, **kwargs: query_transformers(
-                prompt,
-                model=self.model,
-                **kwargs,
-            )
+    extract: Callable[[Query, ExampleGetter, LLM], Profile]
 
     def _get_example_getter(self) -> ExampleGetter:
         if self.good_or_bad_examples:
@@ -68,7 +57,7 @@ class Instance:
         profile = self.extract(
             query,
             self._get_example_getter(),
-            self._get_llm_execution(),
+            ChatOpenAI(model=self.model) | StrOutputParser(),
         )
 
         return ExtractionResult(
@@ -78,11 +67,16 @@ class Instance:
         )
 
 
+class ProfileParser(BaseOutputParser[Profile]):
+    def parse(self, text: str) -> Profile:
+        return Profile.parse(text)
+
+
 @timeit('Extracting competencies')
 def extract_from_abstracts(
     query: Query,
     example_getter: ExampleGetter,
-    llm_execution: LLMExecution,
+    llm: LLM,
 ) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
@@ -90,67 +84,74 @@ def extract_from_abstracts(
     examples = example_getter('\n\n'.join(query.abstracts))
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = f"""something with all the abstracts {query.abstracts} and the examples {examples}"""
+    prompt = ChatPromptTemplate.from_template(
+        """something with the abstracts {abstracts} and the examples {examples}"""
+    )
 
-    return Profile.parse(llm_execution(prompt))
+    return (prompt | llm | ProfileParser()).invoke({'abstracts': query.abstracts, 'examples': examples})
 
 
 @timeit('Extracting competencies')
 def extract_from_summaries(
     query: Query,
     example_getter: ExampleGetter,
-    llm_execution: LLMExecution,
+    llm: LLM,
 ) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the summaries
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    summaries: list[str] = []
-    for full_text in tqdm(query.full_texts, desc='Extracting summaries'):
-        # Get the summary from the full text
-        # TODO examples?
-        # TODO prompt with proper formatting based on the models tokenizer
-        prompt = f"""something with summarizing the full text {full_text}"""
-
-        # TODO batched?
-        summaries.append(llm_execution(prompt, max_new_tokens=1000))
+    # Get the summary from the full text
+    # TODO examples?
+    # TODO prompt with proper formatting based on the models tokenizer
+    prompt = ChatPromptTemplate.from_template("""something with summarizing the full text {full_text}""")
+    summaries = (prompt | llm).batch(
+        [
+            {
+                'full_text': full_text,
+            }
+            for full_text in query.full_texts
+        ]
+    )
 
     examples = example_getter('\n\n'.join(summaries))
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = f"""something with all the summaries {summaries} and the examples {examples}"""
+    prompt = ChatPromptTemplate.from_template(
+        """something with all the summaries {summaries} and the examples {examples}"""
+    )
 
-    return Profile.parse(llm_execution(prompt))
+    return (prompt | llm | ProfileParser()).invoke({'summaries': summaries, 'examples': examples})
 
 
 @timeit('Extracting competencies')
 def extract_from_full_texts(
     query: Query,
     example_getter: ExampleGetter,
-    llm_execution: LLMExecution,
+    llm: LLM,
 ) -> Profile:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    profiles: list[Profile] = []
-    for full_text in tqdm(query.full_texts, desc='Extracting profiles'):
-        # Get the profile from the full text
+    # TODO prompt with proper formatting based on the models tokenizer
+    prompt = ChatPromptTemplate.from_template(
+        """something with the full text {full_text} and the examples {examples}"""
+    )
+    all_examples = [example_getter(full_text) for full_text in query.full_texts]
 
-        examples = example_getter(full_text)
-
-        # TODO prompt with proper formatting based on the models tokenizer
-        prompt = f"""something with the full text {full_text} and the examples {examples}"""
-
-        # TODO batched?
-        generated_text = llm_execution(prompt)
-        try:
-            profiles.append(Profile.parse(generated_text))
-        except AssertionError:
-            log(f"Couldn't parse the the profile: {generated_text} with the prompt: {prompt}", level=LogLevel.INFO)
+    profiles = (prompt | llm | ProfileParser()).batch(
+        [
+            {
+                'full_text': full_text,
+                'examples': examples,
+            }
+            for full_text, examples in zip(query.full_texts, all_examples)
+        ]
+    )
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = f"""something with all the profiles {profiles}"""
+    prompt = ChatPromptTemplate.from_template("""something with all the profiles {profiles}""")
 
-    return Profile.parse(llm_execution(prompt))
+    return (prompt | llm | ProfileParser()).invoke({'profiles': profiles})
 
 
 # --- TODO function which runs all the instances for a given author
