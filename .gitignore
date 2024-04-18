@@ -2,3 +2,5 @@
 **.pt
 build/**
 logs/**
+data/**
+downloads/**

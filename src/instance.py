@@ -1,28 +1,27 @@
-from tqdm import tqdm
-from typing import Callable, Protocol
+from enum import Enum
+from typing import Callable, Dict
 from dataclasses import dataclass
 
 from langchain_openai import ChatOpenAI
 from langchain_core.output_parsers import StrOutputParser, BaseOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.language_models import LanguageModelInput
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnablePassthrough, RunnableParallel, RunnableLambda
 
 
-from src.papers import get_papers_by_author
 from src.db import DB
+from src.papers import get_papers_by_author
 from src.util import timeit
-from src.log import LogLevel, log
-from src.types import Profile, Example, Query
+from src.types import Profile, Query
 
 
-# Returns a list of Examples based on the content parameter
-class ExampleGetter(Protocol):
-    def __call__(self, content: str) -> list[Example]:
-        ...
-
-
+Retriever = Runnable[str, Dict[str, str]]
 LLM = Runnable[LanguageModelInput, str]
+
+
+class ExampleType(Enum):
+    POSITIVE = 'positive'
+    NEGATIVE = 'negative'
 
 
 @dataclass(frozen=True)
@@ -38,27 +37,27 @@ class Instance:
     # - Abstract vs Automatic Summary vs Full Text
     # - Zero- vs One- vs Few-Shot
     # - TODO not yet - Good vs Bad Prompt
-    # - Good vs Bad Examples (best matches in VectorDB and worst matches in DB)
+    # - TODO not supported by langchain - Good vs Bad Examples (best matches in VectorDB and worst matches in DB)
 
-    model: str  # Identifier from Hugging Face or "OpenAI/" + Model Name
+    model: str  # Identifier from OpenAI or Insomnium
     number_of_examples: int  # 0, 1, 2, 3, 4, 5
-    good_or_bad_examples: bool  # Good (True) or Bad (False) Examples
-    extract: Callable[[Query, ExampleGetter, LLM], Profile]
-
-    def _get_example_getter(self) -> ExampleGetter:
-        if self.good_or_bad_examples:
-            return lambda content: DB.search(content, limit=self.number_of_examples)
-        else:
-            return lambda content: DB.search_negative(content, limit=self.number_of_examples)
+    example_type: ExampleType  # Good ('positive') or Bad ('negative') Examples
+    extract: Callable[[Query, Retriever, LLM], Profile]
 
     def run_for_author(self, author: str, number_of_papers: int = 5) -> ExtractionResult:
         query = get_papers_by_author(author, number_of_papers=number_of_papers)
 
-        profile = self.extract(
-            query,
-            self._get_example_getter(),
-            ChatOpenAI(model=self.model) | StrOutputParser(),
+        # TODO retriever based on self.example_type == ExampleType.POSITIVE
+
+        retriever = RunnableParallel[str](
+            # The DB retriever apparently fails if no examples are requested... Therefore the fallback
+            examples=DB.as_retriever(self.number_of_examples).with_fallbacks([RunnableLambda(lambda prompt: '')]),
+            content=RunnablePassthrough(),
         )
+
+        llm = ChatOpenAI(model=self.model) | StrOutputParser()
+
+        profile = self.extract(query, retriever, llm)
 
         return ExtractionResult(
             profile=profile,
@@ -75,88 +74,76 @@ class ProfileParser(BaseOutputParser[Profile]):
 @timeit('Extracting competencies')
 def extract_from_abstracts(
     query: Query,
-    example_getter: ExampleGetter,
+    retriever: Retriever,
     llm: LLM,
 ) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    examples = example_getter('\n\n'.join(query.abstracts))
-
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = ChatPromptTemplate.from_template(
-        """something with the abstracts {abstracts} and the examples {examples}"""
-    )
+    prompt = ChatPromptTemplate.from_template("""something with the abstracts {content} and the examples {examples}""")
+    extract_chain = retriever | prompt | llm | ProfileParser()
 
-    return (prompt | llm | ProfileParser()).invoke({'abstracts': query.abstracts, 'examples': examples})
+    return extract_chain.invoke('\n\n'.join(query.abstracts))
 
 
 @timeit('Extracting competencies')
 def extract_from_summaries(
     query: Query,
-    example_getter: ExampleGetter,
+    retriever: Retriever,
     llm: LLM,
 ) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the summaries
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
     # Get the summary from the full text
-    # TODO examples?
+    # TODO examples for summarization?
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptTemplate.from_template("""something with summarizing the full text {full_text}""")
-    summaries = (prompt | llm).batch(
-        [
-            {
-                'full_text': full_text,
-            }
-            for full_text in query.full_texts
-        ]
-    )
+    summarize_chain = prompt | llm
 
-    examples = example_getter('\n\n'.join(summaries))
+    summaries = summarize_chain.batch([{'full_text': full_text} for full_text in query.full_texts])
 
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptTemplate.from_template(
-        """something with all the summaries {summaries} and the examples {examples}"""
+        """something with all the summaries {content} and the examples {examples}"""
     )
+    extract_chain = retriever | prompt | llm | ProfileParser()
 
-    return (prompt | llm | ProfileParser()).invoke({'summaries': summaries, 'examples': examples})
+    return extract_chain.invoke('\n\n'.join(summaries))
 
 
 @timeit('Extracting competencies')
 def extract_from_full_texts(
     query: Query,
-    example_getter: ExampleGetter,
+    retriever: Retriever,
     llm: LLM,
 ) -> Profile:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = ChatPromptTemplate.from_template(
-        """something with the full text {full_text} and the examples {examples}"""
-    )
-    all_examples = [example_getter(full_text) for full_text in query.full_texts]
+    prompt = ChatPromptTemplate.from_template("""something with the full text {content} and the examples {examples}""")
+    extract_chain = retriever | prompt | llm | ProfileParser()
 
-    profiles = (prompt | llm | ProfileParser()).batch(
-        [
-            {
-                'full_text': full_text,
-                'examples': examples,
-            }
-            for full_text, examples in zip(query.full_texts, all_examples)
-        ]
-    )
+    profiles = extract_chain.batch([full_text for full_text in query.full_texts])
 
+    # TODO examples for combination?
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptTemplate.from_template("""something with all the profiles {profiles}""")
+    combine_chain = prompt | llm | ProfileParser()
 
-    return (prompt | llm | ProfileParser()).invoke({'profiles': profiles})
+    return combine_chain.invoke({'profiles': profiles})
 
 
+# --- TODO only fetch the papers once
+# --- TODO move to langchain
+# TODO how to add restraints to the models? Like stop tokens or max tokens
+# --- TODO use langchain retriever for the vector store
 # --- TODO function which runs all the instances for a given author
 # TODO prompts (test out '---' as a stop token)
-# TODO batched
+# TODO test with ChatPromptTemplate.from_template and ChatPromptTemplate.from_messages
+# --- TODO batched
 # --- TODO proper full text paper loading
 # TODO add the interface to compare the different approaches
 # TODO add the automatic comparison of the results based on an LLM

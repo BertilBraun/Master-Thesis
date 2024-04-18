@@ -1,6 +1,8 @@
 from __future__ import annotations
-from dataclasses import dataclass
+
 import re
+
+from dataclasses import dataclass
 
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 

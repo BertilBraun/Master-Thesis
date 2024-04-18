@@ -1,8 +1,8 @@
 numpy
 tqdm
-marqo
-pyalex
 pypdf
+pyalex
 langchain-core 
 langchain-community 
 langchain-openai
+langchain-chroma

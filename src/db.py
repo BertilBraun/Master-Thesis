@@ -1,26 +1,20 @@
 import os
-import marqo
 
-from src.types import Example
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langchain_core.documents import Document
+from langchain_core.runnables import Runnable
+
 from src.util import timeit
-
-mq = marqo.Client(url='http://localhost:8882')
-
-INDEX_NAME = 'index'
+from src.types import Example
 
 
-def does_index_exist(index_name: str) -> bool:
-    results = mq.get_indexes()['results']
-    return any(index['indexName'] == index_name for index in results)
-
-
-def create_index(index_name: str) -> None:
-    print('Creating index')
-    mq.create_index(index_name)
-
-
-if not does_index_exist(INDEX_NAME):
-    create_index(INDEX_NAME)
+db = Chroma(
+    persist_directory='data',
+    collection_name='example',
+    embedding_function=OpenAIEmbeddings(),
+    collection_metadata={'author': 'string', 'rating': 'int', 'reference': 'bool'},
+)
 
 
 def _append_to_log(msg: str) -> None:
@@ -38,16 +32,17 @@ class DB:
         rating: int | None = None,
         is_reference: bool = False,
     ) -> None:
-        mq.index(INDEX_NAME).add_documents(
+        db.add_documents(
             [
-                {
-                    'text': str(example),
-                    'author': author,
-                    'rating': rating,
-                    'reference': is_reference,
-                }
+                Document(
+                    page_content=str(example),
+                    metadata={
+                        'author': author,
+                        'rating': rating,
+                        'reference': is_reference,
+                    },
+                ),
             ],
-            tensor_fields=['text'],
         )
 
         _append_to_log(
@@ -61,55 +56,69 @@ Reference: {is_reference}
 
     @staticmethod
     @timeit('DB.search')
-    def search(query: str | dict[str, float], limit: int = 10):
+    def search(query: str, limit: int = 10) -> list[Example]:
         # Return the top `limit` results which match the query as best as possible
-        results = mq.index(INDEX_NAME).search(
-            q=query,
-            limit=limit,
-            show_highlights=False,
-            filter_string='reference:true',  # 'reference:false AND rating:[60 TO 100]',
-            # searchable_attributes=['text'],
+        results = db.similarity_search(
+            query,
+            k=limit,
+            filter={'reference': True},  # type: ignore  # 'reference:false AND rating:[60 TO 100]'
         )
 
-        return [Example.parse(result['text']) for result in results['hits']]
+        return [Example.parse(result.page_content) for result in results]
 
     @staticmethod
-    def search_negative(query: str, limit: int = 10):
-        # Return the top `limit` results which match the query as negatively as possible
-        return DB.search({query: -1.0}, limit)
+    def as_retriever(limit: int) -> Runnable[str, str]:
+        retriever = db.as_retriever(search_kwargs={'k': limit})  # , 'filter': {'reference': True}})
 
-    @staticmethod
-    @timeit('DB.update')
-    def update(example: Example, rating: int, is_reference: bool) -> None:
-        # Update the rating and reference status of the example
-        hit = mq.index(INDEX_NAME).search(
-            str(example),
-            limit=1,
-            search_method=marqo.SearchMethods.LEXICAL,
-        )['hits'][0]
+        def format_docs(docs):
+            return '\n\n'.join([d.page_content for d in docs])
 
-        mq.index(INDEX_NAME).update_documents(
-            [
-                {
-                    '_id': hit['id'],
-                    'rating': rating,
-                    'reference': is_reference,
-                }
-            ]
-        )
-
-        _append_to_log(
-            f"""Updated example in DB:
-Example: {example}
-Rating: {rating}
-Reference: {is_reference}
-"""
-        )
+        return retriever | format_docs
 
     @staticmethod
     def clear():
         # Clear the database
-        mq.index(INDEX_NAME).delete()
-        create_index(INDEX_NAME)
-
+        db.delete_collection()
         _append_to_log('Cleared DB\n')
+
+
+if __name__ == '__main__':
+    from src.types import Profile, Example, Competency
+
+    DB.add(
+        Example(
+            abstract='harrison worked at kensho',
+            profile=Profile(
+                domain='Finance',
+                competencies=[
+                    Competency(name='Python', description='Proficient'),
+                    Competency(name='SQL', description='Proficient'),
+                ],
+            ),
+        ),
+        author='harrison',
+        rating=5,
+        is_reference=True,
+    )
+
+    DB.add(
+        Example(
+            abstract='bears like to eat honey',
+            profile=Profile(
+                domain='Nature',
+                competencies=[
+                    Competency(name='Honey', description='Loves it'),
+                    Competency(name='Bears', description='Likes it'),
+                ],
+            ),
+        ),
+        author='bears',
+        rating=3,
+        is_reference=False,
+    )
+
+    r = DB.as_retriever(limit=1)
+
+    res = r.invoke('bear')
+
+    print(r, res)

@@ -1,6 +1,7 @@
-from enum import Enum
 import os
 import time
+
+from enum import Enum
 
 
 def datetime_str() -> str:

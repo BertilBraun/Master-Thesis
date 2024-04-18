@@ -4,7 +4,7 @@ from pyalex import Works, Authors
 from pypdf import PdfReader
 
 from src.types import Query
-from src.util import TempFile, download, timeit
+from src.util import download, timeit
 
 KIT_INSTITUTION_ID = 'i102335020'
 
@@ -32,16 +32,16 @@ def get_author_id_by_name(name: str) -> str:
 def load_paper_full_text(paper_oa_url: str) -> str | None:
     # Load the full text of a paper from the given Open Access URL
 
-    # Use a temporary file to store the PDF content
-    with TempFile('.pdf') as file_name:
-        # Download the paper
-        if not download(paper_oa_url, file_name):
-            # Failed to download the paper -> Cannot extract the full text
-            return None
+    # Download the paper
+    success, file_name = download(paper_oa_url)
 
-        # Extract the full text from the PDF
-        reader = PdfReader(file_name)
-        texts = [page.extract_text() for page in reader.pages]
+    if not success:
+        # Failed to download the paper -> Cannot extract the full text
+        return None
+
+    # Extract the full text from the PDF
+    reader = PdfReader(file_name)
+    texts = [page.extract_text() for page in reader.pages]
 
     # Strip the references and appendix
     for i, page_text in enumerate(texts):

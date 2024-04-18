@@ -4,39 +4,23 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Start Marqo",
-            "type": "shell",
-            "command": "docker run --name marqo -p 8882:8882 marqoai/marqo:latest"
-        },
-        {
             "label": "Start Main",
             "type": "shell",
             "command": "python -m src"
         },
         {
-            "label": "Query DB",
+            "label": "Query Example",
             "type": "shell",
-            "command": "python -m src db \"${input:query}\"",
-            "problemMatcher": []
-        },
-        {
-            "label": "Query Good",
-            "type": "shell",
-            "command": "python -m src good \"${input:abstract}\"",
-            "problemMatcher": []
-        },
-        {
-            "label": "Query Bad",
-            "type": "shell",
-            "command": "python -m src bad \"${input:abstract}\"",
+            "command": "python -m src author \"${input:author}\"",
             "problemMatcher": []
         }
     ],
     "inputs": [
         {
-            "id": "query",
+            "id": "author",
             "type": "promptString",
-            "description": "Enter the query to run"
+            "description": "Enter the author to run extraction for",
+            "default": "Peter Sanders"
         },
         {
             "id": "abstract",

@@ -1,9 +1,11 @@
 from functools import wraps
+
 import os
-import random
-import requests
-from src.log import LogLevel, log
+import re
 import time
+import requests
+
+from src.log import LogLevel, log
 
 
 def timeit(message: str, level: LogLevel = LogLevel.INFO):
@@ -20,36 +22,45 @@ def timeit(message: str, level: LogLevel = LogLevel.INFO):
     return decorator
 
 
-def download(url: str, file_name: str) -> bool:
+def sanitize_filename(filename: str) -> str:
+    """
+    Remove or replace characters that are illegal in filenames.
+    """
+    illegal_char_pattern = r'[\/:*?"<>|]'
+    sanitized = re.sub(illegal_char_pattern, '_', filename)  # Replace illegal characters with underscore
+    return sanitized
+
+
+def generate_filename(url: str) -> str:
+    """
+    Generate a filename based on the URL and current date.
+    Ensure the filename is free of illegal characters.
+    """
+    base_name = url.split('/')[-1]  # Assumes the URL ends with the filename
+    if not base_name.lower().endswith('.pdf'):
+        base_name += '.pdf'  # Ensures the file has a PDF extension
+    return sanitize_filename(base_name)
+
+
+def download(url: str) -> tuple[bool, str]:
+    # Download the file from `url` and save it locally under `file_name`. Return True if the file was successfully downloaded, False otherwise. The file_name is returned as the second element of the tuple.
+
+    file_name = 'downloads/' + generate_filename(url)
+
+    if os.path.exists(file_name):
+        log(f'File already exists: {file_name}', level=LogLevel.DEBUG)
+        return True, file_name
+
     result = requests.get(url)
 
     if result.status_code != 200:
         log(f'Failed to download file from {url}')
-        return False
+        return False, ''
 
+    os.makedirs('downloads', exist_ok=True)
     with open(file_name, 'wb') as f:
         f.write(result.content)
 
-    return True
+    log(f'Downloaded file from {url} to {file_name}', level=LogLevel.DEBUG)
 
-
-# A with temp file context manager
-# Usage:
-# with TempFile('.pdf') as file_name:
-#     download(url, file_name)
-# This must use different file names for each instance and should clean up the file after the context manager exits
-
-
-class TempFile:
-    def __init__(self, extension: str):
-        self.extension = extension
-        self.file_name = None
-
-    def __enter__(self):
-        self.file_name = f'temp{random.randint(0, 100000)}{self.extension}'
-        return self.file_name
-
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.file_name and os.path.exists(self.file_name):
-            os.remove(self.file_name)
-        return False
+    return True, file_name
