@@ -116,31 +116,3 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
     ]
 
     return llm.invoke_profile(prompt)
-
-
-# --- TODO only fetch the papers once
-# --- TODO move to langchain
-# --- TODO use langchain retriever for the vector store
-# --- TODO function which runs all the instances for a given author
-# --- TODO prompts - Add the task to the system message
-# TODO add restraints to the models? Like stop tokens or max tokens. Don't know if it is necessary
-# --- TODO Chroma DB overview - what is currently in the database, illegal entries, etc.
-# --- TODO different indices in the database for extraction examples, summarization examples, and comparison examples
-# --- TODO test with ChatPromptTemplate.from_template and ChatPromptTemplate.from_messages
-# --- TODO batched
-# --- TODO proper full text paper loading
-# TODO fix 500 error on LLM call
-# TODO let LLM reason about the quality of the examples before having to score them - also do so in the database model and the examples
-# TODO add examples to the database for the different approaches
-# --- TODO add the (programmatic) interface to compare the different approaches
-# --- TODO add the automatic comparison of the results based on an LLM
-# Delayed (just don't eval that) TODO rethink prompts with zero-shot. This can basically not ever work with the current setup where a specific format is expected
-
-
-# TODO after fixing and adding the above todos, let that run for a few authors and see how the results look like
-# TODO after that, see if we can send out the extractions to the authors for review/evaluation
-#   Use the expert evaluation as new examples for the automatic evaluation and as new examples for the database
-# TODO after that, compare the automatic evaluation with the expert evaluation
-#   Can we use the expert evaluation to improve the automatic evaluation?
-#   Is the automatic evaluation good enough to approximate the expert evaluation?
-# TODO after that, use the automatic evaluation for RLHF training
