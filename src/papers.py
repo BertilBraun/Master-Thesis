@@ -1,8 +1,9 @@
-from dataclasses import dataclass
-from functools import cache
 import os
-from pyalex import Works, Authors
+
 from pypdf import PdfReader
+from pyalex import Works, Authors
+from functools import cache
+from dataclasses import dataclass
 
 from src.types import Query
 from src.util import download, timeit

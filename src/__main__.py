@@ -5,7 +5,7 @@ from itertools import product
 
 from src.evaluation import evaluate_with
 from src.instance import extract_from_abstracts, extract_from_full_texts, extract_from_summaries, run_query_for_instance
-from src.database import DB
+from src.database import add_element_to_database
 from src.papers import get_papers_by_author
 from src.types import AuthorExtractionResult, ExtractedProfile, Profile, Example, ExampleType, Instance
 from src.util import timeit
@@ -69,7 +69,9 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         profiles.append(ExtractedProfile(profile=profile, instance=instance))
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
-    log(evaluation_result)
+    log('Final evaluation result:', evaluation_result, 'for author:', name)
+    best_profile, best_score = evaluation_result[0]
+    log('Best profile:', best_profile, 'with score:', best_score)
 
     return AuthorExtractionResult(
         profiles=profiles,
@@ -79,7 +81,7 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
 
 def add_initial_references():
-    DB.add(
+    add_element_to_database(
         Example(
             """A problem currently faced is the inability of an organisation to know the competences that the organisation masters, thereby bringing forth greater difficulties to the decision-making process, planning and team formation. In the scientific environment, this problem prejudices the multi-disciplinary research and communities creation. We propose a technique to create/suggest scientific web communities based on scientists' competences, identified using their scientific publications and considering that a possible indication for a person's participation in a community is her/his published knowledge and degree of expertise. The project also proposes an analysis structure providing an evolutionary visualisation of the virtual scientific community knowledge build-up.""",
             Profile.parse(
@@ -94,11 +96,10 @@ Competencies:
 - Expertise Analysis: Analyzes and suggests roles based on individuals’ published knowledge and expertise levels.""",
             ),
         ),
-        author='Sergio Rodrigues',
         is_reference=True,
     )
 
-    DB.add(
+    add_element_to_database(
         Example(
             """Information extraction (IE) aims to extract structural knowledge (such as entities, relations, and events) from plain natural language texts. Recently, generative Large Language Models (LLMs) have demonstrated remarkable capabilities in text understanding and generation, allowing for generalization across various domains and tasks. As a result, numerous works have been proposed to harness abilities of LLMs and offer viable solutions for IE tasks based on a generative paradigm. To conduct a comprehensive systematic review and exploration of LLM efforts for IE tasks, in this study, we survey the most recent advancements in this field. We first present an extensive overview by categorizing these works in terms of various IE subtasks and learning paradigms, then we empirically analyze the most advanced methods and discover the emerging trend of IE tasks with LLMs. Based on thorough review conducted, we identify several insights in technique and promising research directions that deserve further exploration in future studies. We maintain a public repository and consistently update related resources at: https://github.com/quqxui/Awesome-LLM4IE-Papers.""",
             Profile.parse(
@@ -113,7 +114,6 @@ Competencies:
 - Resource Sharing: Maintains and updates a public repository of significant research in LLM-enhanced information extraction."""
             ),
         ),
-        author='Derong Xu',
         is_reference=True,
     )
 

@@ -3,10 +3,12 @@ from __future__ import annotations
 import re
 
 from enum import Enum
-from typing import Callable, Protocol
+from typing import Callable, Generic, Protocol, Type, TypeVar
 from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletionMessageParam
+
+from src.log import LogLevel, log
 
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 
@@ -104,6 +106,94 @@ class Example:
 
 
 @dataclass(frozen=True)
+class Summary:
+    full_text: str
+    summary: str
+
+    def __str__(self) -> str:
+        return f"""Full text:{self.full_text}\n\n\nSummary:{self.summary}"""
+
+    @staticmethod
+    def parse(text: str) -> Summary:
+        # Return the text between the first occurrence of 'Full text:' and the next '\n\n\nSummary:'
+        full_text = text.split('Full text:')[1].split('\n\n\nSummary:')[0]
+
+        # Return the text between the first occurrence of '\n\n\nSummary:' and the end of the text
+        summary = text.split('\n\n\nSummary:')[1]
+
+        return Summary(full_text=full_text, summary=summary)
+
+
+@dataclass(frozen=True)
+class EvaluationScore:
+    value: int
+
+    def __str__(self) -> str:
+        return f"""Score: {self.value}"""
+
+    @staticmethod
+    def parse(text: str) -> EvaluationScore:
+        # Return the number after the first occurrence of 'Score: '
+        assert 'Score: ' in text, f'Score not found in text: {text}'
+
+        match = re.search(r'Score: (\d+)', text)
+        if match:
+            return EvaluationScore(value=int(match.group(1)))
+
+        log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.WARNING)
+
+        # Return the first occurrence of a number
+        match = re.search(r'\d+', text)
+
+        assert match, f'Invalid score format: {text}'
+
+        return EvaluationScore(value=int(match.group(0)))
+
+
+@dataclass(frozen=True)
+class Evaluation:
+    text: str
+    profile: Profile
+    score: EvaluationScore
+
+    def __str__(self) -> str:
+        return f"""Text: {self.text}\n\n\nProfile: {self.profile}\n\n\nScore: {self.score}"""
+
+    @staticmethod
+    def parse(text: str) -> Evaluation:
+        # Return the text between the first occurrence of 'Text: ' and the next '\n\n\nProfile:'
+        text = text.split('Text: ')[1].split('\n\n\nProfile:')[0]
+
+        # Return the text between the first occurrence of '\n\n\nProfile: ' and the next '\n\n\nScore:'
+        profile = text.split('\n\n\nProfile: ')[1].split('\n\n\nScore:')[0]
+
+        return Evaluation(text=text, profile=Profile.parse(profile), score=EvaluationScore.parse(text))
+
+
+@dataclass(frozen=True)
+class Combination:
+    input_profiles: list[Profile]
+    output_profile: Profile
+
+    def __str__(self) -> str:
+        input_profiles = '\n\n'.join(str(profile) for profile in self.input_profiles)
+        return f"""Input Profiles:\n{input_profiles}\n\nOutput Profile:\n{self.output_profile}"""
+
+    @staticmethod
+    def parse(text: str) -> Combination:
+        # Return the text between the first occurrence of 'Input Profiles:\n' and the next '\n\nOutput Profile:'
+        input_profiles = text.split('Input Profiles:\n')[1].split('\n\nOutput Profile:')[0]
+
+        # Return the text between the first occurrence of '\n\nOutput Profile:\n' and the end of the text
+        output_profile = text.split('\n\nOutput Profile:\n')[1]
+
+        return Combination(
+            input_profiles=[Profile.parse(profile) for profile in input_profiles.split('\n\n')],
+            output_profile=Profile.parse(output_profile),
+        )
+
+
+@dataclass(frozen=True)
 class Query:
     full_texts: list[str]
     abstracts: list[str]
@@ -123,11 +213,19 @@ class ExtractionResult:
     author: str
 
 
-class Retriever(Protocol):
-    def invoke(self, input: str) -> list[Example]:
+T = TypeVar('T')
+
+
+class Retriever(Protocol, Generic[T]):
+    def invoke(self, input: str) -> list[T]:
         ...
 
-    def batch(self, inputs: list[str]) -> list[list[Example]]:
+    def batch(self, inputs: list[str]) -> list[list[T]]:
+        ...
+
+
+class RetrieverGetter(Protocol, Generic[T]):
+    def __call__(self, return_type: Type[T]) -> Retriever[T]:
         ...
 
 
@@ -199,7 +297,7 @@ class Instance:
     model: str  # Identifier from OpenAI/Insomnium
     number_of_examples: int
     example_type: ExampleType
-    extract: Callable[[Query, Retriever, LanguageModel], Profile]
+    extract: Callable[[Query, RetrieverGetter, LanguageModel], Profile]
 
 
 @dataclass(frozen=True)
