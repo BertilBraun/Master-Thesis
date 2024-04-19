@@ -135,3 +135,12 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
 # --- TODO add the (programmatic) interface to compare the different approaches
 # --- TODO add the automatic comparison of the results based on an LLM
 # Delayed (just don't eval that) TODO rethink prompts with zero-shot. This can basically not ever work with the current setup where a specific format is expected
+
+
+# TODO after fixing and adding the above todos, let that run for a few authors and see how the results look like
+# TODO after that, see if we can send out the extractions to the authors for review/evaluation
+#   Use the expert evaluation as new examples for the automatic evaluation and as new examples for the database
+# TODO after that, compare the automatic evaluation with the expert evaluation
+#   Can we use the expert evaluation to improve the automatic evaluation?
+#   Is the automatic evaluation good enough to approximate the expert evaluation?
+# TODO after that, use the automatic evaluation for RLHF training
