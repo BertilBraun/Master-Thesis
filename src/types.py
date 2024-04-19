@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from typing import Callable, Protocol
 
-from langchain_core.runnables import Runnable
 from langchain_core.prompt_values import ChatPromptValue
 
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
@@ -124,7 +123,12 @@ class ExtractionResult:
     author: str
 
 
-Retriever = Runnable[str, list[Example]]
+class Retriever(Protocol):
+    def invoke(self, input: str) -> list[Example]:
+        ...
+
+    def batch(self, inputs: list[str]) -> list[list[Example]]:
+        ...
 
 
 class LanguageModel(Protocol):
@@ -149,7 +153,7 @@ class Instance:
     # - TODO not yet - Good vs Bad Prompt
     # - TODO not supported by langchain - Good vs Bad Examples (best matches in VectorDB and worst matches in DB)
 
-    model: str  # Identifier from OpenAI or Insomnium
+    model: str  # Identifier from OpenAI/Insomnium
     number_of_examples: int
     example_type: ExampleType
     extract: Callable[[Query, Retriever, LanguageModel], Profile]

@@ -6,7 +6,7 @@ from src.database import DB
 from src.language_model import OpenAILanguageModel
 
 
-def run_for_author(instance: Instance, query: Query) -> Profile:
+def run_query_for_instance(instance: Instance, query: Query) -> Profile:
     # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
 
     retriever = DB.as_retriever(instance.number_of_examples)
@@ -44,9 +44,13 @@ def extract_from_abstracts(query: Query, retriever: Retriever, llm: LanguageMode
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptValue(
         messages=[
-            SystemMessage(content='something about a professional competency extraction from the abstracts'),
+            SystemMessage(
+                content='Extract professional competencies from the following scientific abstracts. Identify key competencies demonstrated within these texts and compile them into a structured profile. Each abstract should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+            ),
             *get_example_messages_for_one(content, retriever),
-            HumanMessage(content=f'something about a professional competency extraction from the abstracts {content}'),
+            HumanMessage(
+                content=f'Please extract the professional competencies from these scientific abstracts: {content}'
+            ),
         ]
     )
 
@@ -63,8 +67,10 @@ def extract_from_summaries(query: Query, retriever: Retriever, llm: LanguageMode
     prompts = [
         ChatPromptValue(
             messages=[
-                SystemMessage(content='something about summarizing the full text'),
-                HumanMessage(content=f'something about summarizing the full text {full_text}'),
+                SystemMessage(
+                    content='Generate a concise summary for the following full text of a scientific paper. The summary should capture the main arguments, methodologies, results, and implications succinctly.'
+                ),
+                HumanMessage(content=f'Please provide a summary for this complete document text: {full_text}'),
             ]
         )
         for full_text in query.full_texts
@@ -76,9 +82,11 @@ def extract_from_summaries(query: Query, retriever: Retriever, llm: LanguageMode
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptValue(
         messages=[
-            SystemMessage(content='something about a professional competency extraction from the summaries'),
+            SystemMessage(
+                content='Extract professional competencies from the provided summary of the scientific paper. Identify key competencies that are detailed in the summary, and organize them into a structured profile. Each summary should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+            ),
             *get_example_messages_for_one(content, retriever),
-            HumanMessage(content=f'something about a professional competency extraction from the summaries {content}'),
+            HumanMessage(content=f'Please extract the professional competencies from this summary: {content}'),
         ]
     )
 
@@ -93,10 +101,12 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
     prompts = [
         ChatPromptValue(
             messages=[
-                SystemMessage(content='something about a professional competency extraction from the full text'),
+                SystemMessage(
+                    content='Extract professional competencies from the entire text of the provided scientific paper. Identify and list all relevant competencies demonstrated within the text, organizing them into a structured competency profile.'
+                ),
                 *example_messages,
                 HumanMessage(
-                    content=f'something about a professional competency extraction from the full text {full_text}'
+                    content=f'Please extract the professional competencies from this complete document text: {full_text}'
                 ),
             ]
         )
@@ -112,8 +122,12 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
     # TODO prompt with proper formatting based on the models tokenizer
     prompt = ChatPromptValue(
         messages=[
-            SystemMessage(content='something about good combiner for the profiles'),
-            HumanMessage(content=f'something with all the profiles {profiles}'),
+            SystemMessage(
+                content='Combine the following individual competency profiles into a single, comprehensive profile. This unified profile should reflect integrated competencies that encapsulate the essence of all included profiles.'
+            ),
+            HumanMessage(
+                content=f'Please synthesize these individual profiles into one comprehensive profile: {profiles}'
+            ),
         ]
     )
 
@@ -124,11 +138,12 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
 # --- TODO move to langchain
 # --- TODO use langchain retriever for the vector store
 # --- TODO function which runs all the instances for a given author
-# TODO prompts - Add the task to the system message
+# --- TODO prompts - Add the task to the system message
 # TODO add restraints to the models? Like stop tokens or max tokens. Don't know if it is necessary
+# TODO Chroma DB overview - what is currently in the database, illegal entries, etc.
+# TODO different indices in the database for extraction examples, summarization examples, and comparison examples
 # --- TODO test with ChatPromptTemplate.from_template and ChatPromptTemplate.from_messages
 # --- TODO batched
 # --- TODO proper full text paper loading
 # TODO add the interface to compare the different approaches
 # TODO add the automatic comparison of the results based on an LLM
-# TODO different indices in the database for extraction examples, summarization examples, and comparison examples

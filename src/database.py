@@ -29,7 +29,7 @@ class DB:
     def add(
         example: Example,
         author: str,
-        rating: int | None = None,
+        rating: int = -1,
         is_reference: bool = False,
     ) -> None:
         db.add_documents(

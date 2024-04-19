@@ -47,7 +47,11 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
             return f.read()
 
     # Extract the full text from the PDF
-    reader = PdfReader(file_name)
+    try:
+        reader = PdfReader(file_name)
+    except Exception as e:
+        print(f'Error reading PDF: {e}')
+        return None
     texts = [page.extract_text() for page in reader.pages]
 
     # Strip the references and appendix

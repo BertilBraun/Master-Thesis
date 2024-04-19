@@ -13,26 +13,21 @@ class OpenAILanguageModel(LanguageModel):
         self.model = ChatOpenAI(model=model)
         self.output_parser = StrOutputParser()
 
-    def invoke(self, prompt: ChatPromptValue, /, stop: list[str] = []) -> str:
+    def batch(self, prompts: list[ChatPromptValue], /, stop: list[str] | None = None) -> list[str]:
         log(f'Running model: {self.model.name}', level=LogLevel.DEBUG)
-        log(f'Prompt: {prompt}', level=LogLevel.DEBUG)
-        response = self.output_parser.invoke(self.model.invoke(prompt, stop=stop))
-        log(f'Response: {response}', level=LogLevel.DEBUG)
+        log(f'Prompts: {prompts}', level=LogLevel.DEBUG)
+        response = self.output_parser.batch(self.model.batch(prompts, stop=stop))  # type: ignore
+        log(f'Responses: {response}', level=LogLevel.DEBUG)
         return response
 
+    def invoke(self, prompt: ChatPromptValue, /, stop: list[str] | None = None) -> str:
+        return self.batch([prompt], stop=stop)[0]
+
     def invoke_profile(self, prompt: ChatPromptValue) -> Profile:
-        # TODO stop tokens
-        stop = ['\n\n\n']
+        stop = None  # TODO stop tokens ['\n\n\n']
         profile = Profile.parse(self.invoke(prompt, stop=stop))
 
         # TODO maybe not here
         DB.add(Example(abstract=str(prompt), profile=profile), author=self.model.name or 'unknown')
 
         return profile
-
-    def batch(self, prompts: list[ChatPromptValue], /, stop: list[str] = []) -> list[str]:
-        log(f'Running batched model: {self.model.name}', level=LogLevel.DEBUG)
-        log(f'Prompts: {prompts}', level=LogLevel.DEBUG)
-        response = self.output_parser.batch(self.model.batch(prompts, stop=stop))  # type: ignore
-        log(f'Response: {response}', level=LogLevel.DEBUG)
-        return response
