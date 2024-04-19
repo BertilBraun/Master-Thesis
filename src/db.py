@@ -67,11 +67,11 @@ Reference: {is_reference}
         return [Example.parse(result.page_content) for result in results]
 
     @staticmethod
-    def as_retriever(limit: int) -> Runnable[str, str]:
+    def as_retriever(limit: int) -> Runnable[str, list[Example]]:
         retriever = db.as_retriever(search_kwargs={'k': limit})  # , 'filter': {'reference': True}})
 
-        def format_docs(docs):
-            return '\n\n'.join([d.page_content for d in docs])
+        def format_docs(docs) -> list[Example]:
+            return [Example.parse(doc.page_content) for doc in docs]
 
         return retriever | format_docs
 
@@ -117,8 +117,8 @@ if __name__ == '__main__':
         is_reference=False,
     )
 
-    r = DB.as_retriever(limit=1)
+    retriever = DB.as_retriever(limit=1)
 
-    res = r.invoke('bear')
+    res = retriever.invoke('bear')
 
-    print(r, res)
+    print(retriever, res)

@@ -3,6 +3,9 @@ import os
 os.environ['OPENAI_API_KEY'] = 'sk-...'
 os.environ['OPENAI_BASE_URL'] = 'http://coder.aifb.kit.edu:8080'
 
+# from langchain.globals import set_debug
+# set_debug(True)
+
 from tqdm import tqdm
 from pprint import pprint
 from itertools import product
@@ -11,6 +14,7 @@ from dataclasses import dataclass
 from src.instance import ExampleType, Instance, extract_from_abstracts, extract_from_full_texts, extract_from_summaries
 from src.types import Profile
 from src.util import timeit
+from src.log import LogLevel, log
 
 # Remove base_url for OpenAI API and set the API key and use one of the following models to run the inference on the OpenAI API
 # MODELS = [
@@ -66,12 +70,22 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         if example_type == ExampleType.NEGATIVE and number_of_examples == 0:
             continue
 
-        result = Instance(
+        instance = Instance(
             model,
             number_of_examples,
             example_type,
             extract_func,
-        ).run_for_author(name, number_of_papers=number_of_papers)
+        )
+
+        try:
+            result = instance.run_for_author(name, number_of_papers=number_of_papers)
+        except Exception as e:
+            log(
+                f'Error processing {model=}, {number_of_examples=}, {example_type=}, {extract_func=}',
+                e,
+                level=LogLevel.WARNING,
+            )
+            continue
 
         profiles.append(
             ExtractedProfile(
