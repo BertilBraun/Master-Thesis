@@ -1,7 +1,4 @@
-import os
-
-os.environ['OPENAI_API_KEY'] = 'sk-...'
-os.environ['OPENAI_BASE_URL'] = 'http://coder.aifb.kit.edu:8080'
+import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 from tqdm import tqdm
 from itertools import product

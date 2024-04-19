@@ -125,10 +125,13 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
 # --- TODO function which runs all the instances for a given author
 # --- TODO prompts - Add the task to the system message
 # TODO add restraints to the models? Like stop tokens or max tokens. Don't know if it is necessary
-# TODO Chroma DB overview - what is currently in the database, illegal entries, etc.
+# --- TODO Chroma DB overview - what is currently in the database, illegal entries, etc.
 # TODO different indices in the database for extraction examples, summarization examples, and comparison examples
 # --- TODO test with ChatPromptTemplate.from_template and ChatPromptTemplate.from_messages
 # --- TODO batched
 # --- TODO proper full text paper loading
+# TODO fix 500 error on LLM call
+# TODO add examples to the database for the different approaches
+# TODO rethink prompts with zero-shot. This can basically not ever work with the current setup where a specific format is expected
 # TODO add the interface to compare the different approaches
 # TODO add the automatic comparison of the results based on an LLM

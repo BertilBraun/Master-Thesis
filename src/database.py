@@ -1,3 +1,5 @@
+import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
+
 import os
 
 from langchain_chroma import Chroma
@@ -126,4 +128,11 @@ if __name__ == '__main__':
 
     res = retriever.invoke('bear')
 
-    print(retriever, res)
+    print("Best match in DB for 'bear': ", res)
+
+    content = db.get()
+    for id, doc, metadata in zip(content['ids'], content['documents'], content['metadatas']):
+        print(f'ID: {id}')
+        print(f'Document: {doc}')
+        print(f'Metadata: {metadata}')
+        print('---' * 30)
