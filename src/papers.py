@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from functools import cache
+import os
 from pyalex import Works, Authors
 from pypdf import PdfReader
 
@@ -33,11 +34,17 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     # Load the full text of a paper from the given Open Access URL
 
     # Download the paper
-    success, file_name = download(paper_oa_url)
+    success, file_name = download(paper_oa_url, extension='.pdf')
 
     if not success:
         # Failed to download the paper -> Cannot extract the full text
         return None
+
+    full_text_file_name = file_name.replace('.pdf', '.txt')
+    if os.path.exists(full_text_file_name):
+        # The full text has already been extracted and saved to a file
+        with open(full_text_file_name, 'r') as f:
+            return f.read()
 
     # Extract the full text from the PDF
     reader = PdfReader(file_name)
@@ -55,7 +62,13 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     texts = [text.replace('-\n', '').replace('\n', ' ') for text in texts]
 
     # Return the full text
-    return '\n'.join(texts)
+    full_text = '\n'.join(texts)
+
+    # Save the full text to a file to avoid re-extraction
+    with open(full_text_file_name, 'w') as f:
+        f.write(full_text)
+
+    return full_text
 
 
 @timeit('Get Papers by Author')

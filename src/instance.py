@@ -1,90 +1,19 @@
-from enum import Enum
-from typing import Callable
-from dataclasses import dataclass
-
-from langchain_openai import ChatOpenAI
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompt_values import ChatPromptValue
-from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from src.db import DB
-from src.log import LogLevel, log
-from src.util import timeit
-from src.types import Profile, Query, Example
-from src.papers import get_papers_by_author
+from src.types import Profile, Query, Instance, Retriever, LanguageModel
+from src.database import DB
+from src.language_model import OpenAILanguageModel
 
 
-class ExampleType(Enum):
-    POSITIVE = 'positive'  # Good Examples (best matches in VectorDB)
-    NEGATIVE = 'negative'  # Bad Examples (worst matches in VectorDB)
+def run_for_author(instance: Instance, query: Query) -> Profile:
+    # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
 
+    retriever = DB.as_retriever(instance.number_of_examples)
 
-@dataclass(frozen=True)
-class ExtractionResult:
-    profile: Profile
-    titles: list[str]
-    author: str
+    llm = OpenAILanguageModel(instance.model)
 
-
-class LanguageModel:
-    def __init__(self, model: str):
-        # Note: Cannot chain them because we need to pass the stop tokens to the model
-        self.model = ChatOpenAI(model=model)
-        self.output_parser = StrOutputParser()
-
-    def invoke(self, prompt: ChatPromptValue, /, stop: list[str] = []) -> str:
-        log(f'Running model: {self.model.name}', level=LogLevel.DEBUG)
-        log(f'Prompt: {prompt}', level=LogLevel.DEBUG)
-        response = self.output_parser.invoke(self.model.invoke(prompt, stop=stop))
-        log(f'Response: {response}', level=LogLevel.DEBUG)
-        return response
-
-    def invoke_profile(self, prompt: ChatPromptValue) -> Profile:
-        # TODO stop tokens
-        stop = ['\n\n\n']
-        return Profile.parse(self.invoke(prompt, stop=stop))
-
-    def batch(self, prompts: list[ChatPromptValue], /, stop: list[str] = []) -> list[str]:
-        log(f'Running batched model: {self.model.name}', level=LogLevel.DEBUG)
-        log(f'Prompts: {prompts}', level=LogLevel.DEBUG)
-        response = self.output_parser.batch(self.model.batch(prompts, stop=stop))  # type: ignore
-        log(f'Response: {response}', level=LogLevel.DEBUG)
-        return response
-
-
-Retriever = Runnable[str, list[Example]]
-
-
-@dataclass(frozen=True)
-class Instance:
-    # - Different Models (Types and Sizes)
-    # - Abstract vs Automatic Summary vs Full Text
-    # - Zero- vs One- vs Few-Shot
-    # - TODO not yet - Good vs Bad Prompt
-    # - TODO not supported by langchain - Good vs Bad Examples (best matches in VectorDB and worst matches in DB)
-
-    model: str  # Identifier from OpenAI or Insomnium
-    number_of_examples: int
-    example_type: ExampleType
-    extract: Callable[[Query, Retriever, LanguageModel], Profile]
-
-    def run_for_author(self, author: str, number_of_papers: int = 5) -> ExtractionResult:
-        query = get_papers_by_author(author, number_of_papers=number_of_papers)
-
-        # TODO retriever based on self.example_type == POSITIVE or NEGATIVE
-
-        retriever = DB.as_retriever(self.number_of_examples).with_fallbacks([RunnableLambda(lambda query: [])])
-
-        llm = LanguageModel(self.model)
-
-        profile = self.extract(query, retriever, llm)
-
-        return ExtractionResult(
-            profile=profile,
-            titles=query.titles,
-            author=query.author,
-        )
+    return instance.extract(query, retriever, llm)
 
 
 def get_example_messages_for_one(content: str, retriever: Retriever) -> list[HumanMessage | AIMessage]:
@@ -106,12 +35,7 @@ def get_example_messages(contents: list[str], retriever: Retriever) -> list[list
     ]
 
 
-@timeit('Extracting competencies')
-def extract_from_abstracts(
-    query: Query,
-    retriever: Retriever,
-    llm: LanguageModel,
-) -> Profile:
+def extract_from_abstracts(query: Query, retriever: Retriever, llm: LanguageModel) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -129,12 +53,7 @@ def extract_from_abstracts(
     return llm.invoke_profile(prompt)
 
 
-@timeit('Extracting competencies')
-def extract_from_summaries(
-    query: Query,
-    retriever: Retriever,
-    llm: LanguageModel,
-) -> Profile:
+def extract_from_summaries(query: Query, retriever: Retriever, llm: LanguageModel) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the summaries
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -166,12 +85,7 @@ def extract_from_summaries(
     return llm.invoke_profile(prompt)
 
 
-@timeit('Extracting competencies')
-def extract_from_full_texts(
-    query: Query,
-    retriever: Retriever,
-    llm: LanguageModel,
-) -> Profile:
+def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageModel) -> Profile:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 

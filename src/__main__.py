@@ -1,22 +1,18 @@
 import os
 
-
 os.environ['OPENAI_API_KEY'] = 'sk-...'
 os.environ['OPENAI_BASE_URL'] = 'http://coder.aifb.kit.edu:8080'
 
-# from langchain.globals import set_debug
-# set_debug(True)
-
 from tqdm import tqdm
-from pprint import pprint
 from itertools import product
-from dataclasses import dataclass
 
-from src.instance import ExampleType, Instance, extract_from_abstracts, extract_from_full_texts, extract_from_summaries
-from src.types import Profile, Example
+from src.evaluation import evaluate_with
+from src.instance import extract_from_abstracts, extract_from_full_texts, extract_from_summaries, run_for_author
+from src.database import DB
+from src.papers import get_papers_by_author
+from src.types import AuthorExtractionResult, ExtractedProfile, Profile, Example, ExampleType, Instance
 from src.util import timeit
 from src.log import LogLevel, log
-from src.db import DB
 
 # Remove base_url for OpenAI API and set the API key and use one of the following models to run the inference on the OpenAI API
 # MODELS = [
@@ -24,6 +20,8 @@ from src.db import DB
 #     'gpt-4-turbo',
 #     'gpt-4',
 # ]
+
+EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
 MODELS = [
     'neural',
@@ -48,22 +46,11 @@ EXTRACTORS = [
 ]
 
 
-@dataclass
-class ExtractedProfile:
-    profile: Profile
-    instance: Instance
-
-
-@dataclass
-class AuthorExtractionResult:
-    profiles: list[ExtractedProfile]
-    titles: list[str]
-
-
 @timeit('Processing Author')
 def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResult:
     profiles: list[ExtractedProfile] = []
-    titles: set[str] = set()
+
+    query = get_papers_by_author(name, number_of_papers=number_of_papers)
 
     for model, (example_type, number_of_examples), extract_func in tqdm(
         product(MODELS, EXAMPLES, EXTRACTORS),
@@ -77,17 +64,20 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         )
 
         try:
-            result = instance.run_for_author(name, number_of_papers=number_of_papers)
+            profile = run_for_author(instance, query)
         except Exception as e:
             log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
             continue
 
-        profiles.append(ExtractedProfile(profile=result.profile, instance=instance))
-        titles.update(result.titles)
+        profiles.append(ExtractedProfile(profile=profile, instance=instance))
+
+    evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
+    log(evaluation_result)
 
     return AuthorExtractionResult(
         profiles=profiles,
-        titles=list(titles),
+        titles=query.titles,
+        author=query.author,
     )
 
 
@@ -133,6 +123,7 @@ Competencies:
 
 if __name__ == '__main__':
     import sys
+    from pprint import pprint
 
     if len(sys.argv) <= 2:
         sys.exit('Usage: python -m src <command> <query>')

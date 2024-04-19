@@ -3,7 +3,7 @@ import os
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.documents import Document
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 
 from src.util import timeit
 from src.types import Example
@@ -68,12 +68,17 @@ Reference: {is_reference}
 
     @staticmethod
     def as_retriever(limit: int) -> Runnable[str, list[Example]]:
-        retriever = db.as_retriever(search_kwargs={'k': limit})  # , 'filter': {'reference': True}})
+        retriever = db.as_retriever(
+            search_kwargs={
+                'k': limit,
+                # 'filter': {'reference': True}})
+            }
+        ).with_fallbacks([RunnableLambda(lambda query: [])])
 
-        def format_docs(docs) -> list[Example]:
+        def parse_documents(docs: list[Document]) -> list[Example]:
             return [Example.parse(doc.page_content) for doc in docs]
 
-        return retriever | format_docs
+        return retriever | parse_documents
 
     @staticmethod
     def clear():

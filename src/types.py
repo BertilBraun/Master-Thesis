@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+from enum import Enum
 import re
 
 from dataclasses import dataclass
+from typing import Callable, Protocol
+
+from langchain_core.runnables import Runnable
+from langchain_core.prompt_values import ChatPromptValue
 
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 
@@ -103,5 +108,61 @@ class Example:
 class Query:
     full_texts: list[str]
     abstracts: list[str]
+    titles: list[str]
+    author: str
+
+
+class ExampleType(Enum):
+    POSITIVE = 'positive'  # Good Examples (best matches in VectorDB)
+    NEGATIVE = 'negative'  # Bad Examples (worst matches in VectorDB)
+
+
+@dataclass(frozen=True)
+class ExtractionResult:
+    profile: Profile
+    titles: list[str]
+    author: str
+
+
+Retriever = Runnable[str, list[Example]]
+
+
+class LanguageModel(Protocol):
+    def __init__(self, model: str):
+        ...
+
+    def invoke(self, prompt: ChatPromptValue, /, stop: list[str] = []) -> str:
+        ...
+
+    def invoke_profile(self, prompt: ChatPromptValue) -> Profile:
+        ...
+
+    def batch(self, prompts: list[ChatPromptValue], /, stop: list[str] = []) -> list[str]:
+        ...
+
+
+@dataclass(frozen=True)
+class Instance:
+    # - Different Models (Types and Sizes)
+    # - Abstract vs Automatic Summary vs Full Text
+    # - Zero- vs One- vs Few-Shot
+    # - TODO not yet - Good vs Bad Prompt
+    # - TODO not supported by langchain - Good vs Bad Examples (best matches in VectorDB and worst matches in DB)
+
+    model: str  # Identifier from OpenAI or Insomnium
+    number_of_examples: int
+    example_type: ExampleType
+    extract: Callable[[Query, Retriever, LanguageModel], Profile]
+
+
+@dataclass(frozen=True)
+class ExtractedProfile:
+    profile: Profile
+    instance: Instance
+
+
+@dataclass(frozen=True)
+class AuthorExtractionResult:
+    profiles: list[ExtractedProfile]
     titles: list[str]
     author: str

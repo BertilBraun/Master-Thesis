@@ -31,21 +31,21 @@ def sanitize_filename(filename: str) -> str:
     return sanitized
 
 
-def generate_filename(url: str) -> str:
+def generate_filename(url: str, extension: str) -> str:
     """
     Generate a filename based on the URL and current date.
     Ensure the filename is free of illegal characters.
     """
     base_name = url.split('/')[-1]  # Assumes the URL ends with the filename
-    if not base_name.lower().endswith('.pdf'):
-        base_name += '.pdf'  # Ensures the file has a PDF extension
+    if not base_name.lower().endswith(extension):
+        base_name += extension  # Ensures the file has a PDF extension
     return sanitize_filename(base_name)
 
 
-def download(url: str) -> tuple[bool, str]:
+def download(url: str, extension: str = '') -> tuple[bool, str]:
     # Download the file from `url` and save it locally under `file_name`. Return True if the file was successfully downloaded, False otherwise. The file_name is returned as the second element of the tuple.
 
-    file_name = 'downloads/' + generate_filename(url)
+    file_name = 'downloads/' + generate_filename(url, extension)
 
     if os.path.exists(file_name):
         log(f'File already exists: {file_name}', level=LogLevel.DEBUG)
