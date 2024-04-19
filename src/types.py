@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from enum import Enum
 import re
 
-from dataclasses import dataclass
+from enum import Enum
 from typing import Callable, Protocol
+from dataclasses import dataclass
 
-from langchain_core.prompt_values import ChatPromptValue
+from openai.types.chat import ChatCompletionMessageParam
 
 _COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
 
@@ -131,17 +131,60 @@ class Retriever(Protocol):
         ...
 
 
+@dataclass(frozen=True)
+class SystemMessage:
+    content: str
+
+    def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'role': 'system'}
+
+
+@dataclass(frozen=True)
+class HumanMessage:
+    content: str
+
+    def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'role': 'user'}
+
+
+@dataclass(frozen=True)
+class AIMessage:
+    content: str
+
+    def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'role': 'assistant'}
+
+
+@dataclass(frozen=True)
+class HumanExampleMessage:
+    content: str
+
+    def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'name': 'example_user', 'role': 'system'}
+
+
+@dataclass(frozen=True)
+class AIExampleMessage:
+    content: str
+
+    def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'name': 'example_assistant', 'role': 'system'}
+
+
+Message = SystemMessage | HumanMessage | AIMessage | HumanExampleMessage | AIExampleMessage
+
+
 class LanguageModel(Protocol):
     def __init__(self, model: str):
         ...
 
-    def invoke(self, prompt: ChatPromptValue, /, stop: list[str] = []) -> str:
+    def invoke(self, prompt: list[Message], /, stop: list[str] | None = None) -> str:
         ...
 
-    def invoke_profile(self, prompt: ChatPromptValue) -> Profile:
+    def invoke_profile(self, prompt: list[Message]) -> Profile:
         ...
 
-    def batch(self, prompts: list[ChatPromptValue], /, stop: list[str] = []) -> list[str]:
+    def batch(self, prompts: list[list[Message]], /, stop: list[str] | None = None) -> list[str]:
         ...
 
 

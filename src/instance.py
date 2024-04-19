@@ -1,7 +1,4 @@
-from langchain_core.prompt_values import ChatPromptValue
-from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
-
-from src.types import Profile, Query, Instance, Retriever, LanguageModel
+from src.types import Profile, Query, Instance, Retriever, LanguageModel, SystemMessage, HumanMessage, AIMessage
 from src.database import DB
 from src.language_model import OpenAILanguageModel
 
@@ -42,17 +39,15 @@ def extract_from_abstracts(query: Query, retriever: Retriever, llm: LanguageMode
     content = '\n\n'.join(query.abstracts)
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = ChatPromptValue(
-        messages=[
-            SystemMessage(
-                content='Extract professional competencies from the following scientific abstracts. Identify key competencies demonstrated within these texts and compile them into a structured profile. Each abstract should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
-            ),
-            *get_example_messages_for_one(content, retriever),
-            HumanMessage(
-                content=f'Please extract the professional competencies from these scientific abstracts: {content}'
-            ),
-        ]
-    )
+    prompt = [
+        SystemMessage(
+            content='Extract professional competencies from the following scientific abstracts. Identify key competencies demonstrated within these texts and compile them into a structured profile. Each abstract should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+        ),
+        *get_example_messages_for_one(content, retriever),
+        HumanMessage(
+            content=f'Please extract the professional competencies from these scientific abstracts: {content}'
+        ),
+    ]
 
     return llm.invoke_profile(prompt)
 
@@ -65,14 +60,12 @@ def extract_from_summaries(query: Query, retriever: Retriever, llm: LanguageMode
     # TODO examples for summarization?
     # TODO prompt with proper formatting based on the models tokenizer
     prompts = [
-        ChatPromptValue(
-            messages=[
-                SystemMessage(
-                    content='Generate a concise summary for the following full text of a scientific paper. The summary should capture the main arguments, methodologies, results, and implications succinctly.'
-                ),
-                HumanMessage(content=f'Please provide a summary for this complete document text: {full_text}'),
-            ]
-        )
+        [
+            SystemMessage(
+                content='Generate a concise summary for the following full text of a scientific paper. The summary should capture the main arguments, methodologies, results, and implications succinctly.'
+            ),
+            HumanMessage(content=f'Please provide a summary for this complete document text: {full_text}'),
+        ]
         for full_text in query.full_texts
     ]
 
@@ -80,15 +73,13 @@ def extract_from_summaries(query: Query, retriever: Retriever, llm: LanguageMode
     content = '\n\n'.join(summaries)
 
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = ChatPromptValue(
-        messages=[
-            SystemMessage(
-                content='Extract professional competencies from the provided summary of the scientific paper. Identify key competencies that are detailed in the summary, and organize them into a structured profile. Each summary should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
-            ),
-            *get_example_messages_for_one(content, retriever),
-            HumanMessage(content=f'Please extract the professional competencies from this summary: {content}'),
-        ]
-    )
+    prompt = [
+        SystemMessage(
+            content='Extract professional competencies from the provided summary of the scientific paper. Identify key competencies that are detailed in the summary, and organize them into a structured profile. Each summary should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+        ),
+        *get_example_messages_for_one(content, retriever),
+        HumanMessage(content=f'Please extract the professional competencies from this summary: {content}'),
+    ]
 
     return llm.invoke_profile(prompt)
 
@@ -99,17 +90,15 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
 
     # TODO prompt with proper formatting based on the models tokenizer
     prompts = [
-        ChatPromptValue(
-            messages=[
-                SystemMessage(
-                    content='Extract professional competencies from the entire text of the provided scientific paper. Identify and list all relevant competencies demonstrated within the text, organizing them into a structured competency profile.'
-                ),
-                *example_messages,
-                HumanMessage(
-                    content=f'Please extract the professional competencies from this complete document text: {full_text}'
-                ),
-            ]
-        )
+        [
+            SystemMessage(
+                content='Extract professional competencies from the entire text of the provided scientific paper. Identify and list all relevant competencies demonstrated within the text, organizing them into a structured competency profile.'
+            ),
+            *example_messages,
+            HumanMessage(
+                content=f'Please extract the professional competencies from this complete document text: {full_text}'
+            ),
+        ]
         for full_text, example_messages in zip(query.full_texts, get_example_messages(query.full_texts, retriever))
     ]
 
@@ -120,16 +109,12 @@ def extract_from_full_texts(query: Query, retriever: Retriever, llm: LanguageMod
 
     # TODO examples for combination?
     # TODO prompt with proper formatting based on the models tokenizer
-    prompt = ChatPromptValue(
-        messages=[
-            SystemMessage(
-                content='Combine the following individual competency profiles into a single, comprehensive profile. This unified profile should reflect integrated competencies that encapsulate the essence of all included profiles.'
-            ),
-            HumanMessage(
-                content=f'Please synthesize these individual profiles into one comprehensive profile: {profiles}'
-            ),
-        ]
-    )
+    prompt = [
+        SystemMessage(
+            content='Combine the following individual competency profiles into a single, comprehensive profile. This unified profile should reflect integrated competencies that encapsulate the essence of all included profiles.'
+        ),
+        HumanMessage(content=f'Please synthesize these individual profiles into one comprehensive profile: {profiles}'),
+    ]
 
     return llm.invoke_profile(prompt)
 
