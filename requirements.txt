@@ -2,6 +2,7 @@ numpy
 tqdm
 pypdf
 pyalex
+openai
 langchain
 langchain-core 
 langchain-community 

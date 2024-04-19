@@ -37,7 +37,7 @@ def extract_from_abstracts(query: Query, retriever: RetrieverGetter, llm: Langua
 
     content = '\n\n'.join(query.abstracts)
 
-    # TODO prompt with proper formatting based on the models tokenizer
+    # TODO better prompt
     prompt = [
         SystemMessage(
             content='Extract professional competencies from the following scientific abstracts. Identify key competencies demonstrated within these texts and compile them into a structured profile. Each abstract should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
@@ -56,7 +56,7 @@ def extract_from_summaries(query: Query, retriever: RetrieverGetter, llm: Langua
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
     # Get the summary from the full text
-    # TODO prompt with proper formatting based on the models tokenizer
+    # TODO better prompt
     prompts = [
         [
             SystemMessage(
@@ -71,7 +71,7 @@ def extract_from_summaries(query: Query, retriever: RetrieverGetter, llm: Langua
     summaries = llm.batch(prompts)
     content = '\n\n'.join(summaries)
 
-    # TODO prompt with proper formatting based on the models tokenizer
+    # TODO better prompt
     prompt = [
         SystemMessage(
             content='Extract professional competencies from the provided summary of the scientific paper. Identify key competencies that are detailed in the summary, and organize them into a structured profile. Each summary should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
@@ -87,7 +87,7 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    # TODO prompt with proper formatting based on the models tokenizer
+    # TODO better prompt
     prompts = [
         [
             SystemMessage(
@@ -106,7 +106,7 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
     # The parsing and conversion back to string is done to unify the output format
     profiles = '\n\n'.join([str(Profile.parse(profile)) for profile in llm_profiles])
 
-    # TODO prompt with proper formatting based on the models tokenizer
+    # TODO better prompt
     prompt = [
         SystemMessage(
             content='Combine the following individual competency profiles into a single, comprehensive profile. This unified profile should reflect integrated competencies that encapsulate the essence of all included profiles.'

@@ -2,7 +2,7 @@ from openai import OpenAI
 
 from src.log import LogLevel, log
 from src.types import Profile, Example, LanguageModel, Message
-from src.database import DB
+from src.database import add_element_to_database
 
 
 class OpenAILanguageModel(LanguageModel):
@@ -39,6 +39,6 @@ class OpenAILanguageModel(LanguageModel):
         profile = Profile.parse(self.invoke(prompt, stop=stop))
 
         # TODO maybe not here
-        DB.add(Example(abstract=str(prompt), profile=profile), author=self.model or 'unknown')
+        add_element_to_database(Example(abstract=str(prompt), profile=profile))
 
         return profile

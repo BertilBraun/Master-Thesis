@@ -10,6 +10,7 @@ def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) ->
 
     abstracts = '\n\n'.join(query.abstracts)
 
+    # TODO better prompt
     prompts = [
         [
             SystemMessage(
@@ -26,9 +27,6 @@ def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) ->
     responses = llm.batch(prompts)
 
     scores = [EvaluationScore.parse(response).value for response in responses]
-
-    for profile, score in zip(profiles, scores):
-        print('Profile:', profile, 'has score:', score)
 
     # sort by score
     sorted_scored_profiles = list(sorted(zip(profiles, scores), key=lambda x: x[1], reverse=True))
