@@ -18,16 +18,25 @@ class Author:
     count: int
 
 
-@timeit('Get Author Id by Name')
+@timeit('Get Author by Name')
 @cache
-def get_author_id_by_name(name: str) -> str:
-    # Get the OpenAlex author ID by the author's display name
-    return (
+def get_author_by_name(name: str) -> Author | None:
+    # Get the OpenAlex author by the author's display name
+    author = (
         Authors()
         .filter(affiliations={'institution': {'lineage': KIT_INSTITUTION_ID}})
         .search_filter(display_name=name)
-        .get()[0]['id']
-    )  # type: ignore
+        .get()
+    )
+
+    if not author:
+        return None
+
+    return Author(
+        name=author[0]['display_name'],  # type: ignore
+        id=author[0]['id'],  # type: ignore
+        count=author[0]['works_count'],  # type: ignore
+    )
 
 
 @timeit('Load Paper Full Text')
@@ -80,15 +89,18 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
 @cache
 def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
     # Get the top number_of_papers most cited papers by the author with the given name
+    author = get_author_by_name(name)
+    assert author, f'Author {name} not found'
 
     papers = (
         Works()
-        .filter(author={'id': get_author_id_by_name(name)})
+        .filter(author={'id': author.id})
         .filter(has_abstract=True)
         .filter(has_fulltext=True)
+        .filter(open_access={'is_oa': True})
         .filter(fulltext_origin='pdf')
         .sort(cited_by_count='desc')
-        .get(per_page=number_of_papers * 5)
+        .get(per_page=number_of_papers * 2)
     )
 
     full_texts: list[str] = []
@@ -111,7 +123,7 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
         abstracts=abstracts,
         full_texts=full_texts,
         titles=titles,
-        author=name,
+        author=author.name,
     )
 
 
@@ -140,6 +152,6 @@ if __name__ == '__main__':
 
     pprint(get_authors_of_kit())
 
-    print(get_author_id_by_name('Peter Sanders'))
+    pprint(get_author_by_name('Peter Sanders'))
 
     pprint(get_papers_by_author('Peter Sanders'))

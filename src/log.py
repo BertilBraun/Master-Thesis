@@ -8,8 +8,12 @@ def datetime_str() -> str:
     return time.strftime('%Y-%m-%d %H %M %S')
 
 
+def date_str() -> str:
+    return time.strftime('%Y-%m-%d')
+
+
 def time_str() -> str:
-    return time.strftime('%H:%M:%S')
+    return time.strftime('%H.%M.%S')
 
 
 class LogLevel(Enum):
@@ -20,9 +24,10 @@ class LogLevel(Enum):
     CRITICAL = 50
 
 
-LOG_FILE = f'logs/log {datetime_str()}.txt'
+LOG_FOLDER = f'logs/{date_str()}'
+LOG_FILE = LOG_FOLDER + f'/log {time_str()}.log'
 LOG_LEVEL = LogLevel.INFO
-os.makedirs('logs', exist_ok=True)
+os.makedirs(LOG_FOLDER, exist_ok=True)
 log_file = open(LOG_FILE, 'w')
 
 
