@@ -29,7 +29,8 @@ MODELS = [
 EXAMPLES = [
     (ExampleType.POSITIVE, 2),
     (ExampleType.POSITIVE, 1),
-    (ExampleType.POSITIVE, 0),
+    # Zero shot would not produce the required structured output
+    # (ExampleType.POSITIVE, 0),
     # ExampleType.NEGATIVE currently not supported by langchain
     # (ExampleType.NEGATIVE, 2),
     # (ExampleType.NEGATIVE, 1),
@@ -118,8 +119,50 @@ Competencies:
     )
 
 
+def format_mail(result: AuthorExtractionResult) -> str:
+    # Formats the extraction result into a mail template for the author to request a evaluation of the extracted profiles
+
+    titles = '- ' + '\n- '.join(result.titles)
+
+    # Make a copy of the profiles list to shuffle it
+    result_profiles = [profile for profile in result.profiles]
+
+    # Shuffle the profiles list to avoid bias
+    random.shuffle(result_profiles)
+
+    profiles = ''
+    for i, profile in enumerate(result_profiles):
+        profiles += f'{i+1}.: {profile.profile}\n\n'
+
+    return f"""
+Hello Prof {result.author},
+
+As part of our ongoing research, we are developing a system to match researchers with the most suitable scientific communities based on their competencies and expertise areas. We are developing a system that can automatically extract competencies and expertise areas from scientific papers and we would like to know how well you think the extracted profiles match your competencies and expertise areas.
+
+We have processed the following papers for you:
+{titles}
+
+Based on these papers, we have extracted the following profiles for you:
+{profiles}
+
+We'd like to know which profile you think is the best match for you. Please provide a score between 0 and 100 for each profile based on how well you think it matches your competencies, themes, and expertise areas mentioned in the papers.
+
+A format for your response could be:
+1. 60
+2. 80
+3. 70   
+4. 90
+5. 85
+
+Thank you for your time and we look forward to hearing from you soon.
+
+Best regards,
+Bertil Braun"""
+
+
 if __name__ == '__main__':
     import sys
+    import random
     from pprint import pprint
 
     if len(sys.argv) <= 2:
@@ -129,4 +172,11 @@ if __name__ == '__main__':
         add_initial_references()
 
     if sys.argv[1] == 'author':
-        pprint(process_author(sys.argv[2], number_of_papers=5))
+        result = process_author(sys.argv[2], number_of_papers=5)
+
+        log('Final result:', result, level=LogLevel.DEBUG)
+
+        pprint(result)
+
+        print('-' * 50)
+        print(format_mail(result))

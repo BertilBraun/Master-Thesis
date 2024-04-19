@@ -130,7 +130,8 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
 # --- TODO batched
 # --- TODO proper full text paper loading
 # TODO fix 500 error on LLM call
+# TODO let LLM reason about the quality of the examples before having to score them - also do so in the database model and the examples
 # TODO add examples to the database for the different approaches
-# TODO rethink prompts with zero-shot. This can basically not ever work with the current setup where a specific format is expected
 # --- TODO add the (programmatic) interface to compare the different approaches
 # --- TODO add the automatic comparison of the results based on an LLM
+# Delayed (just don't eval that) TODO rethink prompts with zero-shot. This can basically not ever work with the current setup where a specific format is expected
