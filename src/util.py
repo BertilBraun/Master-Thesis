@@ -3,7 +3,6 @@ import re
 import time
 import requests
 
-from typing import TypeVar
 from functools import wraps
 
 from src.log import LogLevel, log
@@ -65,10 +64,3 @@ def download(url: str) -> tuple[bool, str]:
     log(f'Downloaded file from {url} to {file_name}', level=LogLevel.DEBUG)
 
     return True, file_name
-
-
-T = TypeVar('T')
-
-
-def to_flat_list(lst: list[list[T]]) -> list[T]:
-    return [item for sublist in lst for item in sublist]

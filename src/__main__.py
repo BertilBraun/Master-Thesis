@@ -26,12 +26,20 @@ from src.db import DB
 # ]
 
 MODELS = [
+    'neural',
     'mistral',
     'mixtral',
-    'neural',
 ]
 
-NUMBER_OF_EXAMPLES = [0, 1, 2]
+EXAMPLES = [
+    (ExampleType.POSITIVE, 2),
+    (ExampleType.POSITIVE, 1),
+    (ExampleType.POSITIVE, 0),
+    # ExampleType.NEGATIVE currently not supported by langchain
+    # (ExampleType.NEGATIVE, 2),
+    # (ExampleType.NEGATIVE, 1),
+    # ExampleType.NEGATIVE with number_of_examples=0 does not make sense as it is the same as ExampleType.POSITIVE with number_of_examples=0
+]
 
 EXTRACTORS = [
     extract_from_abstracts,
@@ -39,19 +47,11 @@ EXTRACTORS = [
     extract_from_full_texts,
 ]
 
-EXAMPLE_TYPES = [
-    ExampleType.POSITIVE,
-    # ExampleType.NEGATIVE,
-]
-
 
 @dataclass
 class ExtractedProfile:
     profile: Profile
-    model: str
-    number_of_examples: int
-    example_type: ExampleType
-    extract_func: str
+    instance: Instance
 
 
 @dataclass
@@ -65,13 +65,10 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
     profiles: list[ExtractedProfile] = []
     titles: set[str] = set()
 
-    for model, number_of_examples, example_type, extract_func in tqdm(
-        product(MODELS, NUMBER_OF_EXAMPLES, EXAMPLE_TYPES, EXTRACTORS),
+    for model, (example_type, number_of_examples), extract_func in tqdm(
+        product(MODELS, EXAMPLES, EXTRACTORS),
         desc='Processing different models and extractors',
     ):
-        if example_type == ExampleType.NEGATIVE and number_of_examples == 0:
-            continue
-
         instance = Instance(
             model,
             number_of_examples,
@@ -82,22 +79,10 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         try:
             result = instance.run_for_author(name, number_of_papers=number_of_papers)
         except Exception as e:
-            log(
-                f'Error processing {model=}, {number_of_examples=}, {example_type=}, {extract_func=}',
-                e,
-                level=LogLevel.WARNING,
-            )
+            log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
             continue
 
-        profiles.append(
-            ExtractedProfile(
-                profile=result.profile,
-                model=model,
-                number_of_examples=number_of_examples,
-                example_type=example_type,
-                extract_func=extract_func.__name__,
-            )
-        )
+        profiles.append(ExtractedProfile(profile=result.profile, instance=instance))
         titles.update(result.titles)
 
     return AuthorExtractionResult(
