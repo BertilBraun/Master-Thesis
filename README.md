@@ -55,6 +55,36 @@ To set up and run the system, ensure you have the necessary dependencies install
 python -m src
 ```
 
+### Setup Local AI Server
+
+Start the Local AI server using the following command:
+
+```bash
+docker run -p 8080:8080 --name local-ai -ti localai/localai:latest-aio-cpu
+```
+
+Access the Local AI server at `http://localhost:8080`.
+
+Add a model to the Local AI server using the following command:
+
+```bash
+curl http://localhost:8080/models/apply -H "Content-Type: application/json" -d '{
+     "url": "<MODEL_CONFIG_FILE>",
+     "name": "<MODEL_NAME>"
+    }'
+```
+
+Find the model configuration file [here](https://gitlab.kit.edu/kit/aifb/BIS/infrastruktur/localai/localai-model-gallery).
+
+The used models in this project are:
+
+```json
+{
+    "url": "https://gitlab.kit.edu/kit/aifb/BIS/infrastruktur/localai/localai-model-gallery/-/raw/main/text-embeddings.yaml",
+    "name": "text-embedding-ada-002"
+}
+```
+
 ## Experimental Approaches and Alternatives
 
 Throughout the development of this project, several experimental approaches were evaluated but ultimately not adopted for various reasons:

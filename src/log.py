@@ -33,6 +33,6 @@ log_file = open(LOG_FILE, 'w')
 
 def log(*args, level: LogLevel = LogLevel.INFO, **kwargs) -> None:
     timestamp = f'[{time_str()}]'
-    print(timestamp, *args, **kwargs, file=log_file)
+    print(timestamp, *args, **kwargs, file=log_file, flush=True)
     if level.value >= LOG_LEVEL.value:
         print(timestamp, *args, **kwargs)

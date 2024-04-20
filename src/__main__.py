@@ -21,9 +21,10 @@ from src.log import LogLevel, log
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
 MODELS = [
-    'mistral',
-    'neural',
-    'mixtral',
+    'gpt-4',  # maps to Hermes-2-Pro-Mistral-7B.Q2_K via LocalAI
+    # 'mistral',
+    # 'neural',
+    # 'mixtral',
 ]
 
 EXAMPLES = [

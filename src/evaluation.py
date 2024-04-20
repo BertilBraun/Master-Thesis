@@ -1,4 +1,4 @@
-from src.database import get_database_as_retriever, get_evaluation_messages
+from src.database import get_evaluation_messages, get_retriever_getter
 from src.types import Evaluation, EvaluationScore, ExtractedProfile, Query, SystemMessage, HumanMessage
 from src.language_model import OpenAILanguageModel
 
@@ -6,7 +6,7 @@ from src.language_model import OpenAILanguageModel
 def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) -> list[tuple[ExtractedProfile, int]]:
     llm = OpenAILanguageModel(model)
 
-    retriever = get_database_as_retriever(max_number_to_retrieve=2, return_type=Evaluation)
+    retriever = get_retriever_getter(max_number_to_retrieve=2)(Evaluation)
 
     abstracts = '\n\n'.join(query.abstracts)
 

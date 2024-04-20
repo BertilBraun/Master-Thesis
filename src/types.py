@@ -213,19 +213,19 @@ class ExtractionResult:
     author: str
 
 
-T = TypeVar('T')
+DatabaseTypes = TypeVar('DatabaseTypes', Example, Summary, Evaluation, Combination)
 
 
-class Retriever(Protocol, Generic[T]):
-    def invoke(self, input: str) -> list[T]:
+class Retriever(Protocol, Generic[DatabaseTypes]):
+    def invoke(self, input: str) -> list[DatabaseTypes]:
         ...
 
-    def batch(self, inputs: list[str]) -> list[list[T]]:
+    def batch(self, inputs: list[str]) -> list[list[DatabaseTypes]]:
         ...
 
 
-class RetrieverGetter(Protocol, Generic[T]):
-    def __call__(self, return_type: Type[T]) -> Retriever[T]:
+class RetrieverGetter(Protocol):
+    def __call__(self, return_type: Type[DatabaseTypes]) -> Retriever[DatabaseTypes]:
         ...
 
 
