@@ -2,24 +2,15 @@ import os
 
 from pypdf import PdfReader
 from pyalex import Works, Authors
-from functools import cache
-from dataclasses import dataclass
 
-from src.types import Query
-from src.util import download, timeit
+from src.types import Query, Author
+from src.util import cache_to_file, download, timeit
 
 KIT_INSTITUTION_ID = 'i102335020'
 
 
-@dataclass(frozen=True)
-class Author:
-    name: str
-    id: str
-    count: int
-
-
 @timeit('Get Author by Name')
-@cache
+@cache_to_file('author_cache.cache', Author)
 def get_author_by_name(name: str) -> Author | None:
     # Get the OpenAlex author by the author's display name
     author = (
@@ -39,6 +30,21 @@ def get_author_by_name(name: str) -> Author | None:
     )
 
 
+def verify_is_text(text: str, threshold: float = 0.50) -> str | None:
+    # Verify that the text is mostly composed of standard characters, otherwise return None
+
+    if not text:  # Handle empty string case
+        return None
+
+    standard_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789 ,.!?;:\'"-()\n\t'
+    count_standard = sum(1 for char in text if char in standard_chars)
+    non_standard_ratio = 1 - (count_standard / len(text))
+
+    if non_standard_ratio > threshold:
+        return None
+    return text
+
+
 @timeit('Load Paper Full Text')
 def load_paper_full_text(paper_oa_url: str) -> str | None:
     # Load the full text of a paper from the given Open Access URL
@@ -54,7 +60,7 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     if os.path.exists(full_text_file_name):
         # The full text has already been extracted and saved to a file
         with open(full_text_file_name, 'r') as f:
-            return f.read()
+            return verify_is_text(f.read())
 
     # Extract the full text from the PDF
     try:
@@ -82,11 +88,11 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     with open(full_text_file_name, 'w') as f:
         f.write(full_text)
 
-    return full_text
+    return verify_is_text(full_text)
 
 
 @timeit('Get Papers by Author')
-@cache
+@cache_to_file('papers_cache.cache', Query)
 def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
     # Get the top number_of_papers most cited papers by the author with the given name
     author = get_author_by_name(name)
@@ -128,7 +134,7 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
 
 
 @timeit('Get Authors of KIT')
-@cache
+@cache_to_file('authors_cache.cache', Author)
 def get_authors_of_kit(count: int = 100) -> list[Author]:
     authors = (
         Works()
@@ -153,5 +159,8 @@ if __name__ == '__main__':
     pprint(get_authors_of_kit())
 
     pprint(get_author_by_name('Peter Sanders'))
+    pprint(get_author_by_name('Stiefelhagen'))  # Fuzzy matching
 
-    pprint(get_papers_by_author('Peter Sanders'))
+    papers_by_author = get_papers_by_author('Peter Sanders')
+    print('We got', len(papers_by_author.full_texts), 'papers by Peter Sanders')
+    # pprint(get_papers_by_author('Peter Sanders'))

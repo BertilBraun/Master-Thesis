@@ -194,11 +194,29 @@ class Combination:
 
 
 @dataclass(frozen=True)
+class Author:
+    name: str
+    id: str
+    count: int
+
+    def __repr__(self) -> str:
+        return f"Author(name='{self.name}', id='{self.id}', count={self.count})"
+
+
+@dataclass(frozen=True)
 class Query:
     full_texts: list[str]
     abstracts: list[str]
     titles: list[str]
     author: str
+
+    def __repr__(self) -> str:
+        full_texts = ', '.join(f'"""{text}"""' for text in self.full_texts)
+        abstracts = ', '.join(f'"""{text}"""' for text in self.abstracts)
+        titles = ', '.join(f'"""{text}"""' for text in self.titles)
+        return (
+            f'Query(full_texts=[{full_texts}], abstracts=[{abstracts}], titles=[{titles}], author="""{self.author}""")'
+        )
 
 
 class ExampleType(Enum):

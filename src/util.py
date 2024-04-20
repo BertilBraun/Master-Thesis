@@ -64,3 +64,39 @@ def download(url: str, extension: str = '') -> tuple[bool, str]:
     log(f'Downloaded file from {url} to {file_name}', level=LogLevel.DEBUG)
 
     return True, file_name
+
+
+def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
+    # This decorator should be usable like @cache to cache the result of a function. The cache mapping should be stored in a file with the given file_name. The cache should be loaded at the beginning of the function and saved at the end of the function. The cache should be a dictionary that maps the arguments to the result of the function.
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if os.path.exists(file_name):
+                with open(file_name, 'r') as f:
+                    cache = eval(
+                        f.read(),
+                        {
+                            # add the return_type to globals so that eval can find it
+                            return_type_to_be_able_to_parse_from_file.__name__: return_type_to_be_able_to_parse_from_file,
+                            **globals(),
+                            **locals(),
+                        },
+                    )
+            else:
+                cache = {}
+
+            key = (args, frozenset(kwargs.items()))
+            if key in cache:
+                return cache[key]
+
+            result = func(*args, **kwargs)
+            cache[key] = result
+
+            with open(file_name, 'w') as f:
+                f.write(str(cache))
+
+            return result
+
+        return wrapper
+
+    return decorator

@@ -4,3 +4,5 @@ build/**
 logs/**
 data/**
 downloads/**
+
+**.cache
