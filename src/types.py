@@ -134,8 +134,6 @@ class EvaluationScore:
     @staticmethod
     def parse(text: str) -> EvaluationScore:
         # Return the number after the first occurrence of 'Score: '
-        assert 'Score: ' in text, f'Score not found in text: {text}'
-
         match = re.search(r'Score: (\d+)', text)
         if match:
             return EvaluationScore(value=int(match.group(1)))

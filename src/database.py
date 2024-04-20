@@ -32,7 +32,7 @@ os.makedirs(DB_LOG_FOLDER, exist_ok=True)
 db = Chroma(
     persist_directory='data',
     collection_name='database',
-    embedding_function=OpenAIEmbeddings(base_url='http://mlpc.coder.aifb.kit.edu:8080'),
+    embedding_function=OpenAIEmbeddings(),
     collection_metadata={'reference': 'bool', 'type': 'string'},
 )
 
