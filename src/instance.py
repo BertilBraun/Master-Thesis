@@ -6,7 +6,6 @@ from src.types import (
     Instance,
     LanguageModel,
     RetrieverGetter,
-    Summary,
     SystemMessage,
     HumanMessage,
 )
@@ -14,7 +13,6 @@ from src.database import (
     get_combination_messages,
     get_example_messages,
     get_retriever_getter,
-    get_summary_messages,
 )
 from src.language_model import OpenAILanguageModel
 from src.util import timeit

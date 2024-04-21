@@ -1,3 +1,5 @@
+import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
+
 from openai import OpenAI
 
 from src.log import LogLevel, log
@@ -11,7 +13,7 @@ DEBUG = True
 class OpenAILanguageModel(LanguageModel):
     def __init__(self, model: str):
         self.model = model
-        self.openai = OpenAI()
+        self.openai = OpenAI(base_url=src.openai_defines.LOCAL_AI_ML_PC)
 
     def batch(self, prompts: list[list[Message]], /, stop: list[str] = []) -> list[str]:
         log(f'Running model: {self.model}', level=LogLevel.DEBUG)
