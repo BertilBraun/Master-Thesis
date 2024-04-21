@@ -56,14 +56,25 @@ def extract_from_summaries(query: Query, retriever: RetrieverGetter, llm: Langua
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
     # Get the summary from the full text
-    # TODO better prompt
     prompts = [
         [
             SystemMessage(
-                content='Generate a concise summary for the following full text of a scientific paper. The summary should capture the main arguments, methodologies, results, and implications succinctly.'
+                content="""You are a helpful research assistant.
+For each scientific paper, generate a summary following this standardized structure: 
+    1. Start with the title of the paper. 
+    2. Provide a brief background or introduction to the study's context and primary question or hypothesis.
+    3. State the objectives of the study.
+    4. Summarize the methods, including experimental design, data collection, and analysis techniques.
+    5. Highlight the main results, including key data and statistical outcomes.
+    6. Summarize the discussion or conclusion, focusing on the interpretation of results, conclusions drawn, and their implications.
+    7. Identify the key contributions of the paper to the field.
+    8. Note any limitations of the study.
+    9. End with any future research directions or suggestions provided by the authors. 
+
+Please exclude redundant information such as authors, publication date, and location. Focus solely on the content of the paper."""
             ),
-            *get_summary_messages(full_text, retriever(Summary)),
-            HumanMessage(content=f'Please provide a summary for this complete document text: {full_text}'),
+            # TODO do examples really help? Prompt is way too long already *get_summary_messages(full_text, retriever(Summary)),
+            HumanMessage(content=f'Summarize the following paper.\nPaper:\n{full_text}'),
         ]
         for full_text in query.full_texts
     ]

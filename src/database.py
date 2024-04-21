@@ -80,7 +80,10 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
             res = db.similarity_search(
                 query,
                 k=max_number_to_retrieve,
-                filter={'type': CLASS_TO_TYPE[self.return_type]},
+                filter={
+                    'type': CLASS_TO_TYPE[self.return_type],
+                    'reference': True,  # type: ignore (for some reason the filter is a dict[str, str] instead of dict[str, Any] which is what the metadata actually is)
+                },
             )
 
             log(f'Retrieved the following documents: {res}', level=LogLevel.DEBUG)

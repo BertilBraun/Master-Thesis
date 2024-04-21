@@ -31,7 +31,7 @@ def get_author_by_name(name: str) -> Author | None:
 
 
 def verify_is_text(text: str, threshold: float = 0.50) -> str | None:
-    # Verify that the text is mostly composed of standard characters, otherwise return None
+    # Verify that the text is mostly (more than threshold percent) composed of standard characters, otherwise return None
 
     if not text:  # Handle empty string case
         return None
@@ -68,21 +68,20 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     except Exception as e:
         print(f'Error reading PDF: {e}')
         return None
-    texts = [page.extract_text() for page in reader.pages]
 
-    # Strip the references and appendix
-    for i, page_text in enumerate(texts):
+    full_text = ''
+    for page in reader.pages:
+        page_text = page.extract_text()
+
+        # Remove the line breaks
+        page_text = page_text.replace('-\n', '').replace('\n', ' ')
+
         if 'References' in page_text:
-            texts = texts[:i]
-            # add the last page up to the references as well
-            texts.append(page_text[: page_text.index('References')])
+            # Strip the references and appendix but add the last page up to the references as well
+            full_text += page_text[: page_text.index('References')]
             break
-
-    # Remove the line breaks
-    texts = [text.replace('-\n', '').replace('\n', ' ') for text in texts]
-
-    # Return the full text
-    full_text = '\n'.join(texts)
+        else:
+            full_text += page_text
 
     # Save the full text to a file to avoid re-extraction
     with open(full_text_file_name, 'w') as f:
