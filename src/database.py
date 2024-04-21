@@ -132,7 +132,7 @@ def get_evaluation_messages(content: str, retriever: Retriever[Evaluation]) -> l
         message
         for evaluation in evaluations
         for message in [
-            HumanExampleMessage(content=evaluation.text + '\n\n' + str(evaluation.profile)),
+            HumanExampleMessage(content=evaluation.paper_text + '\n\n' + str(evaluation.profile)),
             AIExampleMessage(content=str(evaluation.score)),
         ]
     ]

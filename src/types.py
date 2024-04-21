@@ -125,18 +125,30 @@ class Summary:
 
 
 @dataclass(frozen=True)
-class EvaluationScore:
-    value: int
+class Evaluation:
+    paper_text: str
+    profile: Profile
+    reasoning: str  # let the model generate the reasoning before returning the score
+    score: int
 
     def __str__(self) -> str:
-        return f"""Score: {self.value}"""
+        return f"""Paper Text: {self.paper_text}\n\n\nProfile: {self.profile}\n\n\nReasoning: {self.reasoning}\n\nScore: {self.score}"""
 
     @staticmethod
-    def parse(text: str) -> EvaluationScore:
+    def _parse_reasoning(text: str) -> str:
+        # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nScore:'
+        if 'Reasoning: ' not in text:
+            log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
+            return ''
+
+        return text.split('Reasoning: ')[1].split('\n\nScore:')[0]
+
+    @staticmethod
+    def parse_evaluation_score(text: str) -> int:
         # Return the number after the first occurrence of 'Score: '
         match = re.search(r'Score: (\d+)', text)
         if match:
-            return EvaluationScore(value=int(match.group(1)))
+            return int(match.group(1))
 
         log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.WARNING)
 
@@ -145,27 +157,19 @@ class EvaluationScore:
 
         assert match, f'Invalid score format: {text}'
 
-        return EvaluationScore(value=int(match.group(0)))
-
-
-@dataclass(frozen=True)
-class Evaluation:
-    text: str
-    profile: Profile
-    score: EvaluationScore
-
-    def __str__(self) -> str:
-        return f"""Text: {self.text}\n\n\nProfile: {self.profile}\n\n\nScore: {self.score}"""
+        return int(match.group(0))
 
     @staticmethod
     def parse(text: str) -> Evaluation:
-        # Return the text between the first occurrence of 'Text: ' and the next '\n\n\nProfile:'
-        text = text.split('Text: ')[1].split('\n\n\nProfile:')[0]
+        # Return the text between the first occurrence of 'Paper Text: ' and the next '\n\n\nProfile:'
+        paper_text, rest_text = text.split('Paper Text: ')[1].split('\n\n\nProfile:', maxsplit=1)
 
-        # Return the text between the first occurrence of '\n\n\nProfile: ' and the next '\n\n\nScore:'
-        profile = text.split('\n\n\nProfile: ')[1].split('\n\n\nScore:')[0]
-
-        return Evaluation(text=text, profile=Profile.parse(profile), score=EvaluationScore.parse(text))
+        return Evaluation(
+            paper_text=paper_text,
+            profile=Profile.parse(rest_text),
+            reasoning=Evaluation._parse_reasoning(rest_text),
+            score=Evaluation.parse_evaluation_score(rest_text),
+        )
 
 
 @dataclass(frozen=True)

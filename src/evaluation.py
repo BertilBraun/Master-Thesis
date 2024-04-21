@@ -1,5 +1,5 @@
 from src.database import get_evaluation_messages, get_retriever_getter
-from src.types import Evaluation, EvaluationScore, ExtractedProfile, Query, SystemMessage, HumanMessage
+from src.types import Evaluation, ExtractedProfile, Query, SystemMessage, HumanMessage
 from src.language_model import OpenAILanguageModel
 
 
@@ -14,7 +14,7 @@ def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) ->
     prompts = [
         [
             SystemMessage(
-                content='Evaluate the relevance of the provided competency profiles against the corresponding scientific abstracts. Score each profile based on how well it reflects the competencies, themes, and expertise areas mentioned in the abstracts. Provide a score from 0 to 100, where 100 represents a perfect match and 0 represents no relevance.'
+                content='Evaluate the relevance of the provided competency profiles against the corresponding scientific abstracts. Score each profile based on how well it reflects the competencies, themes, and expertise areas mentioned in the abstracts. First provide a evaluation and reasoning for the relevance of the profile to the abstracts, then provide a score from 0 to 100, where 100 represents a perfect match and 0 represents no relevance.'
             ),
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
@@ -26,7 +26,7 @@ def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) ->
 
     responses = llm.batch(prompts)
 
-    scores = [EvaluationScore.parse(response).value for response in responses]
+    scores = [Evaluation.parse_evaluation_score(response) for response in responses]
 
     # sort by score
     sorted_scored_profiles = list(sorted(zip(profiles, scores), key=lambda x: x[1], reverse=True))
