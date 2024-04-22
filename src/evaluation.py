@@ -6,19 +6,32 @@ from src.language_model import OpenAILanguageModel
 def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) -> list[tuple[ExtractedProfile, int]]:
     llm = OpenAILanguageModel(model)
 
-    retriever = get_retriever_getter(max_number_to_retrieve=2)(Evaluation)
+    retriever = get_retriever_getter(max_number_to_retrieve=1)(Evaluation)
 
     abstracts = '\n\n'.join(query.abstracts)
 
-    # TODO better prompt
     prompts = [
         [
             SystemMessage(
-                content='Evaluate the relevance of the provided competency profiles against the corresponding scientific abstracts. Score each profile based on how well it reflects the competencies, themes, and expertise areas mentioned in the abstracts. First provide a evaluation and reasoning for the relevance of the profile to the abstracts, then provide a score from 0 to 100, where 100 represents a perfect match and 0 represents no relevance.'
+                content="""You are a skilled evaluator tasked with assessing the relevance of competency profiles relative to the provided scientific abstracts. Evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Structure your response as follows:
+```
+Evaluation and Reasoning: [Your Evaluation and Reasoning]
+Score: [Your Score]
+```
+
+The evaluation should:
+- Discuss the alignment of the profile's competencies with the themes and expertise areas of the abstracts.
+- Highlight specific competencies that are well-represented or lacking in relation to the abstract content.
+- Comment on the overall coherence between the profile's domain and the abstracts' focus areas.
+
+The score should:
+- Provide a score from 0 to 100, where 100 represents a perfect alignment and 0 indicates no relevance at all.
+
+Your analysis should be detailed, citing specific elements from both the profile and the abstracts to support your evaluation."""
             ),
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
-                content=f'Please assess the following profile in terms of its relevance to the provided scientific abstracts and give it a relevance score. \n\nAbstracts: {abstracts} \n\nProfile details: {profile.profile}\n\nProvide a score between 0 to 100 based on how well the profile matches the abstracts.'
+                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score. \n\nAbstracts: {abstracts} \n\nProfile Details:\n{profile.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
             ),
         ]
         for profile in profiles
