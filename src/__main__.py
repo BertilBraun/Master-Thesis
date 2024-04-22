@@ -31,9 +31,8 @@ MODELS = [
 EXAMPLES = [
     (ExampleType.POSITIVE, 2),
     (ExampleType.POSITIVE, 1),
-    # Zero shot would not produce the required structured output
-    # (ExampleType.POSITIVE, 0),
-    # ExampleType.NEGATIVE currently not supported by langchain
+    (ExampleType.POSITIVE, 0),
+    # ExampleType.NEGATIVE currently not supported by chroma db
     # (ExampleType.NEGATIVE, 2),
     # (ExampleType.NEGATIVE, 1),
     # ExampleType.NEGATIVE with number_of_examples=0 does not make sense as it is the same as ExampleType.POSITIVE with number_of_examples=0

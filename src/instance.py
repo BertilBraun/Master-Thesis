@@ -60,6 +60,8 @@ def extract_from_summaries(query: Query, retriever: RetrieverGetter, llm: Langua
     # We are putting all Papers in one Prompt but only looking at the summaries
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
+    # First Stage: Generation of Summaries for each Paper
+
     # Get the summary from the full text
     prompts = [
         [
@@ -85,6 +87,8 @@ Please exclude redundant information such as authors, publication date, and loca
     ]
 
     summaries = '\n\n'.join(llm.batch(prompts))
+
+    # Second Stage: Extraction of Competencies from Summaries
 
     prompt = [
         SystemMessage(
