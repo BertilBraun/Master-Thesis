@@ -100,7 +100,7 @@ Competencies:
 - [Competency 2]: [Brief description of how Competency 2 is demonstrated across the summaries]
 ...
 ```
-Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research, such as 'Machine Learning Expert' or 'Social Science Researcher'. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
@@ -128,7 +128,7 @@ Competencies:
 - [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
 ...
 ```
-List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should be a brief label summarizing the primary area of expertise covered in the paper."""
+List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
             ),
             *get_example_messages(full_text, retriever(Example)),
             HumanMessage(
@@ -155,7 +155,7 @@ Competencies:
 - [Integrated Competency 2]: [Consolidated description based on individual profiles]
 ...
 ```
-Combine the competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should represent a collective summary of the fields involved."""
+Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should represent a collective summary of the fields involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_combination_messages(profiles, retriever(Combination)),
         HumanMessage(
