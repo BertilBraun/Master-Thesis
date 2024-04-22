@@ -5,9 +5,9 @@ import os
 from enum import Enum
 from typing import Type
 
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
-from langchain_core.documents import Document
+import chromadb
+from chromadb.config import Settings
+from chromadb.utils import embedding_functions
 
 from src.types import (
     Combination,
@@ -29,11 +29,18 @@ DB_LOG_FOLDER = 'logs'
 DB_LOG_FILE = DB_LOG_FOLDER + '/db.log'
 os.makedirs(DB_LOG_FOLDER, exist_ok=True)
 
-db = Chroma(
-    persist_directory='data',
-    collection_name='database',
-    embedding_function=OpenAIEmbeddings(base_url=src.openai_defines.BASE_URL_EMBEDDINGS),
-    collection_metadata={'reference': 'bool', 'type': 'string'},
+
+client = chromadb.Client(
+    Settings(
+        chroma_db_impl='duckdb+parquet',
+        persist_directory='data',
+    )
+)
+collection = client.create_collection(
+    name='database',
+    get_or_create=True,
+    metadata={'reference': 'bool', 'type': 'string'},
+    # embedding_function=embedding_functions.OpenAIEmbeddingFunction(base_url=src.openai_defines.BASE_URL_EMBEDDINGS),
 )
 
 
@@ -61,11 +68,17 @@ def add_element_to_database(element: DatabaseTypes, is_reference: bool) -> str:
         'type': CLASS_TO_TYPE[type(element)],
     }
 
-    ids = db.add_documents([Document(page_content=str(element), metadata=metadata)])
+    id = str(element)
+
+    collection.add(
+        ids=[id],
+        documents=[str(element)],
+        metadatas=[metadata],
+    )
 
     _append_to_database_log(f'Added document to DB:\nPage content: {element}\nMetadata: {metadata}')
 
-    return ids[0]
+    return id
 
 
 def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
@@ -77,18 +90,22 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
         def invoke(self, query: str) -> list[DatabaseTypes]:
             log(f'Invoking retriever for {query=}', level=LogLevel.DEBUG)
 
-            res = db.similarity_search(
-                query,
-                k=max_number_to_retrieve,
-                filter={
-                    'type': CLASS_TO_TYPE[self.return_type],
-                    'reference': True,  # type: ignore (for some reason the filter is a dict[str, str] instead of dict[str, Any] which is what the metadata actually is)
+            res = collection.query(
+                query_texts=[query],
+                n_results=max_number_to_retrieve,
+                where={
+                    '$and': [
+                        {'type': CLASS_TO_TYPE[self.return_type]},
+                        {'reference': True},
+                    ]
                 },
             )
 
             log(f'Retrieved the following documents: {res}', level=LogLevel.DEBUG)
 
-            return [self.return_type.parse(doc.page_content) for doc in res]
+            assert res['documents'] is not None, f'No documents found for query: {query}'
+
+            return [self.return_type.parse(doc) for doc in res['documents'][0]]
 
         def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
             return [self.invoke(query) for query in queries]
@@ -188,9 +205,11 @@ if __name__ == '__main__':
 
     print("Best match in DB for 'bear': ", res)
 
-    db.delete([id1, id2])
+    collection.delete([id1, id2])
 
-    content = db.get()
+    content = collection.get()
+    assert content['documents'] is not None, 'No documents found in the database'
+    assert content['metadatas'] is not None, 'No metadata found in the database'
     for id, doc, metadata in zip(content['ids'], content['documents'], content['metadatas']):
         print(f'ID: {id}')
         print(f'Document: {doc}')
