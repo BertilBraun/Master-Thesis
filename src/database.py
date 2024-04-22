@@ -164,6 +164,21 @@ def get_combination_messages(content: str, retriever: Retriever[Combination]) ->
     ]
 
 
+def dump_database():
+    for collection in COLLECTIONS.values():
+        print(f'------------------- Collection: {collection.name} -------------------')
+        content = collection.get()
+        assert content['documents'] is not None, 'No documents found in the database'
+        assert content['metadatas'] is not None, 'No metadata found in the database'
+        for doc, metadata in zip(content['documents'], content['metadatas']):
+            # id and document should be the same
+            print(f'Document: {doc}')
+            print(f'Metadata: {metadata}')
+            print('---' * 30)
+
+        print(f'Number of documents {collection.name}:', collection.count())
+
+
 if __name__ == '__main__':
     from src.types import Profile, Example, Competency
 
@@ -206,17 +221,6 @@ if __name__ == '__main__':
 
     # bear_example()
 
-    for collection in COLLECTIONS.values():
-        print(f'------------------- Collection: {collection.name} -------------------')
-        content = collection.get()
-        assert content['documents'] is not None, 'No documents found in the database'
-        assert content['metadatas'] is not None, 'No metadata found in the database'
-        for doc, metadata in zip(content['documents'], content['metadatas']):
-            # id and document should be the same
-            print(f'Document: {doc}')
-            print(f'Metadata: {metadata}')
-            print('---' * 30)
-
-        print(f'Number of documents {collection.name}:', collection.count())
+    dump_database()
 
     # print('Database size (Example):', database_size(Example))

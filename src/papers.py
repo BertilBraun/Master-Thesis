@@ -3,6 +3,7 @@ import os
 from pypdf import PdfReader
 from pyalex import Works, Authors
 
+from src.log import LogLevel, log
 from src.types import Query, Author
 from src.util import cache_to_file, download, timeit
 
@@ -66,7 +67,7 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     try:
         reader = PdfReader(file_name)
     except Exception as e:
-        print(f'Error reading PDF: {e}')
+        log(f'Error reading PDF: {e}', level=LogLevel.WARNING)
         return None
 
     full_text = ''
@@ -186,13 +187,11 @@ def get_authors_of_kit(count: int = 100) -> list[Author]:
 
 
 if __name__ == '__main__':
-    from pprint import pprint
+    log(get_authors_of_kit(), use_pprint=True)
 
-    pprint(get_authors_of_kit())
-
-    pprint(get_author_by_name('Peter Sanders'))
-    pprint(get_author_by_name('Stiefelhagen'))  # Fuzzy matching
+    log(get_author_by_name('Peter Sanders'), use_pprint=True)
+    log(get_author_by_name('Stiefelhagen'), use_pprint=True)  # Fuzzy matching
 
     papers_by_author = get_papers_by_author('Peter Sanders')
-    print('We got', len(papers_by_author.full_texts), 'papers by Peter Sanders')
-    # pprint(get_papers_by_author('Peter Sanders'))
+    log('We got', len(papers_by_author.full_texts), 'papers by Peter Sanders')
+    # log(get_papers_by_author('Peter Sanders'), use_pprint=True)

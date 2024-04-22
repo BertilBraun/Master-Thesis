@@ -152,12 +152,12 @@ class Evaluation:
 
         log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.WARNING)
 
-        # Return the first occurrence of a number
-        match = re.search(r'\d+', text)
+        # Return the last occurrence of a number
+        match = re.findall(r'\d+', text)
+        if match:
+            return int(match[-1])
 
-        assert match, f'Invalid score format: {text}'
-
-        return int(match.group(0))
+        assert False, f'Invalid score format: {text}'
 
     @staticmethod
     def parse(text: str) -> Evaluation:

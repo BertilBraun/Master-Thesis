@@ -1,4 +1,5 @@
 import os
+import random
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 from tqdm import tqdm
@@ -82,8 +83,8 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
     )
 
 
-def generate_references(number_of_references_to_generate: int):
-    add_initial_references()
+def generate_example_references(number_of_references_to_generate: int):
+    add_initial_example_references()
 
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
     # src.openai_defines.BASE_URL_LLM = None
@@ -91,9 +92,9 @@ def generate_references(number_of_references_to_generate: int):
     # Get papers from different topics
     queries = get_random_papers(number_of_references_to_generate)
 
-    os.makedirs('logs/generated_references/', exist_ok=True)
+    os.makedirs('logs/generated_example_references/', exist_ok=True)
 
-    generated_examples_file = open(f'logs/generated_references/{datetime_str()}.log', 'w')
+    generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
 
     for query in queries:
         # Use one abstract at a time in a 1 shot prompt
@@ -110,13 +111,11 @@ def generate_references(number_of_references_to_generate: int):
         # Write the extracted Profile as reference to a file
         add_element_to_database(example, is_reference=True)
 
-        pprint(example, width=120)
-        pprint(example, stream=generated_examples_file, width=160)
-        generated_examples_file.write('\n\n\n\n\n')
-        generated_examples_file.flush()
+        log(example, use_pprint=True, log_file_name=generated_examples_file)
+        log('\n\n\n\n\n', log_file_name=generated_examples_file)
 
 
-def add_initial_references():
+def add_initial_example_references():
     # Add some initial references to the database.
     if database_size(Example) > 0:
         return  # Do not add references if there are already references in the database
@@ -201,24 +200,22 @@ Bertil Braun"""
 
 if __name__ == '__main__':
     import sys
-    import random
-    from pprint import pprint
 
     if len(sys.argv) <= 2:
         sys.exit('Usage: python -m src <command> <query>')
 
     if sys.argv[1] == 'add' and sys.argv[2] == 'references':
-        add_initial_references()
+        add_initial_example_references()
 
     if sys.argv[1] == 'gen':
-        generate_references(int(sys.argv[2]))
+        generate_example_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
         result = process_author(sys.argv[2], number_of_papers=5)
 
         log('Final result:', result, level=LogLevel.DEBUG)
 
-        pprint(result)
+        log(result, use_pprint=True)
 
-        print('-' * 50)
-        print(format_mail(result))
+        log('-' * 50)
+        log(format_mail(result))

@@ -1,6 +1,7 @@
 import os
 import time
 
+from pprint import pprint
 from enum import Enum
 
 
@@ -28,12 +29,32 @@ LOG_FOLDER = f'logs/{date_str()}'
 LOG_FILE = LOG_FOLDER + f'/log {time_str()}.log'
 LOG_LEVEL = LogLevel.INFO
 os.makedirs(LOG_FOLDER, exist_ok=True)
-log_file = open(LOG_FILE, 'w')
+GLOBAL_LOG_FILE = open(LOG_FILE, 'w')
 
 
-def log(*args, level: LogLevel = LogLevel.INFO, **kwargs) -> None:
+def log(
+    *args,
+    level: LogLevel = LogLevel.INFO,
+    use_pprint: bool = False,
+    log_file_name: str = LOG_FILE,
+    **kwargs,
+) -> None:
     timestamp = f'[{time_str()}]'
     log_level = f'[{level.name}]'
-    print(timestamp, log_level, *args, **kwargs, file=log_file, flush=True)
-    if level.value >= LOG_LEVEL.value:
-        print(timestamp, log_level, *args, **kwargs)
+
+    if log_file_name != LOG_FILE:
+        log_file = open(log_file_name, 'a')
+    else:
+        log_file = GLOBAL_LOG_FILE
+
+    if use_pprint:
+        pprint(*args, **kwargs, stream=log_file, width=120)
+        if level.value >= LOG_LEVEL.value:
+            pprint(*args, **kwargs, width=120)
+    else:
+        print(timestamp, log_level, *args, **kwargs, file=log_file, flush=True)
+        if level.value >= LOG_LEVEL.value:
+            print(timestamp, log_level, *args, **kwargs)
+
+    if log_file_name != LOG_FILE:
+        log_file.close()
