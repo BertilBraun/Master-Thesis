@@ -2,6 +2,7 @@ tqdm
 pypdf
 pyalex
 openai
+dotenv
 langchain-core 
 langchain-openai
 langchain-chroma

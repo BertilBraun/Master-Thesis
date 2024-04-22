@@ -5,7 +5,7 @@ from enum import Enum
 
 
 def datetime_str() -> str:
-    return time.strftime('%Y-%m-%d %H %M %S')
+    return date_str() + ' ' + time_str()
 
 
 def date_str() -> str:
@@ -33,6 +33,7 @@ log_file = open(LOG_FILE, 'w')
 
 def log(*args, level: LogLevel = LogLevel.INFO, **kwargs) -> None:
     timestamp = f'[{time_str()}]'
-    print(timestamp, *args, **kwargs, file=log_file, flush=True)
+    log_level = f'[{level.name}]'
+    print(timestamp, log_level, *args, **kwargs, file=log_file, flush=True)
     if level.value >= LOG_LEVEL.value:
-        print(timestamp, *args, **kwargs)
+        print(timestamp, log_level, *args, **kwargs)

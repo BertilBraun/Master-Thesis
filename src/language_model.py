@@ -13,15 +13,16 @@ DEBUG = True
 class OpenAILanguageModel(LanguageModel):
     def __init__(self, model: str):
         self.model = model
-        self.openai = OpenAI(base_url=src.openai_defines.LOCAL_AI_ML_PC)
+        self.openai = OpenAI(base_url=src.openai_defines.BASE_URL_LLM)
 
     def batch(self, prompts: list[list[Message]], /, stop: list[str] = []) -> list[str]:
         log(f'Running model: {self.model}', level=LogLevel.DEBUG)
-        log(f'Prompts: {prompts}', level=LogLevel.DEBUG)
+        log('------------------ Start of batch ------------------', level=LogLevel.DEBUG)
 
         results: list[str] = []
 
         for prompt in prompts:
+            log(f'Prompt: {_format_prompt(prompt)}', level=LogLevel.DEBUG)
             response = self.openai.chat.completions.create(
                 model=self.model,
                 messages=[message.to_dict() for message in prompt],
@@ -39,9 +40,10 @@ class OpenAILanguageModel(LanguageModel):
             else:
                 result = response.choices[0].message.content or 'Error: No response from model'  # type: ignore
 
+            log(f'Response: {result}', level=LogLevel.DEBUG)
             results.append(result)
 
-        log(f'Responses: {results}', level=LogLevel.DEBUG)
+        log('------------------- End of batch -------------------', level=LogLevel.DEBUG)
         return results
 
     def invoke(self, prompt: list[Message], /, stop: list[str] = []) -> str:
@@ -55,3 +57,12 @@ class OpenAILanguageModel(LanguageModel):
         add_element_to_database(Example(abstract=str(prompt), profile=profile), is_reference=False)
 
         return profile
+
+
+def _format_prompt(prompt: list[Message], /) -> str:
+    ret = ''
+    for message in prompt:
+        d = message.to_dict()
+        ret += f'{d["role"]}: {d["content"]}\n'  # type: ignore
+
+    return ret

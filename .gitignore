@@ -6,3 +6,7 @@ data/**
 downloads/**
 
 **.cache
+
+.env
+
+generated_examples_**

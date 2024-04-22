@@ -6,10 +6,10 @@ from itertools import product
 from src.evaluation import evaluate_with
 from src.instance import extract_from_abstracts, extract_from_full_texts, extract_from_summaries, run_query_for_instance
 from src.database import add_element_to_database
-from src.papers import get_papers_by_author
+from src.papers import get_papers_by_author, get_random_papers
 from src.types import AuthorExtractionResult, ExtractedProfile, Profile, Example, ExampleType, Instance
 from src.util import timeit
-from src.log import LogLevel, log
+from src.log import LogLevel, datetime_str, log
 
 # Remove base_url for OpenAI API and set the API key and use one of the following models to run the inference on the OpenAI API
 # MODELS = [
@@ -80,6 +80,35 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         titles=query.titles,
         author=query.author,
     )
+
+
+def generate_references(number_of_references_to_generate: int):
+    # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
+    # src.openai_defines.BASE_URL_LLM = None
+
+    # Get papers from different topics
+    queries = get_random_papers(number_of_references_to_generate)
+
+    generated_examples_file = open(f'generated_examples_{datetime_str()}.log', 'w')
+
+    for query in queries:
+        # Use one abstract at a time in a 1 shot prompt
+        instance = Instance(
+            'gpt-4',
+            number_of_examples=1,
+            example_type=ExampleType.POSITIVE,
+            extract=extract_from_abstracts,
+        )
+        profile = run_query_for_instance(instance, query)
+
+        example = Example(abstract=query.abstracts[0], profile=profile)
+
+        # Write the extracted Profile as reference to a file
+        add_element_to_database(example, is_reference=True)
+
+        pprint(example, stream=generated_examples_file, width=120)
+        generated_examples_file.write('\n\n\n\n\n')
+        generated_examples_file.flush()
 
 
 def add_initial_references():
@@ -171,6 +200,9 @@ if __name__ == '__main__':
 
     if sys.argv[1] == 'add' and sys.argv[2] == 'references':
         add_initial_references()
+
+    if sys.argv[1] == 'gen':
+        generate_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
         result = process_author(sys.argv[2], number_of_papers=5)

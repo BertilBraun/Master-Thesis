@@ -132,6 +132,32 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
     )
 
 
+@timeit('Get Random Papers')
+def get_random_papers(number_of_papers: int) -> list[Query]:
+    # Fetch a list of random papers with full text and abstracts. For each paper, the full text (same as abstract) and abstract are stored in a Query object. Therefore each query object represents a single paper.
+
+    papers = Works().filter(has_abstract=True).sample(number_of_papers).get(per_page=number_of_papers)
+
+    authors = []
+    for paper in papers:
+        for author in paper['authorships']:  # type: ignore
+            if author['author_position'] == 'first':
+                authors.append(author['author']['display_name'])
+                break
+
+    assert len(authors) == number_of_papers
+
+    return [
+        Query(
+            abstracts=[paper['abstract']],  # type: ignore
+            full_texts=[paper['abstract']],  # type: ignore
+            titles=[paper['title']],  # type: ignore
+            author=author,
+        )
+        for paper, author in zip(papers, authors)
+    ]
+
+
 @timeit('Get Authors of KIT')
 @cache_to_file('authors_cache.cache', Author)
 def get_authors_of_kit(count: int = 100) -> list[Author]:
