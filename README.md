@@ -52,6 +52,17 @@ Plans include the use of reinforcement learning from automated feedback to fine-
 To set up and run the system, ensure you have the necessary dependencies installed, then execute the main script:
 
 ```bash
+# Create a virtual environment
+python -m venv .venv/
+
+# Activate the virtual environment
+".venv/Scripts/activate.bat" # Windows
+source .venv/bin/activate # Linux
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the main script
 python -m src
 ```
 

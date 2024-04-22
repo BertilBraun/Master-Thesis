@@ -6,7 +6,8 @@
         {
             "label": "Start Main",
             "type": "shell",
-            "command": "python -m src"
+            "command": "python -m src",
+            "problemMatcher": []
         },
         {
             "label": "Query Example",
@@ -24,6 +25,12 @@
             "label": "Generate References",
             "type": "shell",
             "command": "python -m src gen ${input:number}",
+            "problemMatcher": []
+        },
+        {
+            "label": "Test Database",
+            "type": "shell",
+            "command": "python -m src.database",
             "problemMatcher": []
         },
         {

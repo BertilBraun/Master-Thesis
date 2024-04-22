@@ -136,7 +136,13 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
 def get_random_papers(number_of_papers: int) -> list[Query]:
     # Fetch a list of random papers with full text and abstracts. For each paper, the full text (same as abstract) and abstract are stored in a Query object. Therefore each query object represents a single paper.
 
-    papers = Works().filter(has_abstract=True).sample(number_of_papers).get(per_page=number_of_papers)
+    papers = (
+        Works()
+        .filter(has_abstract=True)
+        .filter(primary_location={'source': {'host_institution_lineage': KIT_INSTITUTION_ID}})
+        .sample(number_of_papers * 2)  # Fetch more papers to be able to filter out papers with short abstracts locally
+        .get(per_page=number_of_papers)
+    )
 
     authors = []
     for paper in papers:
@@ -155,7 +161,8 @@ def get_random_papers(number_of_papers: int) -> list[Query]:
             author=author,
         )
         for paper, author in zip(papers, authors)
-    ]
+        if len(paper['abstract']) > 150  # type: ignore
+    ][0:number_of_papers]
 
 
 @timeit('Get Authors of KIT')

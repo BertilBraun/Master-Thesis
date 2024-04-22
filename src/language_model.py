@@ -3,11 +3,7 @@ import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the 
 from openai import OpenAI
 
 from src.log import LogLevel, log
-from src.types import Profile, Example, LanguageModel, Message
-from src.database import add_element_to_database
-
-
-DEBUG = True
+from src.types import Profile, LanguageModel, Message
 
 
 class OpenAILanguageModel(LanguageModel):
@@ -27,11 +23,11 @@ class OpenAILanguageModel(LanguageModel):
                 model=self.model,
                 messages=[message.to_dict() for message in prompt],
                 stop=stop,
-                stream=DEBUG,
-                temperature=0.0,  # TODO play with this?
+                stream=src.openai_defines.DEBUG,
+                temperature=0.2,  # TODO play with this?
             )
 
-            if DEBUG:
+            if src.openai_defines.DEBUG:
                 result = ''
                 for chunk in response:  # type: ignore
                     delta = chunk.choices[0].delta.content or ''  # type: ignore
@@ -51,12 +47,7 @@ class OpenAILanguageModel(LanguageModel):
 
     def invoke_profile(self, prompt: list[Message]) -> Profile:
         stop = []  # TODO stop tokens ['\n\n\n']
-        profile = Profile.parse(self.invoke(prompt, stop=stop))
-
-        # TODO maybe not here
-        add_element_to_database(Example(abstract=str(prompt), profile=profile), is_reference=False)
-
-        return profile
+        return Profile.parse(self.invoke(prompt, stop=stop))
 
 
 def _format_prompt(prompt: list[Message], /) -> str:

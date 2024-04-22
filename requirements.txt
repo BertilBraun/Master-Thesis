@@ -2,5 +2,5 @@ tqdm
 pypdf
 pyalex
 openai
-dotenv
+python-dotenv 
 chromadb

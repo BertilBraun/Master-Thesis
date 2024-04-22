@@ -6,8 +6,7 @@ from enum import Enum
 from typing import Type
 
 import chromadb
-from chromadb.config import Settings
-from chromadb.utils import embedding_functions
+import chromadb.utils.embedding_functions
 
 from src.types import (
     Combination,
@@ -30,17 +29,13 @@ DB_LOG_FILE = DB_LOG_FOLDER + '/db.log'
 os.makedirs(DB_LOG_FOLDER, exist_ok=True)
 
 
-client = chromadb.Client(
-    Settings(
-        chroma_db_impl='duckdb+parquet',
-        persist_directory='data',
-    )
-)
-collection = client.create_collection(
+client = chromadb.PersistentClient(path='data')
+collection = client.get_or_create_collection(
     name='database',
-    get_or_create=True,
     metadata={'reference': 'bool', 'type': 'string'},
-    # embedding_function=embedding_functions.OpenAIEmbeddingFunction(base_url=src.openai_defines.BASE_URL_EMBEDDINGS),
+    # embedding_function=chromadb.utils.embedding_functions.OpenAIEmbeddingFunction(
+    #     api_base=src.openai_defines.BASE_URL_EMBEDDINGS, api_key=src.openai_defines.OPENAI_API_KEY
+    # ),
 )
 
 
@@ -61,7 +56,7 @@ def _append_to_database_log(msg: str) -> None:
 
 
 def add_element_to_database(element: DatabaseTypes, is_reference: bool) -> str:
-    # Adds the element to the database and returns the ID of the added document
+    # Adds the element to the database and returns the ID of the added document. Throws an error if the element was already added.
 
     metadata = {
         'reference': is_reference,
@@ -81,17 +76,25 @@ def add_element_to_database(element: DatabaseTypes, is_reference: bool) -> str:
     return id
 
 
+def database_size(type: Type[DatabaseTypes]) -> int:
+    # Returns the number of elements of the given type in the database
+    return len(collection.get(where={'type': CLASS_TO_TYPE[type]}, include=[])['ids'])
+
+
 def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
     class DatabaseRetriever(Retriever[DatabaseTypes]):
         def __init__(self, return_type: Type[DatabaseTypes]):
             self.return_type = return_type
 
-        @timeit('RAG Retrieval')
         def invoke(self, query: str) -> list[DatabaseTypes]:
-            log(f'Invoking retriever for {query=}', level=LogLevel.DEBUG)
+            return self.batch([query])[0]
+
+        @timeit('RAG Retrieval')
+        def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
+            log(f'Invoking retriever for {queries=}', level=LogLevel.DEBUG)
 
             res = collection.query(
-                query_texts=[query],
+                query_texts=queries,
                 n_results=max_number_to_retrieve,
                 where={
                     '$and': [
@@ -103,12 +106,9 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
 
             log(f'Retrieved the following documents: {res}', level=LogLevel.DEBUG)
 
-            assert res['documents'] is not None, f'No documents found for query: {query}'
+            assert res['documents'] is not None, f'No documents found for queries: {queries}'
 
-            return [self.return_type.parse(doc) for doc in res['documents'][0]]
-
-        def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
-            return [self.invoke(query) for query in queries]
+            return [[self.return_type.parse(doc) for doc in similar_docs] for similar_docs in res['documents']]
 
     def get_retriever(return_type: Type[DatabaseTypes]) -> Retriever[DatabaseTypes]:
         return DatabaseRetriever[DatabaseTypes](return_type=return_type)
@@ -121,9 +121,9 @@ def get_example_messages(content: str, retriever: Retriever[Example]) -> list[Me
 
     return [
         message
-        for example in examples
+        for i, example in enumerate(examples)
         for message in [
-            HumanExampleMessage(content=example.abstract),
+            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstract}'),
             AIExampleMessage(content=str(example.profile)),
         ]
     ]
@@ -134,9 +134,9 @@ def get_summary_messages(content: str, retriever: Retriever[Summary]) -> list[Me
 
     return [
         message
-        for summary in summaries
+        for i, summary in enumerate(summaries)
         for message in [
-            HumanExampleMessage(content=summary.full_text),
+            HumanExampleMessage(content=f'Example {i + 1}:\n{summary.full_text}'),
             AIExampleMessage(content=summary.summary),
         ]
     ]
@@ -147,9 +147,9 @@ def get_evaluation_messages(content: str, retriever: Retriever[Evaluation]) -> l
 
     return [
         message
-        for evaluation in evaluations
+        for i, evaluation in enumerate(evaluations)
         for message in [
-            HumanExampleMessage(content=evaluation.paper_text + '\n\n' + str(evaluation.profile)),
+            HumanExampleMessage(content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n{evaluation.profile}'),
             AIExampleMessage(content=str(evaluation.score)),
         ]
     ]
@@ -160,9 +160,11 @@ def get_combination_messages(content: str, retriever: Retriever[Combination]) ->
 
     return [
         message
-        for combination in combinations
+        for i, combination in enumerate(combinations)
         for message in [
-            HumanExampleMessage(content='\n\n'.join(str(profile) for profile in combination.input_profiles)),
+            HumanExampleMessage(
+                content=f'Example {i + 1}:\n' + '\n\n'.join(str(profile) for profile in combination.input_profiles)
+            ),
             AIExampleMessage(content=str(combination.output_profile)),
         ]
     ]
@@ -211,7 +213,9 @@ if __name__ == '__main__':
     assert content['documents'] is not None, 'No documents found in the database'
     assert content['metadatas'] is not None, 'No metadata found in the database'
     for id, doc, metadata in zip(content['ids'], content['documents'], content['metadatas']):
-        print(f'ID: {id}')
+        # id and document should be the same
         print(f'Document: {doc}')
         print(f'Metadata: {metadata}')
         print('---' * 30)
+
+    print('Database size (Example):', database_size(Example))

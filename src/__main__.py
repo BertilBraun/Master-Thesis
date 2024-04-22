@@ -1,3 +1,4 @@
+import os
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 from tqdm import tqdm
@@ -5,7 +6,7 @@ from itertools import product
 
 from src.evaluation import evaluate_with
 from src.instance import extract_from_abstracts, extract_from_full_texts, extract_from_summaries, run_query_for_instance
-from src.database import add_element_to_database
+from src.database import add_element_to_database, database_size
 from src.papers import get_papers_by_author, get_random_papers
 from src.types import AuthorExtractionResult, ExtractedProfile, Profile, Example, ExampleType, Instance
 from src.util import timeit
@@ -83,13 +84,17 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
 
 def generate_references(number_of_references_to_generate: int):
+    add_initial_references()
+
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
     # src.openai_defines.BASE_URL_LLM = None
 
     # Get papers from different topics
     queries = get_random_papers(number_of_references_to_generate)
 
-    generated_examples_file = open(f'generated_examples_{datetime_str()}.log', 'w')
+    os.makedirs('logs/generated_references/', exist_ok=True)
+
+    generated_examples_file = open(f'logs/generated_references/{datetime_str()}.log', 'w')
 
     for query in queries:
         # Use one abstract at a time in a 1 shot prompt
@@ -106,12 +111,17 @@ def generate_references(number_of_references_to_generate: int):
         # Write the extracted Profile as reference to a file
         add_element_to_database(example, is_reference=True)
 
-        pprint(example, stream=generated_examples_file, width=120)
+        pprint(example, width=120)
+        pprint(example, stream=generated_examples_file, width=160)
         generated_examples_file.write('\n\n\n\n\n')
         generated_examples_file.flush()
 
 
 def add_initial_references():
+    # Add some initial references to the database.
+    if database_size(Example) > 0:
+        return  # Do not add references if there are already references in the database
+
     add_element_to_database(
         Example(
             """A problem currently faced is the inability of an organisation to know the competences that the organisation masters, thereby bringing forth greater difficulties to the decision-making process, planning and team formation. In the scientific environment, this problem prejudices the multi-disciplinary research and communities creation. We propose a technique to create/suggest scientific web communities based on scientists' competences, identified using their scientific publications and considering that a possible indication for a person's participation in a community is her/his published knowledge and degree of expertise. The project also proposes an analysis structure providing an evolutionary visualisation of the virtual scientific community knowledge build-up.""",
