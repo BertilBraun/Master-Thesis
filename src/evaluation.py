@@ -29,14 +29,14 @@ The evaluation should:
 - Comment on the overall coherence between the profile's domain and the abstracts' focus areas.
 
 The score should:
-- Provide a score from 0 to 100, where 100 represents a perfect alignment and 0 indicates no relevance at all.
+- Be between 0 and 100, where 100 represents a perfect alignment and 0 indicates no relevance at all.
 
 Your analysis should be detailed, citing specific elements from both the profile and the abstracts to support your evaluation."""
             ),
             # TODO get one high scoring and one low scoring profile as an example?
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
-                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score. \n\nAbstracts: {abstracts} \n\nProfile Details:\n{profile.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
+                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score.\n\nAbstracts: {abstracts} \n\nProfile Details:\n{profile.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
             ),
         ]
         for profile in profiles

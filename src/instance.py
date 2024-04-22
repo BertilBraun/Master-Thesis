@@ -130,11 +130,24 @@ Competencies:
 - [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
 ...
 ```
-List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
             *get_example_messages(full_text, retriever(Example)),
             HumanMessage(
-                content=f'Please extract the professional competencies from this complete document text: {full_text}'
+                content=f"""Please extract the professional competencies from this complete document text:
+                
+{full_text}
+
+
+The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document.  This is the format:
+```
+Domain: [Short Domain Description]
+Competencies:
+- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
+- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
+...
+```
+Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
         ]
         for full_text in query.full_texts
@@ -158,7 +171,7 @@ Competencies:
 - [Integrated Competency 2]: [Consolidated description based on individual profiles]
 ...
 ```
-Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should represent a collective summary of the fields involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should succinctly summarize the general area of research over all profiles and competencies involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(

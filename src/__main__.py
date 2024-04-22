@@ -45,8 +45,8 @@ EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-tur
 MODELS = [
     # 'gpt-4',  # maps to Hermes-2-Pro-Mistral-7B.Q2_K via LocalAI
     'mistral',
-    # 'neural',
-    # 'mixtral',
+    'neural',
+    'mixtral',
 ]
 
 EXAMPLES = [
@@ -728,7 +728,7 @@ if __name__ == '__main__':
         generate_evaluation_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
-        result = process_author(sys.argv[2], number_of_papers=3)
+        result = process_author(sys.argv[2], number_of_papers=5)
 
         log('Final result:')
         log(result, use_pprint=True)

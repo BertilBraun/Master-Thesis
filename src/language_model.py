@@ -37,6 +37,8 @@ class OpenAILanguageModel(LanguageModel):
             else:
                 result = response.choices[0].message.content or 'Error: No response from model'  # type: ignore
 
+            result = result.replace('<dummy32000>', '')
+
             log(f'Response: {result}', level=LogLevel.DEBUG)
             results.append(result)
 
