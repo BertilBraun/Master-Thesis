@@ -338,11 +338,12 @@ class Instance:
 class ExtractedProfile:
     profile: Profile
     instance: Instance
+    extraction_time: float
 
 
 @dataclass(frozen=True)
 class EvaluationResult:
-    profile: ExtractedProfile
+    extraction: ExtractedProfile
     reasoning: str
     score: int
 

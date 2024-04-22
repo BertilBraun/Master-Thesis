@@ -164,19 +164,20 @@
             card.id = `card${index}`;
             card.innerHTML = `
                 <div>
-                    <h3>Profile Domain: ${result.profile.profile.domain}</h3>
+                    <h3>Profile Domain: ${result.extraction.profile.domain}</h3>
                     <p>Competencies:</p>
                     <ul>
-                        ${result.profile.profile.competencies.map(comp => `<li>${comp.name} - ${comp.description}</li>`).join('')}
+                        ${result.extraction.profile.competencies.map(comp => `<li><strong>${comp.name}:</strong> ${comp.description}</li>`).join('')}
                     </ul>
 
                     <div class="subcard" id="subcard${index}" style="display:none;">
                         <p><strong>Reasoning:</strong> ${result.reasoning}</p>
                         <p><strong>Score:</strong> ${result.score}</p>
-                        <p><strong>Instance Model:</strong> ${result.profile.instance.model}</p>
-                        <p><strong>Extraction Type:</strong> ${result.profile.instance.extract}</p>
-                        <p><strong>Example Type:</strong> ${result.profile.instance.example_type}</p>
-                        <p><strong>Number of Examples:</strong> ${result.profile.instance.number_of_examples}</p>
+                        <p><strong>Instance Model:</strong> ${result.extraction.instance.model}</p>
+                        <p><strong>Extraction Type:</strong> ${result.extraction.instance.extract}</p>
+                        <p><strong>Extraction Time:</strong> ${result.extraction.extraction_time}</p>
+                        <p><strong>Example Type:</strong> ${result.extraction.instance.example_type}</p>
+                        <p><strong>Number of Examples:</strong> ${result.extraction.instance.number_of_examples}</p>
                     </div>
                 </div>
                 <div style="display: flex; flex-direction: row; justify-content: space-between;">

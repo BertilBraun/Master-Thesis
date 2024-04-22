@@ -6,7 +6,7 @@ from src.language_model import OpenAILanguageModel
 def evaluate_with(
     model: str,
     query: Query,
-    profiles: list[ExtractedProfile],
+    extractions: list[ExtractedProfile],
 ) -> list[EvaluationResult]:
     llm = OpenAILanguageModel(model)
 
@@ -36,21 +36,21 @@ Your analysis should be detailed, citing specific elements from both the profile
             # TODO get one high scoring and one low scoring profile as an example?
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
-                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score.\n\nAbstracts: {abstracts} \n\nProfile Details:\n{profile.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
+                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score.\n\nAbstracts: {abstracts} \n\nProfile Details:\n{extraction.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
             ),
         ]
-        for profile in profiles
+        for extraction in extractions
     ]
 
     responses = llm.batch(prompts)
 
     results = [
         EvaluationResult(
-            profile=profile,
+            extraction=extraction,
             reasoning=Evaluation.parse_reasoning(response),
             score=Evaluation.parse_evaluation_score(response),
         )
-        for profile, response in zip(profiles, responses)
+        for extraction, response in zip(extractions, responses)
     ]
 
     return results

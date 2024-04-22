@@ -1,5 +1,6 @@
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
+import time
 import random
 
 from tqdm import tqdm
@@ -62,8 +63,8 @@ EXAMPLES = [
 EXTRACTORS = [
     extract_from_abstracts,
     extract_from_summaries,
-    # extract_from_full_texts,
-]
+    extract_from_full_texts,
+][:2]  # Only use the first 2 extractors for now, extract_from_full_texts fails too often with the current models
 
 
 @timeit('Processing Author')
@@ -83,18 +84,19 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
             extract_func,
         )
 
+        start = time.time()
         try:
             profile = run_query_for_instance(instance, query)
         except AssertionError as e:
             log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
             continue
-
-        profiles.append(ExtractedProfile(profile=profile, instance=instance))
+        extraction_time = time.time() - start
+        profiles.append(ExtractedProfile(profile=profile, instance=instance, extraction_time=extraction_time))
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
     log('Final evaluation result:', evaluation_result, 'for author:', name)
     best = evaluation_result[0]
-    log('Best profile:', best.profile, 'with score:', best.score, 'and reasoning:', best.reasoning)
+    log('Best extraction:', best.extraction, 'with score:', best.score, 'and reasoning:', best.reasoning)
 
     return AuthorExtractionResult(
         evaluation_result=evaluation_result,
@@ -209,7 +211,7 @@ def generate_evaluation_references(number_of_references_to_generate: int):
                 titles=['Unknown'],
                 author='Unknown',
             ),
-            [ExtractedProfile(profile=example.profile, instance=Instance.empty_instance())],
+            [ExtractedProfile(profile=example.profile, instance=Instance.empty_instance(), extraction_time=0)],
         )
 
         evaluation = Evaluation(
@@ -681,7 +683,7 @@ def format_mail(extraction_result: AuthorExtractionResult) -> str:
 
     profiles = ''
     for i, result in enumerate(results):
-        profiles += f'{i+1}.: {result.profile.profile}\n\n'
+        profiles += f'{i+1}.: {result.extraction.profile}\n\n'
 
     return f"""
 Hello Prof {extraction_result.author},
