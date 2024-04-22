@@ -30,13 +30,6 @@ os.makedirs(DB_LOG_FOLDER, exist_ok=True)
 
 
 client = chromadb.PersistentClient(path='data')
-collection = client.get_or_create_collection(
-    name='database',
-    metadata={'reference': 'bool', 'type': 'string'},
-    # embedding_function=chromadb.utils.embedding_functions.OpenAIEmbeddingFunction(
-    #     api_base=src.openai_defines.BASE_URL_EMBEDDINGS, api_key=src.openai_defines.OPENAI_API_KEY
-    # ),
-)
 
 
 class DBEntryType(Enum):
@@ -46,8 +39,16 @@ class DBEntryType(Enum):
     COMBINATION = ('combination', Combination)
 
 
-# Maps from Example | Summary | Evaluation | Combination to 'example' | 'summary' | 'evaluation' | 'combination'
-CLASS_TO_TYPE = {element.value[1]: element.value[0] for element in DBEntryType.__members__.values()}
+COLLECTIONS = {
+    element.value[1]: client.get_or_create_collection(
+        name=element.value[0],
+        metadata={'reference': 'bool'},
+        # embedding_function=chromadb.utils.embedding_functions.OpenAIEmbeddingFunction(
+        #     api_base=src.openai_defines.BASE_URL_EMBEDDINGS, api_key=src.openai_defines.OPENAI_API_KEY
+        # ),
+    )
+    for element in DBEntryType.__members__.values()
+}
 
 
 def _append_to_database_log(msg: str) -> None:
@@ -58,27 +59,24 @@ def _append_to_database_log(msg: str) -> None:
 def add_element_to_database(element: DatabaseTypes, is_reference: bool) -> str:
     # Adds the element to the database and returns the ID of the added document. Throws an error if the element was already added.
 
-    metadata = {
-        'reference': is_reference,
-        'type': CLASS_TO_TYPE[type(element)],
-    }
-
     id = str(element)
+    document = str(element)
+    metadata = {'reference': is_reference}
 
-    collection.add(
+    COLLECTIONS[type(element)].add(
         ids=[id],
-        documents=[str(element)],
+        documents=[document],
         metadatas=[metadata],
     )
 
-    _append_to_database_log(f'Added document to DB:\nPage content: {element}\nMetadata: {metadata}')
+    _append_to_database_log(f'Added document to DB:\nPage content: {document}\nMetadata: {metadata}')
 
     return id
 
 
 def database_size(type: Type[DatabaseTypes]) -> int:
     # Returns the number of elements of the given type in the database
-    return len(collection.get(where={'type': CLASS_TO_TYPE[type]}, include=[])['ids'])
+    return COLLECTIONS[type].count()
 
 
 def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
@@ -93,15 +91,11 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
         def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
             log(f'Invoking retriever for {queries=}', level=LogLevel.DEBUG)
 
-            res = collection.query(
+            res = COLLECTIONS[self.return_type].query(
                 query_texts=queries,
                 n_results=max_number_to_retrieve,
-                where={
-                    '$and': [
-                        {'type': CLASS_TO_TYPE[self.return_type]},
-                        {'reference': True},
-                    ]
-                },
+                where={'reference': True},
+                include=['documents'],
             )
 
             log(f'Retrieved the following documents: {res}', level=LogLevel.DEBUG)
@@ -173,49 +167,56 @@ def get_combination_messages(content: str, retriever: Retriever[Combination]) ->
 if __name__ == '__main__':
     from src.types import Profile, Example, Competency
 
-    id1 = add_element_to_database(
-        Example(
-            abstract='harrison worked at kensho',
-            profile=Profile(
-                domain='Finance',
-                competencies=[
-                    Competency(name='Python', description='Proficient'),
-                    Competency(name='SQL', description='Proficient'),
-                ],
+    def bear_example():
+        id1 = add_element_to_database(
+            Example(
+                abstract='harrison worked at kensho',
+                profile=Profile(
+                    domain='Finance',
+                    competencies=[
+                        Competency(name='Python', description='Proficient'),
+                        Competency(name='SQL', description='Proficient'),
+                    ],
+                ),
             ),
-        ),
-        is_reference=True,
-    )
+            is_reference=True,
+        )
 
-    id2 = add_element_to_database(
-        Example(
-            abstract='bears like to eat honey',
-            profile=Profile(
-                domain='Nature',
-                competencies=[
-                    Competency(name='Honey', description='Loves it'),
-                    Competency(name='Bears', description='Likes it'),
-                ],
+        id2 = add_element_to_database(
+            Example(
+                abstract='bears like to eat honey',
+                profile=Profile(
+                    domain='Nature',
+                    competencies=[
+                        Competency(name='Honey', description='Loves it'),
+                        Competency(name='Bears', description='Likes it'),
+                    ],
+                ),
             ),
-        ),
-        is_reference=True,
-    )
+            is_reference=True,
+        )
 
-    retriever = get_retriever_getter(max_number_to_retrieve=2)(Example)
+        retriever = get_retriever_getter(max_number_to_retrieve=2)(Example)
 
-    res = retriever.invoke('bears')
+        res = retriever.invoke('bears')
 
-    print("Best match in DB for 'bear': ", res)
+        print("Best match in DB for 'bear': ", res)
 
-    collection.delete([id1, id2])
+        COLLECTIONS[Example].delete([id1, id2])
 
-    content = collection.get()
-    assert content['documents'] is not None, 'No documents found in the database'
-    assert content['metadatas'] is not None, 'No metadata found in the database'
-    for id, doc, metadata in zip(content['ids'], content['documents'], content['metadatas']):
-        # id and document should be the same
-        print(f'Document: {doc}')
-        print(f'Metadata: {metadata}')
-        print('---' * 30)
+    # bear_example()
 
-    print('Database size (Example):', database_size(Example))
+    for collection in COLLECTIONS.values():
+        print(f'------------------- Collection: {collection.name} -------------------')
+        content = collection.get()
+        assert content['documents'] is not None, 'No documents found in the database'
+        assert content['metadatas'] is not None, 'No metadata found in the database'
+        for doc, metadata in zip(content['documents'], content['metadatas']):
+            # id and document should be the same
+            print(f'Document: {doc}')
+            print(f'Metadata: {metadata}')
+            print('---' * 30)
+
+        print(f'Number of documents {collection.name}:', collection.count())
+
+    # print('Database size (Example):', database_size(Example))
