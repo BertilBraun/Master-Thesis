@@ -4,7 +4,7 @@ import dotenv
 dotenv.load_dotenv()
 
 
-DEBUG = False
+DEBUG = True  # TODO set to False for production
 
 LOCAL_AI_LOCALHOST = 'http://localhost:8080'
 LOCAL_AI_CODER = 'http://coder.aifb.kit.edu:8080'

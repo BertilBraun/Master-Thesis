@@ -1,15 +1,34 @@
-import os
-import random
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
+
+import random
 
 from tqdm import tqdm
 from itertools import product
 
+from src.language_model import OpenAILanguageModel
 from src.evaluation import evaluate_with
-from src.instance import extract_from_abstracts, extract_from_full_texts, extract_from_summaries, run_query_for_instance
-from src.database import add_element_to_database, database_size
-from src.papers import get_papers_by_author, get_random_papers
-from src.types import AuthorExtractionResult, ExtractedProfile, Profile, Example, ExampleType, Instance
+from src.instance import (
+    _extract_from_full_texts,
+    extract_from_abstracts,
+    extract_from_full_texts,
+    extract_from_summaries,
+    run_query_for_instance,
+)
+from src.database import add_element_to_database, database_size, get_retriever_getter, get_sample_from_database
+from src.papers import get_authors_of_kit, get_papers_by_author, get_random_papers
+from src.types import (
+    AuthorExtractionResult,
+    Combination,
+    Competency,
+    DatabaseTypes,
+    Evaluation,
+    ExtractedProfile,
+    Profile,
+    Example,
+    ExampleType,
+    Instance,
+    Query,
+)
 from src.util import timeit
 from src.log import LogLevel, datetime_str, log
 
@@ -73,8 +92,8 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
     log('Final evaluation result:', evaluation_result, 'for author:', name)
-    best_profile, best_score = evaluation_result[0]
-    log('Best profile:', best_profile, 'with score:', best_score)
+    best_profile, reasoning, best_score = evaluation_result[0]
+    log('Best profile:', best_profile, 'with score:', best_score, 'and reasoning:', reasoning)
 
     return AuthorExtractionResult(
         profiles=profiles,
@@ -83,16 +102,21 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
     )
 
 
+def write_reference(element: DatabaseTypes, file_name: str) -> None:
+    add_element_to_database(element, is_reference=True)
+
+    log(element, use_pprint=True, log_file_name=file_name)
+    log('\n\n\n\n\n', log_file_name=file_name)
+
+
 def generate_example_references(number_of_references_to_generate: int):
     add_initial_example_references()
 
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
-    # src.openai_defines.BASE_URL_LLM = None
+    # TODO src.openai_defines.BASE_URL_LLM = None
 
     # Get papers from different topics
     queries = get_random_papers(number_of_references_to_generate)
-
-    os.makedirs('logs/generated_example_references/', exist_ok=True)
 
     generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
 
@@ -109,10 +133,94 @@ def generate_example_references(number_of_references_to_generate: int):
         example = Example(abstract=query.abstracts[0], profile=profile)
 
         # Write the extracted Profile as reference to a file
-        add_element_to_database(example, is_reference=True)
+        write_reference(example, generated_examples_file)
 
-        log(example, use_pprint=True, log_file_name=generated_examples_file)
-        log('\n\n\n\n\n', log_file_name=generated_examples_file)
+
+def generate_combination_references(number_of_references_to_generate: int):
+    add_initial_combination_references()
+
+    # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
+    # TODO src.openai_defines.BASE_URL_LLM = None
+
+    # Get a random subset of authors to generate the references from
+    authors = get_authors_of_kit(number_of_references_to_generate * 2)
+    random.shuffle(authors)
+    authors = authors[:number_of_references_to_generate]
+
+    # Get papers from different authors but only look at the abstracts
+    queries = [get_papers_by_author(author.name, number_of_papers=3) for author in authors]
+    queries = [
+        Query(
+            full_texts=query.abstracts,
+            abstracts=query.abstracts,
+            titles=query.titles,
+            author=query.author,
+        )
+        for query in queries
+    ]
+
+    generated_combinations_file = f'logs/generated_combination_references/{datetime_str()}.log'
+    generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
+
+    for query in queries:
+        extracted_profiles, combined_profile = _extract_from_full_texts(
+            query,
+            get_retriever_getter(max_number_to_retrieve=1),
+            OpenAILanguageModel(model='gpt-4'),
+        )
+
+        combination = Combination(
+            input_profiles=extracted_profiles,
+            combined_profile=combined_profile,
+        )
+
+        # Write the combination as reference to a file
+        write_reference(combination, generated_combinations_file)
+
+        if len(query.abstracts) != len(extracted_profiles):
+            log(
+                f'Number of abstracts ({len(query.abstracts)}) and extracted profiles ({len(extracted_profiles)}) do not match for query: {query}',
+                level=LogLevel.WARNING,
+            )
+            continue
+
+        for abstract, profile in zip(query.abstracts, extracted_profiles):
+            example = Example(abstract=abstract, profile=profile)
+            write_reference(example, generated_examples_file)
+
+
+def generate_evaluation_references(number_of_references_to_generate: int):
+    add_initial_evaluation_references()
+
+    # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
+    # TODO src.openai_defines.BASE_URL_LLM = None
+
+    examples = get_sample_from_database(Example, number_of_references_to_generate)
+
+    generated_evaluations_file = f'logs/generated_evaluation_references/{datetime_str()}.log'
+
+    for example in examples:
+        evaluation_result = evaluate_with(
+            'gpt-4',
+            Query(
+                full_texts=['Unknown'],
+                abstracts=[example.abstract],
+                titles=['Unknown'],
+                author='Unknown',
+            ),
+            [ExtractedProfile(profile=example.profile, instance=Instance.empty_instance())],
+        )
+
+        _, reasoning, score = evaluation_result[0]
+        evaluation = Evaluation(
+            paper_text=example.abstract,
+            profile=example.profile,
+            reasoning=reasoning,
+            score=score,
+        )
+
+        # Write the evaluation as reference to a file
+        write_reference(evaluation, generated_evaluations_file)
 
 
 def add_initial_example_references():
@@ -157,15 +265,418 @@ Competencies:
     )
 
 
+def add_initial_combination_references():
+    # Add some initial references to the database.
+    if database_size(Combination) > 0:
+        return  # Do not add references if there are already references in the database
+
+    add_element_to_database(
+        Combination(
+            input_profiles=[
+                Profile(
+                    domain='Electrochemical and Cycling Characterization of Supercapacitors',
+                    competencies=[
+                        Competency(
+                            name='Experimental Design',
+                            description='The authors demonstrate competency in '
+                            'experimental design by conducting '
+                            'three-electrode cyclic voltammetry '
+                            'experiments at various scan rates to '
+                            'evaluate the specific capacitance of the '
+                            'microporous activated carbon.',
+                        ),
+                        Competency(
+                            name='Data Analysis',
+                            description='The authors show competency in data analysis '
+                            'by measuring the specific capacitance of the '
+                            'microporous activated carbon and determining '
+                            'the maximum operating potential range.',
+                        ),
+                        Competency(
+                            name='Material Characterization',
+                            description='The authors exhibit competency in material '
+                            'characterization by assessing the '
+                            'performance of the microporous activated '
+                            'carbon in an ionic liquid electrolyte at '
+                            'different temperatures.',
+                        ),
+                        Competency(
+                            name='Electrolyte Evaluation',
+                            description='The authors demonstrate competency in '
+                            'evaluating electrolytes by using '
+                            'N-butyl-N-methylpyrrolidinium '
+                            'bis(trifluoromethanesulfonyl)imide '
+                            '(PYR14TFSI) ionic liquid as the electrolyte '
+                            'and studying its impact on the '
+                            "supercapacitor's performance.",
+                        ),
+                        Competency(
+                            name='Temperature Management',
+                            description='The authors show competency in temperature '
+                            'management by conducting experiments at '
+                            'various temperatures and identifying the '
+                            'suitability of the supercapacitor for '
+                            'high-temperature applications (≥60°C).',
+                        ),
+                        Competency(
+                            name='Cycling Stability',
+                            description='The authors demonstrate competency in '
+                            'assessing cycling stability by cycling the '
+                            'coin cell for 40,000 cycles without any '
+                            'change in cell resistance and evaluating the '
+                            'high stable specific capacitance in the '
+                            'ionic liquid electrolyte.',
+                        ),
+                    ],
+                ),
+                Profile(
+                    domain='Energy Storage Systems and Battery Technology',
+                    competencies=[
+                        Competency(
+                            name='Scientific Literature Review',
+                            description='The author demonstrates the ability to '
+                            'conduct a comprehensive review of existing '
+                            'literature on the lithium/air battery '
+                            'system, as evidenced by the discussion of '
+                            'various studies and research efforts by top '
+                            'academic and industrial laboratories '
+                            'worldwide.',
+                        ),
+                        Competency(
+                            name='Critical Evaluation',
+                            description='The author showcases the skill to critically '
+                            'evaluate the progress made in the '
+                            'development of the Li/air electrochemical '
+                            'system, highlighting the issues that have '
+                            'been identified and the breakthroughs '
+                            'achieved.',
+                        ),
+                        Competency(
+                            name='Forecasting and Trend Analysis',
+                            description='The competency to forecast and analyze '
+                            'future R&D trends in the battery technology '
+                            "field is demonstrated by the author's "
+                            'attempt to propose potential future '
+                            'directions for research in the Li/air '
+                            'system.',
+                        ),
+                        Competency(
+                            name='Communication and Synthesis',
+                            description='The author effectively communicates complex '
+                            'scientific concepts in a clear and concise '
+                            'manner, synthesizing information from '
+                            'various sources to provide a comprehensive '
+                            "overview of the lithium/air battery system's "
+                            'current state and potential future impact.',
+                        ),
+                    ],
+                ),
+                Profile(
+                    domain='Aqueous Rechargeable Batteries and Renewable Energy',
+                    competencies=[
+                        Competency(
+                            name='Research and Development',
+                            description='The paper highlights the importance of '
+                            'aqueous rechargeable batteries in the '
+                            'development of renewable energy sources, '
+                            'indicating a deep understanding of current '
+                            'energy demands and the role of '
+                            'cost-efficiency in battery technology.',
+                        ),
+                        Competency(
+                            name='Electrode Materials',
+                            description='The author demonstrates knowledge of '
+                            'electrode materials and their improvement '
+                            'over the past decade, which contributes to '
+                            'the efficiency of aqueous battery systems.',
+                        ),
+                        Competency(
+                            name='Electrolytes',
+                            description='The paper emphasizes the use of highly '
+                            'concentrated aqueous electrolytes in battery '
+                            'systems and their impact on energy density, '
+                            'cyclability, and safety.',
+                        ),
+                        Competency(
+                            name='Strategic Innovation',
+                            description='The author provides a summary of the '
+                            'strategies proposed to overcome the hurdles '
+                            'limiting present aqueous battery '
+                            'technologies, showcasing an ability to '
+                            'identify and innovate to address challenges '
+                            'in the field.',
+                        ),
+                        Competency(
+                            name='Focused Specialization',
+                            description='The paper focuses on aqueous batteries for '
+                            'lithium and post-lithium chemistries, '
+                            'demonstrating a specialized understanding of '
+                            'these specific battery types and their '
+                            'potential for improved energy density.',
+                        ),
+                        Competency(
+                            name='Synthesis and Analysis',
+                            description='The author synthesizes and analyzes the '
+                            'unique advantages of concentrated '
+                            'electrolytes in aqueous battery systems, '
+                            'contributing to a comprehensive '
+                            'understanding of the subject matter.',
+                        ),
+                        Competency(
+                            name='Timely Information Dissemination',
+                            description='The Review aims to provide a timely summary '
+                            'of the advances in aqueous battery systems, '
+                            'indicating an awareness of the need for '
+                            'current and relevant information in the '
+                            'field.',
+                        ),
+                    ],
+                ),
+            ],
+            combined_profile=Profile(
+                domain='Advanced Energy Storage Technologies',
+                competencies=[
+                    Competency(
+                        name='Material Characterization',
+                        description='The assessment of microporous activated '
+                        'carbon performance in ionic liquid '
+                        'electrolyte at different temperatures '
+                        "highlights the authors' competency in "
+                        'material characterization.',
+                    ),
+                    Competency(
+                        name='Electrolyte Evaluation',
+                        description='The use of N-butyl-N-methylpyrrolidinium '
+                        'bis(trifluoromethanesulfonyl)imide '
+                        '(PYR14TFSI) ionic liquid as the electrolyte '
+                        'and its impact on supercapacitor '
+                        'performance showcases competency in '
+                        'evaluating electrolytes.',
+                    ),
+                    Competency(
+                        name='Temperature Management',
+                        description='Conducting experiments at various '
+                        'temperatures and identifying suitability '
+                        'for high-temperature applications (≥60°C) '
+                        'demonstrates competency in temperature '
+                        'management.',
+                    ),
+                    Competency(
+                        name='Forecasting and Trend Analysis',
+                        description='The proposal of potential future directions '
+                        'for research in the Li/air system indicates '
+                        'competency in forecasting and trend '
+                        'analysis.',
+                    ),
+                    Competency(
+                        name='Strategic Innovation',
+                        description='Identifying and proposing strategies to '
+                        'overcome hurdles limiting present aqueous '
+                        'battery technologies showcases competency '
+                        'in strategic innovation.',
+                    ),
+                    Competency(
+                        name='Synthesis and Analysis',
+                        description='The synthesis and analysis of concentrated '
+                        "electrolytes' unique advantages in aqueous "
+                        'battery systems contribute to overall '
+                        'competency.',
+                    ),
+                ],
+            ),
+        ),
+        is_reference=True,
+    )
+    # add_element_to_database(Combination(), is_reference=True)
+
+
+def add_initial_evaluation_references():
+    # Add some initial references to the database.
+    if database_size(Evaluation) > 0:
+        return  # Do not add references if there are already references in the database
+
+    add_element_to_database(
+        Evaluation(
+            paper_text='\n'
+            'A novel class of metal organic frameworks (MOFs) has been synthesized from Cu-acetate and '
+            'dicarboxylic acids using liquid phase epitaxy. The SURMOF-2 isoreticular series exhibits P4 '
+            'symmetry, for the longest linker a channel-size of 3 × 3 nm2 is obtained, one of the largest '
+            'values reported for any MOF so far. High quality, ab-initio electronic structure calculations '
+            'confirm the stability of a regular packing of (Cu++)2- carboxylate paddle-wheel planes with P4 '
+            'symmetry and reveal, that the SURMOF-2 structures are in fact metastable, with a fairly large '
+            'activation barrier for the transition to the bulk MOF-2 structures exhibiting a lower, twofold '
+            '(P2 or C2) symmetry. The theoretical calculations also allow identifying the mechanism for the '
+            'low-temperature epitaxial growth process and to explain, why a synthesis of this highly '
+            'interesting, new class of high-symmetry, metastable MOFs is not possible using the conventional '
+            'solvothermal process.',
+            profile=Profile(
+                domain='Materials Science and Chemistry',
+                competencies=[
+                    Competency(
+                        name='Synthesis Expertise',
+                        description='The ability to synthesize new materials using '
+                        'innovative methods, as demonstrated by the creation '
+                        'of a novel class of metal organic frameworks (MOFs) '
+                        'from Cu-acetate and dicarboxylic acids using liquid '
+                        'phase epitaxy.',
+                    ),
+                    Competency(
+                        name='Structural Analysis',
+                        description='Proficiency in analyzing the structure of complex '
+                        'materials, as evidenced by the identification of the '
+                        'P4 symmetry and channel-size of 3 × 3 nm2 in the '
+                        'SURMOF-2 isoreticular series.',
+                    ),
+                    Competency(
+                        name='Electronic Structure Calculations',
+                        description='Skill in performing high-quality, ab-initio '
+                        'electronic structure calculations to confirm the '
+                        'stability of material structures. This is '
+                        'demonstrated by the confirmation of regular packing '
+                        'of (Cu++)2- carboxylate paddle-wheel planes with P4 '
+                        'symmetry in SURMOF-2 structures.',
+                    ),
+                    Competency(
+                        name='Stability Assessment',
+                        description='Expertise in assessing the stability and '
+                        'metastability of materials. The text showcases this '
+                        'competency by revealing that SURMOF-2 structures are '
+                        'metastable with a fairly large activation barrier for '
+                        'the transition to bulk MOF-2 structures exhibiting '
+                        'lower symmetry.',
+                    ),
+                    Competency(
+                        name='Mechanism Identification',
+                        description='Proficiency in identifying the mechanisms behind '
+                        'material synthesis processes, as illustrated by the '
+                        'identification of the mechanism for the '
+                        'low-temperature epitaxial growth process of the novel '
+                        'MOFs.',
+                    ),
+                    Competency(
+                        name='Problem Solving',
+                        description='Ability to address and explain complex scientific '
+                        'challenges, as demonstrated by the explanation of why '
+                        'a synthesis of the highly interesting, new class of '
+                        'high-symmetry, metastable MOFs is not possible using '
+                        'the conventional solvothermal process.',
+                    ),
+                ],
+            ),
+            reasoning="""The competency profile aligns well with the themes and expertise areas presented in the scientific abstracts. The abstracts focus on the synthesis, structural analysis, electronic structure calculations, stability assessment, mechanism identification, and problem-solving aspects of a novel class of metal organic frameworks (MOFs). The profile competencies match these themes closely, as demonstrated by specific examples from the abstracts:
+
+1. Synthesis Expertise: The synthesis of the novel MOFs using liquid phase epitaxy is a clear example of this competency (Abstract).
+2. Structural Analysis: The identification of P4 symmetry and channel-size in the SURMOF-2 isoreticular series showcases structural analysis expertise (Abstract).
+3. Electronic Structure Calculations: The use of high-quality, ab-initio electronic structure calculations to confirm the stability of the MOF structures demonstrates this competency (Abstract).
+4. Stability Assessment: The revelation of the metastable nature of SURMOF-2 structures and the activation barrier for transition to bulk MOF-2 structures highlights stability assessment competency (Abstract).
+5. Mechanism Identification: The identification of the low-temperature epitaxial growth process mechanism is an example of mechanism identification competency (Abstract).        
+6. Problem Solving: The explanation of why the synthesis of these MOFs is not possible using conventional solvothermal processes demonstrates problem-solving ability (Abstract). 
+
+Overall, the profile's domain of "Materials Science and Chemistry" closely aligns with the focus areas of the abstracts, further supporting the relevance of the competencies listed in the profile.""",
+            score=90,
+        ),
+        is_reference=True,
+    )
+
+    add_element_to_database(
+        Evaluation(
+            paper_text='\n'
+            'A novel class of metal organic frameworks (MOFs) has been synthesized from Cu-acetate and '
+            'dicarboxylic acids using liquid phase epitaxy. The SURMOF-2 isoreticular series exhibits P4 '
+            'symmetry, for the longest linker a channel-size of 3 × 3 nm2 is obtained, one of the largest '
+            'values reported for any MOF so far. High quality, ab-initio electronic structure calculations '
+            'confirm the stability of a regular packing of (Cu++)2- carboxylate paddle-wheel planes with P4 '
+            'symmetry and reveal, that the SURMOF-2 structures are in fact metastable, with a fairly large '
+            'activation barrier for the transition to the bulk MOF-2 structures exhibiting a lower, twofold '
+            '(P2 or C2) symmetry. The theoretical calculations also allow identifying the mechanism for the '
+            'low-temperature epitaxial growth process and to explain, why a synthesis of this highly '
+            'interesting, new class of high-symmetry, metastable MOFs is not possible using the conventional '
+            'solvothermal process.',
+            profile=Profile(
+                domain='Materials Science and Chemistry',
+                competencies=[
+                    Competency(
+                        name='Synthesis Expertise',
+                        description='The ability to synthesize new materials using '
+                        'innovative methods, as demonstrated by the creation '
+                        'of a novel class of metal organic frameworks (MOFs) '
+                        'from Cu-acetate and dicarboxylic acids using liquid '
+                        'phase epitaxy.',
+                    ),
+                    Competency(
+                        name='Structural Analysis',
+                        description='Proficiency in analyzing the structure of complex '
+                        'materials, as evidenced by the identification of the '
+                        'P4 symmetry and channel-size of 3 × 3 nm2 in the '
+                        'SURMOF-2 isoreticular series.',
+                    ),
+                    Competency(
+                        name='Electronic Structure Calculations',
+                        description='Skill in performing high-quality, ab-initio '
+                        'electronic structure calculations to confirm the '
+                        'stability of material structures. This is '
+                        'demonstrated by the confirmation of regular packing '
+                        'of (Cu++)2- carboxylate paddle-wheel planes with P4 '
+                        'symmetry in SURMOF-2 structures.',
+                    ),
+                    Competency(
+                        name='Stability Assessment',
+                        description='Expertise in assessing the stability and '
+                        'metastability of materials. The text showcases this '
+                        'competency by revealing that SURMOF-2 structures are '
+                        'metastable with a fairly large activation barrier for '
+                        'the transition to bulk MOF-2 structures exhibiting '
+                        'lower symmetry.',
+                    ),
+                    Competency(
+                        name='Mechanism Identification',
+                        description='Proficiency in identifying the mechanisms behind '
+                        'material synthesis processes, as illustrated by the '
+                        'identification of the mechanism for the '
+                        'low-temperature epitaxial growth process of the novel '
+                        'MOFs.',
+                    ),
+                    Competency(
+                        name='Problem Solving',
+                        description='Ability to address and explain complex scientific '
+                        'challenges, as demonstrated by the explanation of why '
+                        'a synthesis of the highly interesting, new class of '
+                        'high-symmetry, metastable MOFs is not possible using '
+                        'the conventional solvothermal process.',
+                    ),
+                ],
+            ),
+            reasoning='The competency profile aligns closely with the themes and expertise areas presented in the '
+            'abstracts. The abstracts discuss the synthesis of a novel class of MOFs using liquid phase '
+            'epitaxy, which is directly related to the Synthesis Expertise competency in the profile. The '
+            'structural analysis of the SURMOF-2 isoreticular series, including the identification of P4 '
+            'symmetry and channel size, corresponds well with the Structural Analysis competency. The '
+            'electronic structure calculations performed to confirm the stability of the material structures '
+            'align with the Electronic Structure Calculations competency.\n'
+            '\n'
+            'The profile also highlights Stability Assessment, Mechanism Identification, and Problem Solving '
+            'competencies, which are all reflected in the abstracts. The text reveals the metastability of '
+            "SURMOF-2 structures, demonstrating the expert's ability to assess stability and metastability. "
+            'The identification of the mechanism for the low-temperature epitaxial growth process and the '
+            'explanation of why the synthesis of the new MOFs cannot be achieved using conventional '
+            'solvothermal processes showcase the Mechanism Identification and Problem Solving competencies, '
+            'respectively.\n'
+            '\n'
+            'Overall, the competency profile is highly coherent with the focus areas of the abstracts, with '
+            'specific competencies being well-represented and no significant gaps identified.',
+            score=95,
+        ),
+        is_reference=True,
+    )
+
+
 def format_mail(result: AuthorExtractionResult) -> str:
     # Formats the extraction result into a mail template for the author to request a evaluation of the extracted profiles
 
     titles = '- ' + '\n- '.join(result.titles)
 
-    # Make a copy of the profiles list to shuffle it
+    # Make a copy of the profiles list to shuffle it (to avoid bias in the order of the profiles in the mail)
     result_profiles = [profile for profile in result.profiles]
-
-    # Shuffle the profiles list to avoid bias
     random.shuffle(result_profiles)
 
     profiles = ''
@@ -207,15 +718,19 @@ if __name__ == '__main__':
     if sys.argv[1] == 'add' and sys.argv[2] == 'references':
         add_initial_example_references()
 
-    if sys.argv[1] == 'gen':
+    if sys.argv[1] == 'gen_example':
         generate_example_references(int(sys.argv[2]))
+
+    if sys.argv[1] == 'gen_combination':
+        generate_combination_references(int(sys.argv[2]))
+
+    if sys.argv[1] == 'gen_evaluation':
+        generate_evaluation_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
         result = process_author(sys.argv[2], number_of_papers=5)
 
-        log('Final result:', result, level=LogLevel.DEBUG)
-
+        log('Final result:')
         log(result, use_pprint=True)
-
         log('-' * 50)
         log(format_mail(result))

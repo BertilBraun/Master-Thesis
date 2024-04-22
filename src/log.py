@@ -43,13 +43,18 @@ def log(
     log_level = f'[{level.name}]'
 
     if log_file_name != LOG_FILE:
+        # ensure that the log file folder exists
+        os.makedirs(os.path.dirname(log_file_name), exist_ok=True)
         log_file = open(log_file_name, 'a')
     else:
         log_file = GLOBAL_LOG_FILE
 
     if use_pprint:
+        print(timestamp, log_level, end=' ', file=log_file, flush=True)
         pprint(*args, **kwargs, stream=log_file, width=120)
+        log_file.flush()
         if level.value >= LOG_LEVEL.value:
+            print(timestamp, log_level, end=' ', flush=True)
             pprint(*args, **kwargs, width=120)
     else:
         print(timestamp, log_level, *args, **kwargs, file=log_file, flush=True)

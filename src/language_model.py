@@ -33,6 +33,7 @@ class OpenAILanguageModel(LanguageModel):
                     delta = chunk.choices[0].delta.content or ''  # type: ignore
                     print(delta, end='', flush=True)
                     result += delta
+                print('\n\n')
             else:
                 result = response.choices[0].message.content or 'Error: No response from model'  # type: ignore
 

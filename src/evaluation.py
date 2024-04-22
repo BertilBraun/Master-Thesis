@@ -3,7 +3,11 @@ from src.types import Evaluation, ExtractedProfile, Query, SystemMessage, HumanM
 from src.language_model import OpenAILanguageModel
 
 
-def evaluate_with(model: str, query: Query, profiles: list[ExtractedProfile]) -> list[tuple[ExtractedProfile, int]]:
+def evaluate_with(
+    model: str,
+    query: Query,
+    profiles: list[ExtractedProfile],
+) -> list[tuple[ExtractedProfile, str, int]]:
     llm = OpenAILanguageModel(model)
 
     retriever = get_retriever_getter(max_number_to_retrieve=1)(Evaluation)
@@ -39,10 +43,11 @@ Your analysis should be detailed, citing specific elements from both the profile
 
     responses = llm.batch(prompts)
 
+    reasoning = [Evaluation.parse_reasoning(response) for response in responses]
     scores = [Evaluation.parse_evaluation_score(response) for response in responses]
 
     # sort by score
-    sorted_scored_profiles = list(sorted(zip(profiles, scores), key=lambda x: x[1], reverse=True))
+    sorted_scored_profiles = list(sorted(zip(profiles, reasoning, scores), key=lambda x: x[1], reverse=True))
 
     # return the sorted profiles in descending order of scores (highest score first)
     return sorted_scored_profiles

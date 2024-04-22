@@ -34,7 +34,7 @@ client = chromadb.PersistentClient(path='data')
 
 class DBEntryType(Enum):
     EXAMPLE = ('example', Example)
-    SUMMARY = ('summary', Summary)
+    SUMMARY = ('summary', Summary)  # NOTE currently not used
     EVALUATION = ('evaluation', Evaluation)
     COMBINATION = ('combination', Combination)
 
@@ -58,6 +58,7 @@ def _append_to_database_log(msg: str) -> None:
 
 def add_element_to_database(element: DatabaseTypes, is_reference: bool) -> str:
     # Adds the element to the database and returns the ID of the added document. Throws an error if the element was already added.
+    log(f'Adding element to DB: {element} as reference: {is_reference}', level=LogLevel.DEBUG)
 
     id = str(element)
     document = str(element)
@@ -89,6 +90,10 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
 
         @timeit('RAG Retrieval')
         def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
+            if max_number_to_retrieve == 0:
+                # No retrievals needed - chromadb will crash if we try to retrieve 0 documents
+                return [[] for _ in queries]
+
             log(f'Invoking retriever for {queries=}', level=LogLevel.DEBUG)
 
             res = COLLECTIONS[self.return_type].query(
@@ -108,6 +113,12 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
         return DatabaseRetriever[DatabaseTypes](return_type=return_type)
 
     return get_retriever
+
+
+def get_sample_from_database(type: Type[DatabaseTypes], number_of_samples: int) -> list[DatabaseTypes]:
+    # Returns a list of up to number_of_samples elements of the given type from the database
+    docs = COLLECTIONS[type].get(limit=number_of_samples, include=['documents'])['documents'] or []
+    return [type.parse(doc) for doc in docs]
 
 
 def get_example_messages(content: str, retriever: Retriever[Example]) -> list[Message]:
@@ -159,7 +170,7 @@ def get_combination_messages(content: str, retriever: Retriever[Combination]) ->
             HumanExampleMessage(
                 content=f'Example {i + 1}:\n' + '\n\n'.join(str(profile) for profile in combination.input_profiles)
             ),
-            AIExampleMessage(content=str(combination.output_profile)),
+            AIExampleMessage(content=str(combination.combined_profile)),
         ]
     ]
 

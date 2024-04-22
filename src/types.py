@@ -47,9 +47,9 @@ Competencies:
 
     @staticmethod
     def _parse_domain(text: str) -> str:
-        # Return the text between the first occurrence of 'Domain: "' and the next '"'
-        assert 'Domain: "' in text, f'Domain not found in text: {text}'
-        return text.split('Domain: "')[1].split('"')[0]
+        # Return the text between the first occurrence of 'Domain:' and the next '\n'
+        assert 'Domain:' in text, f'Domain not found in text: {text}'
+        return text.split('Domain:')[1].split('\n')[0].strip().strip('"').strip()
 
     @staticmethod
     def _parse_competencies(text: str) -> list[Competency]:
@@ -135,27 +135,32 @@ class Evaluation:
         return f"""Paper Text: {self.paper_text}\n\n\nProfile: {self.profile}\n\n\nReasoning: {self.reasoning}\n\nScore: {self.score}"""
 
     @staticmethod
-    def _parse_reasoning(text: str) -> str:
+    def parse_reasoning(text: str) -> str:
         # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nScore:'
-        if 'Reasoning: ' not in text:
+        if 'Reasoning:' not in text:
             log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
             return ''
 
-        return text.split('Reasoning: ')[1].split('\n\nScore:')[0]
+        return text.split('Reasoning:')[1].split('\n\nScore:')[0]
 
     @staticmethod
     def parse_evaluation_score(text: str) -> int:
         # Return the number after the first occurrence of 'Score: '
         match = re.search(r'Score: (\d+)', text)
         if match:
-            return int(match.group(1))
+            number = int(match.group(1))
+            if 0 <= number <= 100:
+                return number
 
         log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.WARNING)
 
-        # Return the last occurrence of a number
+        # Return the last occurrence of a number between 0 and 100
         match = re.findall(r'\d+', text)
         if match:
-            return int(match[-1])
+            for number in match[::-1]:
+                number = int(number)
+                if 0 <= number <= 100:
+                    return number
 
         assert False, f'Invalid score format: {text}'
 
@@ -167,7 +172,7 @@ class Evaluation:
         return Evaluation(
             paper_text=paper_text,
             profile=Profile.parse(rest_text),
-            reasoning=Evaluation._parse_reasoning(rest_text),
+            reasoning=Evaluation.parse_reasoning(rest_text),
             score=Evaluation.parse_evaluation_score(rest_text),
         )
 
@@ -175,23 +180,23 @@ class Evaluation:
 @dataclass(frozen=True)
 class Combination:
     input_profiles: list[Profile]
-    output_profile: Profile
+    combined_profile: Profile
 
     def __str__(self) -> str:
         input_profiles = '\n\n'.join(str(profile) for profile in self.input_profiles)
-        return f"""Input Profiles:\n{input_profiles}\n\nOutput Profile:\n{self.output_profile}"""
+        return f"""Input Profiles:\n{input_profiles}\n\nCombined Profile:\n{self.combined_profile}"""
 
     @staticmethod
     def parse(text: str) -> Combination:
-        # Return the text between the first occurrence of 'Input Profiles:\n' and the next '\n\nOutput Profile:'
-        input_profiles = text.split('Input Profiles:\n')[1].split('\n\nOutput Profile:')[0]
+        # Return the text between the first occurrence of 'Input Profiles:\n' and the next '\n\nCombined Profile:'
+        input_profiles = text.split('Input Profiles:\n')[1].split('\n\nCombined Profile:')[0]
 
-        # Return the text between the first occurrence of '\n\nOutput Profile:\n' and the end of the text
-        output_profile = text.split('\n\nOutput Profile:\n')[1]
+        # Return the text between the first occurrence of '\n\nCombined Profile:\n' and the end of the text
+        combined_profile = text.split('\n\nnCombined Profile:\n')[1]
 
         return Combination(
             input_profiles=[Profile.parse(profile) for profile in input_profiles.split('\n\n')],
-            output_profile=Profile.parse(output_profile),
+            combined_profile=Profile.parse(combined_profile),
         )
 
 
@@ -318,6 +323,15 @@ class Instance:
     number_of_examples: int
     example_type: ExampleType
     extract: Callable[[Query, RetrieverGetter, LanguageModel], Profile]
+
+    @staticmethod
+    def empty_instance() -> Instance:
+        return Instance(
+            model='',
+            number_of_examples=0,
+            example_type=ExampleType.POSITIVE,
+            extract=lambda q, r, l: Profile(domain='', competencies=[]),  # noqa
+        )
 
 
 @dataclass(frozen=True)

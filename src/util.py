@@ -51,7 +51,11 @@ def download(url: str, extension: str = '') -> tuple[bool, str]:
         log(f'File already exists: {file_name}', level=LogLevel.DEBUG)
         return True, file_name
 
-    result = requests.get(url)
+    try:
+        result = requests.get(url)
+    except:  # noqa
+        log(f'Failed to download file from {url}')
+        return False, ''
 
     if result.status_code != 200:
         log(f'Failed to download file from {url}')

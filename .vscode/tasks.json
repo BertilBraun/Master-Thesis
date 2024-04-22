@@ -22,9 +22,21 @@
             "problemMatcher": []
         },
         {
-            "label": "Generate References",
+            "label": "Generate Example References",
             "type": "shell",
-            "command": "python -m src gen ${input:number}",
+            "command": "python -m src gen_example ${input:number}",
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Combination References",
+            "type": "shell",
+            "command": "python -m src gen_combination ${input:number}",
+            "problemMatcher": []
+        },
+        {
+            "label": "Generate Evaluation References",
+            "type": "shell",
+            "command": "python -m src gen_evaluation ${input:number}",
             "problemMatcher": []
         },
         {

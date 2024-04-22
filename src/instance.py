@@ -111,7 +111,9 @@ Identify and list 3 to 8 competencies, providing concise descriptions for each. 
     return llm.invoke_profile(prompt)
 
 
-def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
+def _extract_from_full_texts(
+    query: Query, retriever: RetrieverGetter, llm: LanguageModel
+) -> tuple[list[Profile], Profile]:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -141,7 +143,8 @@ List all pertinent competencies, clearly detailing how each is evidenced in the 
     llm_profiles = llm.batch(prompts)
 
     # Assuming conversion of profiles to string format and joining them happens here.
-    profiles = '\n\n'.join([str(Profile.parse(profile)) for profile in llm_profiles])
+    profiles = [Profile.parse(profile) for profile in llm_profiles]
+    profiles_str = '\n\n'.join(str(profile) for profile in profiles)
 
     # Second Stage: Combining Individual Profiles into a Comprehensive Profile
 
@@ -157,10 +160,15 @@ Competencies:
 ```
 Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should represent a collective summary of the fields involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
-        *get_combination_messages(profiles, retriever(Combination)),
+        *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize these individual profiles into one comprehensive profile:\n\n{profiles}'
+            content=f'Please synthesize these individual profiles into one comprehensive profile of 3 to 8 competencies:\n\n{profiles_str}'
         ),
     ]
 
-    return llm.invoke_profile(prompt)
+    return profiles, llm.invoke_profile(prompt)
+
+
+def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
+    profiles, comprehensive_profile = _extract_from_full_texts(query, retriever, llm)
+    return comprehensive_profile
