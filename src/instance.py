@@ -33,16 +33,23 @@ def extract_from_abstracts(query: Query, retriever: RetrieverGetter, llm: Langua
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    content = '\n\n'.join(query.abstracts)
+    abstracts = '\n\n'.join(query.abstracts)
 
-    # TODO better prompt
     prompt = [
         SystemMessage(
-            content='Extract professional competencies from the following scientific abstracts. Identify key competencies demonstrated within these texts and compile them into a structured profile. Each abstract should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+            content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
+```
+Domain: [Short Domain Description]
+Competencies:
+- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the abstracts]
+- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the abstracts]
+...
+```
+Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
-        *get_example_messages(content, retriever(Example)),
+        *get_example_messages(abstracts, retriever(Example)),
         HumanMessage(
-            content=f'Please extract the professional competencies from these scientific abstracts: {content}'
+            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{abstracts}'
         ),
     ]
 
@@ -77,16 +84,24 @@ Please exclude redundant information such as authors, publication date, and loca
         for full_text in query.full_texts
     ]
 
-    summaries = llm.batch(prompts)
-    content = '\n\n'.join(summaries)
+    summaries = '\n\n'.join(llm.batch(prompts))
 
-    # TODO better prompt
     prompt = [
         SystemMessage(
-            content='Extract professional competencies from the provided summary of the scientific paper. Identify key competencies that are detailed in the summary, and organize them into a structured profile. Each summary should be considered as part of a broader set, aiming to provide a comprehensive overview of the competencies across different papers.'
+            content="""You are a helpful research assistant tasked with extracting professional competencies from a set of summarized scientific papers. Review all the provided summaries comprehensively to create a unified professional profile that captures the overarching domain of expertise and specific competencies demonstrated across the texts. Format your consolidated findings as follows:
+```
+Domain: [Short Domain Description]
+Competencies:
+- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the summaries]
+- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the summaries]
+...
+```
+Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research, such as 'Machine Learning Expert' or 'Social Science Researcher'. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
-        *get_example_messages(content, retriever(Example)),
-        HumanMessage(content=f'Please extract the professional competencies from this summary: {content}'),
+        *get_example_messages(summaries, retriever(Example)),
+        HumanMessage(
+            content=f'Please analyze these scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}'
+        ),
     ]
 
     return llm.invoke_profile(prompt)
@@ -96,11 +111,20 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    # TODO better prompt
+    # First Stage: Extraction of Individual Competency Profiles
+
     prompts = [
         [
             SystemMessage(
-                content='Extract professional competencies from the entire text of the provided scientific paper. Identify and list all relevant competencies demonstrated within the text, organizing them into a structured competency profile.'
+                content="""You are a helpful research assistant tasked with identifying and cataloging professional competencies from a scientific paper. Extract all relevant competencies demonstrated within the text, and organize them into a structured competency profile as follows:
+```
+Domain: [Short Domain Description]
+Competencies:
+- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
+- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
+...
+```
+List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should be a brief label summarizing the primary area of expertise covered in the paper."""
             ),
             *get_example_messages(full_text, retriever(Example)),
             HumanMessage(
@@ -112,16 +136,27 @@ def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: Langu
 
     llm_profiles = llm.batch(prompts)
 
-    # The parsing and conversion back to string is done to unify the output format
+    # Assuming conversion of profiles to string format and joining them happens here.
     profiles = '\n\n'.join([str(Profile.parse(profile)) for profile in llm_profiles])
 
-    # TODO better prompt
+    # Second Stage: Combining Individual Profiles into a Comprehensive Profile
+
     prompt = [
         SystemMessage(
-            content='Combine the following individual competency profiles into a single, comprehensive profile. This unified profile should reflect integrated competencies that encapsulate the essence of all included profiles.'
+            content="""You are now tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
+```
+Domain: [Consolidated Domain Description]
+Competencies:
+- [Integrated Competency 1]: [Consolidated description based on individual profiles]
+- [Integrated Competency 2]: [Consolidated description based on individual profiles]
+...
+```
+Combine the competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should represent a collective summary of the fields involved."""
         ),
         *get_combination_messages(profiles, retriever(Combination)),
-        HumanMessage(content=f'Please synthesize these individual profiles into one comprehensive profile: {profiles}'),
+        HumanMessage(
+            content=f'Please synthesize these individual profiles into one comprehensive profile:\n\n{profiles}'
+        ),
     ]
 
     return llm.invoke_profile(prompt)
