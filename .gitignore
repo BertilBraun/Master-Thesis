@@ -11,3 +11,5 @@ downloads/**
 .env
 
 generated_examples_**
+
+results/**

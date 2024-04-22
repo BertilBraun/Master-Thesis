@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Author Extraction Results</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0 20px 150px;
+            /* left-right padding of 20px and bottom padding of 150px */
+            font-family: Arial, sans-serif;
+        }
+
+        .card {
+            margin: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        .subcard {
+            margin-top: 5px;
+            padding: 5px;
+            border: 1px solid #aaa;
+            border-radius: 3px;
+            display: none;
+            /* Initially hide the subcard */
+        }
+    </style>
+    <script>
+        const authorData = "{{authorData}}";  // This will be replaced by actual JSON
+
+        function toggleVisibility(id) {
+            var element = document.getElementById(id);
+            if (element.style.display === 'block') {
+                element.style.display = 'none';
+            } else {
+                element.style.display = 'block';
+            }
+        }
+    </script>
+</head>
+
+<body>
+    <h1>Welcome, <span id="authorName"></span></h1>
+    <h2>Publications</h2>
+    <ul id="titlesList"></ul>
+
+    <h2>Evaluation Results</h2>
+    <div id="resultsContainer"></div>
+
+    <button id="submitButton" onclick="submitData()">Submit All Scores</button>
+
+    <script>
+        document.getElementById('authorName').textContent = authorData.author;
+        const titlesList = document.getElementById('titlesList');
+        authorData.titles.forEach(title => {
+            const li = document.createElement('li');
+            li.textContent = title;
+            titlesList.appendChild(li);
+        });
+
+        const resultsContainer = document.getElementById('resultsContainer');
+        authorData.evaluation_result.forEach((result, index) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.innerHTML = `
+                <h3>Profile Domain: ${result.profile.profile.domain}</h3>
+                <p>Competencies:</p>
+                <ul>
+                    ${result.profile.profile.competencies.map(comp => `<li>${comp.name} - ${comp.description}</li>`).join('')}
+                </ul>
+                <label>Score (0-100): <input type="number" id="scoreInput${index}" min="0" max="100" required></label>
+                <button onclick="toggleVisibility('subcard${index}')">More Details</button>
+                <div class="subcard" id="subcard${index}">
+                    <p><strong>Reasoning:</strong> ${result.reasoning}</p>
+                    <p><strong>Score:</strong> ${result.score}</p>
+                    <p><strong>Instance Model:</strong> ${result.profile.instance.model}</p>
+                    <p><strong>Extraction Type:</strong> ${result.profile.instance.extract}</p>
+                    <p><strong>Example Type:</strong> ${result.profile.instance.example_type}</p>
+                    <p><strong>Number of Examples:</strong> ${result.profile.instance.number_of_examples}</p>
+                </div>
+            `;
+            resultsContainer.appendChild(card);
+        });
+
+
+        function submitData() {
+            let isComplete = true;
+            const scores = [];
+            authorData.evaluation_result.forEach((result, index) => {
+                const score = document.getElementById(`scoreInput${index}`).value;
+                if (score === '') {
+                    if (isComplete) alert(`Please enter a score for all profiles! Missing score for profile ${index + 1}.`);
+                    isComplete = false;
+                    return;
+                }
+                scores.push({
+                    "instance": result.profile.instance,
+                    "enteredScore": score
+                });
+            });
+
+            if (isComplete) {
+                const postData = {
+                    "author": authorData.author,
+                    "scores": scores
+                };
+
+                console.log("Data to be sent:", JSON.stringify(postData));
+
+                fetch('https://api.jsonbin.io/v3/b', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': '$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm'
+                    },
+                    body: JSON.stringify(postData)
+                }).then(response => response.json())
+                    .then(data => alert('Successfully Submitted!'))
+                    .catch((error) => alert('Error:', error));
+            }
+        }
+    </script>
+</body>
+
+</html>

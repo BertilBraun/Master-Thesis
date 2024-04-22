@@ -184,7 +184,7 @@ class Combination:
 
     def __str__(self) -> str:
         input_profiles = '\n\n'.join(str(profile) for profile in self.input_profiles)
-        return f"""Input Profiles:\n{input_profiles}\n\nCombined Profile:\n{self.combined_profile}"""
+        return f"""Input Profiles:\n{input_profiles}\n\n\nCombined Profile:\n{self.combined_profile}"""
 
     @staticmethod
     def parse(text: str) -> Combination:
@@ -192,10 +192,10 @@ class Combination:
         input_profiles = text.split('Input Profiles:\n')[1].split('\n\nCombined Profile:')[0]
 
         # Return the text between the first occurrence of '\n\nCombined Profile:\n' and the end of the text
-        combined_profile = text.split('\n\nnCombined Profile:\n')[1]
+        combined_profile = text.split('\n\nCombined Profile:\n')[1]
 
         return Combination(
-            input_profiles=[Profile.parse(profile) for profile in input_profiles.split('\n\n')],
+            input_profiles=[Profile.parse(profile) for profile in input_profiles.split('\n\n\n')],
             combined_profile=Profile.parse(combined_profile),
         )
 
@@ -341,7 +341,14 @@ class ExtractedProfile:
 
 
 @dataclass(frozen=True)
+class EvaluationResult:
+    profile: ExtractedProfile
+    reasoning: str
+    score: int
+
+
+@dataclass(frozen=True)
 class AuthorExtractionResult:
-    profiles: list[ExtractedProfile]
+    evaluation_result: list[EvaluationResult]
     titles: list[str]
     author: str

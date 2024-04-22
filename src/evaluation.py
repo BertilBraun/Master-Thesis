@@ -1,5 +1,5 @@
 from src.database import get_evaluation_messages, get_retriever_getter
-from src.types import Evaluation, ExtractedProfile, Query, SystemMessage, HumanMessage
+from src.types import Evaluation, EvaluationResult, ExtractedProfile, Query, SystemMessage, HumanMessage
 from src.language_model import OpenAILanguageModel
 
 
@@ -7,7 +7,7 @@ def evaluate_with(
     model: str,
     query: Query,
     profiles: list[ExtractedProfile],
-) -> list[tuple[ExtractedProfile, str, int]]:
+) -> list[EvaluationResult]:
     llm = OpenAILanguageModel(model)
 
     retriever = get_retriever_getter(max_number_to_retrieve=1)(Evaluation)
@@ -33,6 +33,7 @@ The score should:
 
 Your analysis should be detailed, citing specific elements from both the profile and the abstracts to support your evaluation."""
             ),
+            # TODO get one high scoring and one low scoring profile as an example?
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
                 content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score. \n\nAbstracts: {abstracts} \n\nProfile Details:\n{profile.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
@@ -43,11 +44,13 @@ Your analysis should be detailed, citing specific elements from both the profile
 
     responses = llm.batch(prompts)
 
-    reasoning = [Evaluation.parse_reasoning(response) for response in responses]
-    scores = [Evaluation.parse_evaluation_score(response) for response in responses]
+    results = [
+        EvaluationResult(
+            profile=profile,
+            reasoning=Evaluation.parse_reasoning(response),
+            score=Evaluation.parse_evaluation_score(response),
+        )
+        for profile, response in zip(profiles, responses)
+    ]
 
-    # sort by score
-    sorted_scored_profiles = list(sorted(zip(profiles, reasoning, scores), key=lambda x: x[1], reverse=True))
-
-    # return the sorted profiles in descending order of scores (highest score first)
-    return sorted_scored_profiles
+    return results

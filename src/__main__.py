@@ -15,6 +15,7 @@ from src.instance import (
     run_query_for_instance,
 )
 from src.database import add_element_to_database, database_size, get_retriever_getter, get_sample_from_database
+from src.display import generate_html_file
 from src.papers import get_authors_of_kit, get_papers_by_author, get_random_papers
 from src.types import (
     AuthorExtractionResult,
@@ -92,11 +93,11 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
     log('Final evaluation result:', evaluation_result, 'for author:', name)
-    best_profile, reasoning, best_score = evaluation_result[0]
-    log('Best profile:', best_profile, 'with score:', best_score, 'and reasoning:', reasoning)
+    best = evaluation_result[0]
+    log('Best profile:', best.profile, 'with score:', best.score, 'and reasoning:', best.reasoning)
 
     return AuthorExtractionResult(
-        profiles=profiles,
+        evaluation_result=evaluation_result,
         titles=query.titles,
         author=query.author,
     )
@@ -211,12 +212,11 @@ def generate_evaluation_references(number_of_references_to_generate: int):
             [ExtractedProfile(profile=example.profile, instance=Instance.empty_instance())],
         )
 
-        _, reasoning, score = evaluation_result[0]
         evaluation = Evaluation(
             paper_text=example.abstract,
             profile=example.profile,
-            reasoning=reasoning,
-            score=score,
+            reasoning=evaluation_result[0].reasoning,
+            score=evaluation_result[0].score,
         )
 
         # Write the evaluation as reference to a file
@@ -670,21 +670,21 @@ Overall, the profile's domain of "Materials Science and Chemistry" closely align
     )
 
 
-def format_mail(result: AuthorExtractionResult) -> str:
+def format_mail(extraction_result: AuthorExtractionResult) -> str:
     # Formats the extraction result into a mail template for the author to request a evaluation of the extracted profiles
 
-    titles = '- ' + '\n- '.join(result.titles)
+    titles = '- ' + '\n- '.join(extraction_result.titles)
 
     # Make a copy of the profiles list to shuffle it (to avoid bias in the order of the profiles in the mail)
-    result_profiles = [profile for profile in result.profiles]
-    random.shuffle(result_profiles)
+    results = [result for result in extraction_result.evaluation_result]
+    random.shuffle(results)
 
     profiles = ''
-    for i, profile in enumerate(result_profiles):
-        profiles += f'{i+1}.: {profile.profile}\n\n'
+    for i, result in enumerate(results):
+        profiles += f'{i+1}.: {result.profile.profile}\n\n'
 
     return f"""
-Hello Prof {result.author},
+Hello Prof {extraction_result.author},
 
 As part of our ongoing research, we are developing a system to match researchers with the most suitable scientific communities based on their competencies and expertise areas. We are developing a system that can automatically extract competencies and expertise areas from scientific papers and we would like to know how well you think the extracted profiles match your competencies and expertise areas.
 
@@ -728,9 +728,12 @@ if __name__ == '__main__':
         generate_evaluation_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
-        result = process_author(sys.argv[2], number_of_papers=5)
+        result = process_author(sys.argv[2], number_of_papers=3)
 
         log('Final result:')
         log(result, use_pprint=True)
         log('-' * 50)
+        generate_html_file(result)
+        with open(f'results/{result.author}.mail', 'w') as f:
+            f.write(format_mail(result))
         log(format_mail(result))
