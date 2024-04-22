@@ -16,11 +16,13 @@ from src.database import (
 )
 from src.language_model import OpenAILanguageModel
 from src.util import timeit
+from src.log import LogLevel, log
 
 
 @timeit('Querying Instance')
 def run_query_for_instance(instance: Instance, query: Query) -> Profile:
     # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
+    log(f'Running query for instance: {instance}', level=LogLevel.INFO)
 
     retriever_getter = get_retriever_getter(instance.number_of_examples)
 

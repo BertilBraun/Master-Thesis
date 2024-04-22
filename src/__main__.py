@@ -62,7 +62,7 @@ EXAMPLES = [
 EXTRACTORS = [
     extract_from_abstracts,
     extract_from_summaries,
-    extract_from_full_texts,
+    # extract_from_full_texts,
 ]
 
 
