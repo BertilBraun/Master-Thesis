@@ -9,8 +9,8 @@ from src.types import (
     HumanMessage,
 )
 from src.database import (
-    get_combination_messages,
-    get_example_messages,
+    get_combination_messages_json,
+    get_example_messages_json,
 )
 
 
@@ -35,7 +35,7 @@ def extract_from_abstracts_json(query: Query, retriever: RetrieverGetter, llm: L
 ```
 Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
-        *get_example_messages(abstracts, retriever(Example)),
+        *get_example_messages_json(abstracts, retriever(Example)),
         HumanMessage(
             content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{abstracts}\n\nOutput the profile as a json object.'
         ),
@@ -93,7 +93,7 @@ Please exclude redundant information such as authors, publication date, and loca
 ```
 Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
-        *get_example_messages(summaries, retriever(Example)),
+        *get_example_messages_json(summaries, retriever(Example)),
         HumanMessage(
             content=f'Please analyze these scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}\n\nOutput the profile as a json object.'
         ),
@@ -124,7 +124,7 @@ def extract_from_full_texts_json(query: Query, retriever: RetrieverGetter, llm: 
 ```
 List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
-            *get_example_messages(full_text, retriever(Example)),
+            *get_example_messages_json(full_text, retriever(Example)),
             HumanMessage(
                 content=f"""Please extract the professional competencies from this complete document text:
                 
@@ -172,7 +172,7 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
 ```
 Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should succinctly summarize the general area of research over all profiles and competencies involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
-        *get_combination_messages(profiles_str, retriever(Combination)),
+        *get_combination_messages_json(profiles_str, retriever(Combination)),
         HumanMessage(
             content=f'Please synthesize these individual profiles into one comprehensive profile of 3 to 8 competencies:\n\n{profiles_str}\n\nOutput the profile as a json object.'
         ),

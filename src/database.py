@@ -134,6 +134,19 @@ def get_example_messages(content: str, retriever: Retriever[Example]) -> list[Me
     ]
 
 
+def get_example_messages_json(content: str, retriever: Retriever[Example]) -> list[Message]:
+    examples = retriever.invoke(content)
+
+    return [
+        message
+        for i, example in enumerate(examples)
+        for message in [
+            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstract}'),
+            AIExampleMessage(content=example.profile.to_json()),
+        ]
+    ]
+
+
 def get_summary_messages(content: str, retriever: Retriever[Summary]) -> list[Message]:
     summaries = retriever.invoke(content)
 
@@ -171,6 +184,21 @@ def get_combination_messages(content: str, retriever: Retriever[Combination]) ->
                 content=f'Example {i + 1}:\n' + '\n\n'.join(str(profile) for profile in combination.input_profiles)
             ),
             AIExampleMessage(content=str(combination.combined_profile)),
+        ]
+    ]
+
+
+def get_combination_messages_json(content: str, retriever: Retriever[Combination]) -> list[Message]:
+    combinations = retriever.invoke(content)
+
+    return [
+        message
+        for i, combination in enumerate(combinations)
+        for message in [
+            HumanExampleMessage(
+                content=f'Example {i + 1}:\n' + '\n\n'.join(str(profile) for profile in combination.input_profiles)
+            ),
+            AIExampleMessage(content=combination.combined_profile.to_json()),
         ]
     ]
 

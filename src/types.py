@@ -46,6 +46,17 @@ Competencies:
 {competencies}
 """
 
+    def to_json(self) -> str:
+        return (
+            '{\n    "domain": "'
+            + self.domain
+            + '",\n    "competencies": {\n'
+            + ',\n'.join(
+                [f'        "{competency.name}": "{competency.description}"' for competency in self.competencies]
+            )
+            + '\n    }\n}'
+        )
+
     @staticmethod
     def _parse_domain(text: str) -> str:
         # Return the text between the first occurrence of 'Domain:' and the next '\n'
