@@ -155,7 +155,7 @@ def get_evaluation_messages(content: str, retriever: Retriever[Evaluation]) -> l
         for i, evaluation in enumerate(evaluations)
         for message in [
             HumanExampleMessage(content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n{evaluation.profile}'),
-            AIExampleMessage(content=str(evaluation.score)),
+            AIExampleMessage(content=f'Evaluation and Reasoning: {evaluation.reasoning}\nScore: {evaluation.score}'),
         ]
     ]
 

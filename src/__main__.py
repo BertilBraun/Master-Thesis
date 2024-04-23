@@ -16,7 +16,7 @@ from src.instance import (
     run_query_for_instance,
 )
 from src.database import add_element_to_database, database_size, get_retriever_getter, get_sample_from_database
-from src.display import generate_html_file
+from src.display import generate_html_file_for_extraction_result
 from src.papers import get_authors_of_kit, get_papers_by_author, get_random_papers
 from src.types import (
     AuthorExtractionResult,
@@ -46,8 +46,8 @@ EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-tur
 MODELS = [
     # 'gpt-4',  # maps to Hermes-2-Pro-Mistral-7B.Q2_K via LocalAI
     'mistral',
-    'neural',
-    'mixtral',
+    # 'neural',
+    # 'mixtral',
 ]
 
 EXAMPLES = [
@@ -730,12 +730,12 @@ if __name__ == '__main__':
         generate_evaluation_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
-        result = process_author(sys.argv[2], number_of_papers=5)
+        result = process_author(sys.argv[2], number_of_papers=2)
 
         log('Final result:')
         log(result, use_pprint=True)
         log('-' * 50)
-        generate_html_file(result)
+        generate_html_file_for_extraction_result(result)
         with open(f'results/{result.author}.mail', 'w') as f:
             f.write(format_mail(result))
         log(format_mail(result))

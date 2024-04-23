@@ -2,8 +2,9 @@ import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the 
 
 from openai import OpenAI
 
-from src.log import LogLevel, log
-from src.types import Profile, LanguageModel, Message
+from src.log import LogLevel, log, time_str
+from src.types import AIMessage, Profile, LanguageModel, Message
+from src.display import generate_html_file_for_chat
 
 
 class OpenAILanguageModel(LanguageModel):
@@ -38,6 +39,7 @@ class OpenAILanguageModel(LanguageModel):
                 result = response.choices[0].message.content or 'Error: No response from model'  # type: ignore
 
             result = result.replace('<dummy32000>', '')
+            generate_html_file_for_chat([*prompt, AIMessage(content=result)], f'{self.model}_{time_str()}')
 
             log(f'Response: {result}', level=LogLevel.DEBUG)
             results.append(result)

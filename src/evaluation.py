@@ -36,7 +36,7 @@ Your analysis should be detailed, citing specific elements from both the profile
             # TODO get one high scoring and one low scoring profile as an example?
             *get_evaluation_messages(abstracts, retriever),
             HumanMessage(
-                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score.\n\nAbstracts: {abstracts} \n\nProfile Details:\n{extraction.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
+                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts and provide a relevance score.\n\nAbstracts:\n{abstracts}\n\nProfile Details:\n{extraction.profile}\n\nYour evaluation should include specific examples and reasoning, followed by a score between 0 to 100.'
             ),
         ]
         for extraction in extractions
