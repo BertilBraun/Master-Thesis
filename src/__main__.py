@@ -8,12 +8,16 @@ from itertools import product
 
 from src.language_model import OpenAILanguageModel
 from src.evaluation import evaluate_with
-from src.instance import (
-    _extract_from_full_texts,
-    extract_from_abstracts,
-    extract_from_full_texts,
-    extract_from_summaries,
-    run_query_for_instance,
+from src.extraction_custom import (
+    _extract_from_full_texts_custom,
+    extract_from_abstracts_custom,
+    extract_from_full_texts_custom,
+    extract_from_summaries_custom,
+)
+from src.extraction_json import (
+    extract_from_abstracts_json,
+    extract_from_full_texts_json,
+    extract_from_summaries_json,
 )
 from src.database import add_element_to_database, database_size, get_retriever_getter, get_sample_from_database
 from src.display import generate_html_file_for_extraction_result
@@ -61,10 +65,13 @@ EXAMPLES = [
 ]
 
 EXTRACTORS = [
-    extract_from_abstracts,
-    extract_from_summaries,
-    extract_from_full_texts,
-][:2]  # Only use the first 2 extractors for now, extract_from_full_texts fails too often with the current models
+    # extract_from_abstracts_custom,
+    extract_from_abstracts_json,
+    # extract_from_summaries_custom,
+    # extract_from_summaries_json,
+    # extract_from_full_texts_custom,
+    # extract_from_full_texts_json,
+]  # TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
 
 
 @timeit('Processing Author')
@@ -105,6 +112,18 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
     )
 
 
+@timeit('Querying Instance')
+def run_query_for_instance(instance: Instance, query: Query) -> Profile:
+    # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
+    log(f'Running query for instance: {instance}', level=LogLevel.INFO)
+
+    retriever_getter = get_retriever_getter(instance.number_of_examples)
+
+    llm = OpenAILanguageModel(instance.model)
+
+    return instance.extract(query, retriever_getter, llm)
+
+
 def write_reference(element: DatabaseTypes, file_name: str) -> None:
     add_element_to_database(element, is_reference=True)
 
@@ -129,7 +148,7 @@ def generate_example_references(number_of_references_to_generate: int):
             'gpt-4',
             number_of_examples=1,
             example_type=ExampleType.POSITIVE,
-            extract=extract_from_abstracts,
+            extract=extract_from_abstracts_custom,
         )
         profile = run_query_for_instance(instance, query)
 
@@ -166,7 +185,7 @@ def generate_combination_references(number_of_references_to_generate: int):
     generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
 
     for query in queries:
-        extracted_profiles, combined_profile = _extract_from_full_texts(
+        extracted_profiles, combined_profile = _extract_from_full_texts_custom(
             query,
             get_retriever_getter(max_number_to_retrieve=1),
             OpenAILanguageModel(model='gpt-4'),

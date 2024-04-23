@@ -3,7 +3,6 @@ from src.types import (
     Example,
     Profile,
     Query,
-    Instance,
     LanguageModel,
     RetrieverGetter,
     SystemMessage,
@@ -12,26 +11,10 @@ from src.types import (
 from src.database import (
     get_combination_messages,
     get_example_messages,
-    get_retriever_getter,
 )
-from src.language_model import OpenAILanguageModel
-from src.util import timeit
-from src.log import LogLevel, log
 
 
-@timeit('Querying Instance')
-def run_query_for_instance(instance: Instance, query: Query) -> Profile:
-    # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
-    log(f'Running query for instance: {instance}', level=LogLevel.INFO)
-
-    retriever_getter = get_retriever_getter(instance.number_of_examples)
-
-    llm = OpenAILanguageModel(instance.model)
-
-    return instance.extract(query, retriever_getter, llm)
-
-
-def extract_from_abstracts(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
+def extract_from_abstracts_json(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -39,26 +22,29 @@ def extract_from_abstracts(query: Query, retriever: RetrieverGetter, llm: Langua
 
     prompt = [
         SystemMessage(
-            content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
-```
-Domain: [Short Domain Description]
-Competencies:
-- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the abstracts]
-- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the abstracts]
-...
+            content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as a json object as follows:
+```json
+{
+    "domain": "[Short Domain Description]",
+    "competencies": {
+        "[Competency 1]": "[Brief description of how Competency 1 is demonstrated across the abstracts]",
+        "[Competency 2]": "[Brief description of how Competency 2 is demonstrated across the abstracts]",
+        ...
+    }
+}
 ```
 Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
         *get_example_messages(abstracts, retriever(Example)),
         HumanMessage(
-            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{abstracts}'
+            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{abstracts}\n\nOutput the profile as a json object.'
         ),
     ]
 
-    return llm.invoke_profile(prompt)
+    return llm.invoke_profile_json(prompt)
 
 
-def extract_from_summaries(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
+def extract_from_summaries_json(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
     # We are putting all Papers in one Prompt but only looking at the summaries
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -94,28 +80,29 @@ Please exclude redundant information such as authors, publication date, and loca
 
     prompt = [
         SystemMessage(
-            content="""You are a helpful research assistant tasked with extracting professional competencies from a set of summarized scientific papers. Review all the provided summaries comprehensively to create a unified professional profile that captures the overarching domain of expertise and specific competencies demonstrated across the texts. Format your consolidated findings as follows:
-```
-Domain: [Short Domain Description]
-Competencies:
-- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the summaries]
-- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the summaries]
-...
+            content="""You are a helpful research assistant tasked with extracting professional competencies from a set of summarized scientific papers. Review all the provided summaries comprehensively to create a unified professional profile that captures the overarching domain of expertise and specific competencies demonstrated across the texts. Format your consolidated findings as a json object as follows:
+```json
+{
+    "domain": "[Short Domain Description]",
+    "competencies": {
+        "[Competency 1]": "[Brief description of how Competency 1 is demonstrated across the summaries]",
+        "[Competency 2]": "[Brief description of how Competency 2 is demonstrated across the summaries]",
+        ...
+    }
+}
 ```
 Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
-            content=f'Please analyze these scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}'
+            content=f'Please analyze these scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}\n\nOutput the profile as a json object.'
         ),
     ]
 
-    return llm.invoke_profile(prompt)
+    return llm.invoke_profile_json(prompt)
 
 
-def _extract_from_full_texts(
-    query: Query, retriever: RetrieverGetter, llm: LanguageModel
-) -> tuple[list[Profile], Profile]:
+def extract_from_full_texts_json(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -124,13 +111,16 @@ def _extract_from_full_texts(
     prompts = [
         [
             SystemMessage(
-                content="""You are a helpful research assistant tasked with identifying and cataloging professional competencies from a scientific paper. Extract all relevant competencies demonstrated within the text, and organize them into a structured competency profile as follows:
-```
-Domain: [Short Domain Description]
-Competencies:
-- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
-- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
-...
+                content="""You are a helpful research assistant tasked with identifying and cataloging professional competencies from a scientific paper. Extract all relevant competencies demonstrated within the text, and organize them into a structured competency profile as a json object as follows:
+```json
+{
+    "domain": "[Short Domain Description]",
+    "competencies": {
+        "[Competency 1]": "[Detailed explanation of how Competency 1 is demonstrated in the text]",
+        "[Competency 2]": "[Detailed explanation of how Competency 2 is demonstrated in the text]",
+        ...
+    }
+}
 ```
 List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
@@ -138,16 +128,20 @@ List all pertinent competencies, clearly detailing how each is evidenced in the 
             HumanMessage(
                 content=f"""Please extract the professional competencies from this complete document text:
                 
-{full_text}
+{full_text}"""
+                + """
 
 
-The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document.  This is the format:
-```
-Domain: [Short Domain Description]
-Competencies:
-- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
-- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
-...
+The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document. This is the json output format:
+```json
+{
+    "domain": "[Short Domain Description]",
+    "competencies": {
+        "[Competency 1]": "[Detailed explanation of how Competency 1 is demonstrated in the text]",
+        "[Competency 2]": "[Detailed explanation of how Competency 2 is demonstrated in the text]",
+        ...
+    }
+}
 ```
 Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
@@ -158,32 +152,30 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
     llm_profiles = llm.batch(prompts)
 
     # Assuming conversion of profiles to string format and joining them happens here.
-    profiles = [Profile.parse(profile) for profile in llm_profiles]
+    profiles = [Profile.parse_json(profile) for profile in llm_profiles]  # TODO
     profiles_str = '\n\n'.join(str(profile) for profile in profiles)
 
     # Second Stage: Combining Individual Profiles into a Comprehensive Profile
 
     prompt = [
         SystemMessage(
-            content="""You are now tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
-```
-Domain: [Consolidated Domain Description]
-Competencies:
-- [Integrated Competency 1]: [Consolidated description based on individual profiles]
-- [Integrated Competency 2]: [Consolidated description based on individual profiles]
-...
+            content="""You are now tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as a json object as follows:
+```json
+{
+    "domain": "[Short Domain Description]",
+    "competencies": {
+        "[Competency 1]": "[Consolidated description based on individual profiles]",
+        "[Competency 2]": "[Consolidated description based on individual profiles]",
+        ...
+    }
+}
 ```
 Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should succinctly summarize the general area of research over all profiles and competencies involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize these individual profiles into one comprehensive profile of 3 to 8 competencies:\n\n{profiles_str}'
+            content=f'Please synthesize these individual profiles into one comprehensive profile of 3 to 8 competencies:\n\n{profiles_str}\n\nOutput the profile as a json object.'
         ),
     ]
 
-    return profiles, llm.invoke_profile(prompt)
-
-
-def extract_from_full_texts(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
-    profiles, comprehensive_profile = _extract_from_full_texts(query, retriever, llm)
-    return comprehensive_profile
+    return llm.invoke_profile_json(prompt)

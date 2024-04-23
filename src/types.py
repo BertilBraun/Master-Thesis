@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import json
 import re
 
 from enum import Enum
-from typing import Callable, Generic, Protocol, Type, TypeVar
+from typing import Callable, Generic, Literal, Protocol, Type, TypeVar
 from dataclasses import dataclass
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -76,6 +77,33 @@ Competencies:
             domain=Profile._parse_domain(text),
             competencies=Profile._parse_competencies(text),
         )
+
+    @staticmethod
+    def parse_json(text: str) -> Profile:
+        obj = json.loads(text)
+
+        # fuzzy find the domain and competencies keys in the json object
+        # The json object should have the following structure:
+        # {
+        #     "domain": "[Short Domain Description]",
+        #     "competencies": {
+        #         "[Competency 1]": "[Detailed explanation of how Competency 1 is demonstrated in the text]",
+        #         "[Competency 2]": "[Detailed explanation of how Competency 2 is demonstrated in the text]",
+        #         ...
+        #     }
+        # }
+
+        domain = 'Domain not found'
+        competencies: list[Competency] = []
+
+        for key in obj:
+            if 'domain' in key.lower():
+                domain = obj[key]
+            elif 'competencies' in key.lower():
+                for competency in obj[key]:
+                    competencies.append(Competency(name=competency, description=obj[key][competency]))
+
+        return Profile(domain=domain, competencies=competencies)
 
 
 @dataclass(frozen=True)
@@ -301,13 +329,28 @@ class LanguageModel(Protocol):
     def __init__(self, model: str):
         ...
 
-    def invoke(self, prompt: list[Message], /, stop: list[str] | None = None) -> str:
+    def batch(
+        self,
+        prompts: list[list[Message]],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['text'] | Literal['json_object'] = 'text',
+    ) -> list[str]:
         ...
 
-    def invoke_profile(self, prompt: list[Message]) -> Profile:
+    def invoke(
+        self,
+        prompt: list[Message],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['text'] | Literal['json_object'] = 'text',
+    ) -> str:
         ...
 
-    def batch(self, prompts: list[list[Message]], /, stop: list[str] | None = None) -> list[str]:
+    def invoke_profile_custom(self, prompt: list[Message]) -> Profile:
+        ...
+
+    def invoke_profile_json(self, prompt: list[Message]) -> Profile:
         ...
 
 
