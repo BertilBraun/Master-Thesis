@@ -68,4 +68,4 @@ class OpenAILanguageModel(LanguageModel):
         return Profile.parse(self.invoke(prompt))
 
     def invoke_profile_json(self, prompt: list[Message]) -> Profile:
-        return Profile.parse_json(self.invoke(prompt, response_format='json_object'))
+        return Profile.parse_json(self.invoke(prompt, response_format='json_object', stop=['\n\n']))

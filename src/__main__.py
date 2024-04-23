@@ -31,7 +31,6 @@ from src.types import (
     ExtractedProfile,
     Profile,
     Example,
-    ExampleType,
     Instance,
     Query,
 )
@@ -54,23 +53,15 @@ MODELS = [
     # 'mixtral',
 ]
 
-EXAMPLES = [
-    (ExampleType.POSITIVE, 2),
-    (ExampleType.POSITIVE, 1),
-    (ExampleType.POSITIVE, 0),
-    # ExampleType.NEGATIVE currently not supported by chroma db
-    # (ExampleType.NEGATIVE, 2),
-    # (ExampleType.NEGATIVE, 1),
-    # ExampleType.NEGATIVE with number_of_examples=0 does not make sense as it is the same as ExampleType.POSITIVE with number_of_examples=0
-]
+EXAMPLES = [2, 1, 0]
 
 EXTRACTORS = [
-    # extract_from_abstracts_custom,
+    extract_from_abstracts_custom,
     extract_from_abstracts_json,
-    # extract_from_summaries_custom,
-    # extract_from_summaries_json,
-    # extract_from_full_texts_custom,
-    # extract_from_full_texts_json,
+    extract_from_summaries_custom,
+    extract_from_summaries_json,
+    extract_from_full_texts_custom,
+    extract_from_full_texts_json,
 ]  # TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
 
 
@@ -80,14 +71,13 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
     query = get_papers_by_author(name, number_of_papers=number_of_papers)
 
-    for model, (example_type, number_of_examples), extract_func in tqdm(
+    for model, number_of_examples, extract_func in tqdm(
         product(MODELS, EXAMPLES, EXTRACTORS),
         desc='Processing different models and extractors',
     ):
         instance = Instance(
             model,
             number_of_examples,
-            example_type,
             extract_func,
         )
 
@@ -96,9 +86,18 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
             profile = run_query_for_instance(instance, query)
         except AssertionError as e:
             log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
+            log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
             continue
-        extraction_time = time.time() - start
-        profiles.append(ExtractedProfile(profile=profile, instance=instance, extraction_time=extraction_time))
+
+        profiles.append(
+            ExtractedProfile(
+                profile=profile,
+                model=instance.model,
+                number_of_examples=instance.number_of_examples,
+                extraction_function=instance.extract.__qualname__,
+                extraction_time=time.time() - start,
+            )
+        )
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
     log('Final evaluation result:', evaluation_result, 'for author:', name)
@@ -114,7 +113,6 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
 
 @timeit('Querying Instance')
 def run_query_for_instance(instance: Instance, query: Query) -> Profile:
-    # TODO retriever based on instance.example_type == POSITIVE or NEGATIVE
     log(f'Running query for instance: {instance}', level=LogLevel.INFO)
 
     retriever_getter = get_retriever_getter(instance.number_of_examples)
@@ -147,7 +145,6 @@ def generate_example_references(number_of_references_to_generate: int):
         instance = Instance(
             'gpt-4',
             number_of_examples=1,
-            example_type=ExampleType.POSITIVE,
             extract=extract_from_abstracts_custom,
         )
         profile = run_query_for_instance(instance, query)
@@ -230,7 +227,7 @@ def generate_evaluation_references(number_of_references_to_generate: int):
                 titles=['Unknown'],
                 author='Unknown',
             ),
-            [ExtractedProfile(profile=example.profile, instance=Instance.empty_instance(), extraction_time=0)],
+            [ExtractedProfile.from_profile(example.profile)],
         )
 
         evaluation = Evaluation(

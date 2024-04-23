@@ -58,8 +58,6 @@ def _write_and_display(html_content: str, file_name: str):
 
 if __name__ == '__main__':
     from src.types import (
-        ExampleType,
-        Instance,
         Competency,
         Profile,
         ExtractedProfile,
@@ -76,8 +74,13 @@ if __name__ == '__main__':
         Competency('ML', 'Machine learning algorithms'),
     ]
     profile = Profile('Technology', competencies)
-    example_instance = Instance('OpenAI GPT-4', 150, ExampleType.POSITIVE, lambda x, y, z: profile)
-    extracted_profile = ExtractedProfile(profile, example_instance, extraction_time=0.5)
+    extracted_profile = ExtractedProfile(
+        profile,
+        model='OpenAI GPT-4',
+        number_of_examples=2,
+        extraction_function='extraction_function',
+        extraction_time=0.5,
+    )
     evaluation_result = [EvaluationResult(extracted_profile, 'High accuracy in predictive modeling', 95)]
     author_result = AuthorExtractionResult(evaluation_result, ['Paper on AI', 'Thesis on ML'], 'John Doe')
 

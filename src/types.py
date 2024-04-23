@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-import json
 import re
+import json
 
-from enum import Enum
 from typing import Callable, Generic, Literal, Protocol, Type, TypeVar
 from dataclasses import dataclass
 
@@ -265,11 +264,6 @@ class Query:
         )
 
 
-class ExampleType(Enum):
-    POSITIVE = 'positive'  # Good Examples (best matches in VectorDB)
-    NEGATIVE = 'negative'  # Bad Examples (worst matches in VectorDB)
-
-
 @dataclass(frozen=True)
 class ExtractionResult:
     profile: Profile
@@ -375,7 +369,6 @@ class Instance:
 
     model: str  # Identifier from OpenAI/Insomnium
     number_of_examples: int
-    example_type: ExampleType
     extract: Callable[[Query, RetrieverGetter, LanguageModel], Profile]
 
     @staticmethod
@@ -383,7 +376,6 @@ class Instance:
         return Instance(
             model='',
             number_of_examples=0,
-            example_type=ExampleType.POSITIVE,
             extract=lambda q, r, l: Profile(domain='', competencies=[]),  # noqa
         )
 
@@ -391,8 +383,20 @@ class Instance:
 @dataclass(frozen=True)
 class ExtractedProfile:
     profile: Profile
-    instance: Instance
+    model: str  # Identifier from OpenAI/Insomnium
+    number_of_examples: int
+    extraction_function: str
     extraction_time: float
+
+    @staticmethod
+    def from_profile(profile: Profile) -> ExtractedProfile:
+        return ExtractedProfile(
+            profile=profile,
+            model='None',
+            number_of_examples=0,
+            extraction_function='None',
+            extraction_time=0.0,
+        )
 
 
 @dataclass(frozen=True)
