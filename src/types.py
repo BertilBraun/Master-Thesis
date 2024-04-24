@@ -331,7 +331,7 @@ Message = SystemMessage | HumanMessage | AIMessage | HumanExampleMessage | AIExa
 
 
 class LanguageModel(Protocol):
-    def __init__(self, model: str):
+    def __init__(self, model: str, debug_context_name: str = ''):
         ...
 
     def batch(

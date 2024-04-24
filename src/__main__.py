@@ -62,7 +62,9 @@ EXTRACTORS = [
     extract_from_summaries_json,
     extract_from_full_texts_custom,
     extract_from_full_texts_json,
-]  # TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
+][1:2]
+# Only use the extract_from_abstracts_json for now
+# TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
 
 
 @timeit('Processing Author')
@@ -70,6 +72,8 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
     profiles: list[ExtractedProfile] = []
 
     query = get_papers_by_author(name, number_of_papers=number_of_papers)
+
+    extracted_profile_log = f'logs/extracted_profiles/{name}_{datetime_str()}.log'
 
     for model, number_of_examples, extract_func in tqdm(
         product(MODELS, EXAMPLES, EXTRACTORS),
@@ -98,17 +102,20 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
                 extraction_time=time.time() - start,
             )
         )
+        log(profiles[-1], use_pprint=True, log_file_name=extracted_profile_log)
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
     log('Final evaluation result:', evaluation_result, 'for author:', name)
     best = evaluation_result[0]
     log('Best extraction:', best.extraction, 'with score:', best.score, 'and reasoning:', best.reasoning)
 
-    return AuthorExtractionResult(
+    result = AuthorExtractionResult(
         evaluation_result=evaluation_result,
         titles=query.titles,
         author=query.author,
     )
+    log(result, use_pprint=True, log_file_name=extracted_profile_log)
+    return result
 
 
 @timeit('Querying Instance')
@@ -117,7 +124,7 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile:
 
     retriever_getter = get_retriever_getter(instance.number_of_examples)
 
-    llm = OpenAILanguageModel(instance.model)
+    llm = OpenAILanguageModel(instance.model, debug_context_name=instance.extract.__qualname__)
 
     return instance.extract(query, retriever_getter, llm)
 

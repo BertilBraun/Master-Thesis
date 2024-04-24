@@ -40,7 +40,7 @@ def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'
     with open('src/template_chat.html', 'r') as file:
         html_template = file.read()
 
-    html_content = html_template.replace('"{{chatData}}"', json_data)
+    html_content = html_template.replace('"{{chatData}}"', json_data).replace('"{{fileName}}"', chat_name)
 
     _write_and_display(html_content, chat_name)
 

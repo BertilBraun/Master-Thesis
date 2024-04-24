@@ -10,9 +10,10 @@ from src.display import generate_html_file_for_chat
 
 
 class OpenAILanguageModel(LanguageModel):
-    def __init__(self, model: str):
+    def __init__(self, model: str, debug_context_name: str = ''):
         self.model = model
         self.openai = OpenAI(base_url=src.openai_defines.BASE_URL_LLM)
+        self.debug_context_name = debug_context_name
 
     def batch(
         self,
@@ -59,7 +60,10 @@ class OpenAILanguageModel(LanguageModel):
             result = response.choices[0].message.content or 'Error: No response from model'
 
         result = result.replace('<dummy32000>', '')
-        generate_html_file_for_chat([*prompt, AIMessage(content=result)], f'{self.model}_{time_str()}')
+        generate_html_file_for_chat(
+            [*prompt, AIMessage(content=result)],
+            f'{self.model}_{self.debug_context_name}_{time_str()}',
+        )
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
         return result
