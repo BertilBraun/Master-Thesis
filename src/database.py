@@ -15,6 +15,7 @@ from src.types import (
     HumanExampleMessage,
     AIExampleMessage,
     Profile,
+    Ranking,
     Retriever,
     Message,
     RetrieverGetter,
@@ -37,6 +38,7 @@ class DBEntryType(Enum):
     SUMMARY = ('summary', Summary)  # NOTE currently not used
     EVALUATION = ('evaluation', Evaluation)
     COMBINATION = ('combination', Combination)
+    RANKING = ('ranking', Ranking)
 
 
 COLLECTIONS = {
@@ -173,6 +175,23 @@ def get_evaluation_messages(content: str, retriever: Retriever[Evaluation]) -> l
     ]
 
 
+def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> list[Message]:
+    evaluations = retriever.invoke(content)
+
+    return [
+        message
+        for i, evaluation in enumerate(evaluations)
+        for message in [
+            HumanExampleMessage(
+                content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n\nProfile 1: {evaluation.preferred_profile}\n\n\nProfile 2: {evaluation.other_profile}'
+            ),
+            AIExampleMessage(
+                content='{\n    "reasoning": "' + evaluation.reasoning + '",\n    "preferred_profile": 1\n}'
+            ),
+        ]
+    ]
+
+
 def get_combination_messages(content: str, retriever: Retriever[Combination]) -> list[Message]:
     combinations = retriever.invoke(content)
 
@@ -261,5 +280,8 @@ if __name__ == '__main__':
     # bear_example()
 
     dump_database()
+
+    for collection in client.list_collections():
+        client.delete_collection(collection.name)
 
     # print('Database size (Example):', database_size(Example))

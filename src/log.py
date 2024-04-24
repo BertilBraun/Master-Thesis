@@ -51,7 +51,7 @@ def log(
 
     if use_pprint:
         print(timestamp, log_level, end=' ', file=log_file, flush=True)
-        pprint(*args, **kwargs, stream=log_file, width=120)
+        pprint(*args, **kwargs, stream=log_file, width=200)
         log_file.flush()
         if level.value >= LOG_LEVEL.value:
             print(timestamp, log_level, end=' ', flush=True)

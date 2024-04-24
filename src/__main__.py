@@ -7,7 +7,7 @@ from tqdm import tqdm
 from itertools import product
 
 from src.language_model import OpenAILanguageModel
-from src.evaluation import evaluate_with
+from src.evaluation import evaluate_with, tournament_ranking
 from src.extraction_custom import (
     _extract_from_full_texts_custom,
     extract_from_abstracts_custom,
@@ -23,7 +23,7 @@ from src.database import add_element_to_database, database_size, get_retriever_g
 from src.display import generate_html_file_for_extraction_result
 from src.papers import get_authors_of_kit, get_papers_by_author, get_random_papers
 from src.types import (
-    AuthorExtractionResult,
+    AuthorResult,
     Combination,
     Competency,
     DatabaseTypes,
@@ -33,6 +33,7 @@ from src.types import (
     Example,
     Instance,
     Query,
+    Ranking,
 )
 from src.util import timeit
 from src.log import LogLevel, datetime_str, log
@@ -44,12 +45,13 @@ from src.log import LogLevel, datetime_str, log
 #     'gpt-4',
 # ]
 
+REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
 MODELS = [
     # 'gpt-4',  # maps to Hermes-2-Pro-Mistral-7B.Q2_K via LocalAI
     'mistral',
-    # 'neural',
+    'neural',
     # 'mixtral',
 ]
 
@@ -68,7 +70,7 @@ EXTRACTORS = [
 
 
 @timeit('Processing Author')
-def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResult:
+def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
     profiles: list[ExtractedProfile] = []
 
     query = get_papers_by_author(name, number_of_papers=number_of_papers)
@@ -105,12 +107,12 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorExtractionResu
         log(profiles[-1], use_pprint=True, log_file_name=extracted_profile_log)
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
-    log('Final evaluation result:', evaluation_result, 'for author:', name)
-    best = evaluation_result[0]
-    log('Best extraction:', best.extraction, 'with score:', best.score, 'and reasoning:', best.reasoning)
+    ranking_results, ranked_tuples = tournament_ranking(EVALUATION_MODEL, query, profiles)
 
-    result = AuthorExtractionResult(
+    result = AuthorResult(
         evaluation_result=evaluation_result,
+        ranking_results=ranking_results,
+        rankings=ranked_tuples,
         titles=query.titles,
         author=query.author,
     )
@@ -150,9 +152,9 @@ def generate_example_references(number_of_references_to_generate: int):
     for query in queries:
         # Use one abstract at a time in a 1 shot prompt
         instance = Instance(
-            'gpt-4',
+            REFERENCE_GENERATION_MODEL,
             number_of_examples=1,
-            extract=extract_from_abstracts_custom,
+            extract=extract_from_abstracts_json,
         )
         profile = run_query_for_instance(instance, query)
 
@@ -192,7 +194,7 @@ def generate_combination_references(number_of_references_to_generate: int):
         extracted_profiles, combined_profile = _extract_from_full_texts_custom(
             query,
             get_retriever_getter(max_number_to_retrieve=1),
-            OpenAILanguageModel(model='gpt-4'),
+            OpenAILanguageModel(model=REFERENCE_GENERATION_MODEL),
         )
 
         combination = Combination(
@@ -227,7 +229,7 @@ def generate_evaluation_references(number_of_references_to_generate: int):
 
     for example in examples:
         evaluation_result = evaluate_with(
-            'gpt-4',
+            REFERENCE_GENERATION_MODEL,
             Query(
                 full_texts=['Unknown'],
                 abstracts=[example.abstract],
@@ -246,6 +248,56 @@ def generate_evaluation_references(number_of_references_to_generate: int):
 
         # Write the evaluation as reference to a file
         write_reference(evaluation, generated_evaluations_file)
+
+
+def generate_ranking_references(number_of_references_to_generate: int):
+    # add_initial_ranking_references()
+
+    # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
+    # TODO src.openai_defines.BASE_URL_LLM = None
+
+    examples = get_sample_from_database(Example, number_of_references_to_generate)
+
+    generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
+    generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
+
+    for example in examples:
+        query = Query(
+            full_texts=['Unknown'],
+            abstracts=[example.abstract],
+            titles=['Unknown'],
+            author='Unknown',
+        )
+
+        profile2 = run_query_for_instance(
+            Instance(
+                model=REFERENCE_GENERATION_MODEL,
+                number_of_examples=2,
+                extract=extract_from_abstracts_json,
+            ),
+            query,
+        )
+
+        write_reference(Example(abstract=example.abstract, profile=profile2), generated_examples_file)
+
+        ranking_results, rankings = tournament_ranking(
+            REFERENCE_GENERATION_MODEL,
+            query,
+            [
+                ExtractedProfile.from_profile(example.profile),
+                ExtractedProfile.from_profile(profile2),
+            ],
+        )
+
+        ranking = Ranking(
+            paper_text=example.abstract,
+            reasoning=ranking_results[0].reasoning,
+            preferred_profile=ranking_results[0].preferred_profile.profile,
+            other_profile=ranking_results[0].other_profile.profile,
+        )
+
+        # Write the evaluation as reference to a file
+        write_reference(ranking, generated_rankings_file)
 
 
 def add_initial_example_references():
@@ -695,7 +747,7 @@ Overall, the profile's domain of "Materials Science and Chemistry" closely align
     )
 
 
-def format_mail(extraction_result: AuthorExtractionResult) -> str:
+def format_mail(extraction_result: AuthorResult) -> str:
     # Formats the extraction result into a mail template for the author to request a evaluation of the extracted profiles
 
     titles = '- ' + '\n- '.join(extraction_result.titles)
@@ -751,6 +803,9 @@ if __name__ == '__main__':
 
     if sys.argv[1] == 'gen_evaluation':
         generate_evaluation_references(int(sys.argv[2]))
+
+    if sys.argv[1] == 'gen_ranking':
+        generate_ranking_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
         result = process_author(sys.argv[2], number_of_papers=2)

@@ -5,7 +5,7 @@ from enum import Enum
 from dataclasses import is_dataclass
 
 from src.log import date_str
-from src.types import AuthorExtractionResult, Message
+from src.types import AuthorResult, Message
 
 
 def custom_asdict(obj):
@@ -25,7 +25,7 @@ def custom_asdict(obj):
         return obj
 
 
-def generate_html_file_for_extraction_result(author_result: AuthorExtractionResult):
+def generate_html_file_for_extraction_result(author_result: AuthorResult):
     json_data = json.dumps(custom_asdict(author_result), indent=4)
     with open('src/template_extraction_result.html', 'r') as file:
         html_template = file.read()
@@ -82,7 +82,7 @@ if __name__ == '__main__':
         extraction_time=0.5,
     )
     evaluation_result = [EvaluationResult(extracted_profile, 'High accuracy in predictive modeling', 95)]
-    author_result = AuthorExtractionResult(evaluation_result, ['Paper on AI', 'Thesis on ML'], 'John Doe')
+    author_result = AuthorResult(evaluation_result, [], [], ['Paper on AI', 'Thesis on ML'], 'John Doe')
 
     generate_html_file_for_extraction_result(author_result)
 

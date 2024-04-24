@@ -40,6 +40,12 @@
             "problemMatcher": []
         },
         {
+            "label": "Generate Ranking References",
+            "type": "shell",
+            "command": "python -m src gen_ranking ${input:number}",
+            "problemMatcher": []
+        },
+        {
             "label": "Test Database",
             "type": "shell",
             "command": "python -m src.database",
@@ -69,7 +75,7 @@
             "id": "number",
             "type": "promptString",
             "description": "Enter the number of references to generate",
-            "default": "10"
+            "default": "2"
         }
     ]
 }

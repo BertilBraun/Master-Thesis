@@ -175,11 +175,12 @@ class Evaluation:
     @staticmethod
     def parse_reasoning(text: str) -> str:
         # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nScore:'
-        if 'Reasoning:' not in text:
+        if 'reasoning:' not in text.lower():
             log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
             return ''
 
-        return text.split('Reasoning:')[1].split('\n\nScore:')[0]
+        # Ignore case when searching for 'reasoning:'
+        return text.split('easoning:')[1].split('\n\nScore:')[0]
 
     @staticmethod
     def parse_evaluation_score(text: str) -> int:
@@ -212,6 +213,114 @@ class Evaluation:
             profile=Profile.parse(rest_text),
             reasoning=Evaluation.parse_reasoning(rest_text),
             score=Evaluation.parse_evaluation_score(rest_text),
+        )
+
+
+@dataclass(frozen=True)
+class Ranking:
+    # Represents a 2way ranking between two profiles
+    paper_text: str
+    reasoning: str  # let the model generate the reasoning before returning the preferred profile
+    preferred_profile: Profile
+    other_profile: Profile
+
+    def __str__(self) -> str:
+        return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.preferred_profile}\n\n\nProfile 2: {self.other_profile}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: 1"""
+
+    @staticmethod
+    def parse_reasoning(text: str) -> str:
+        # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nPreferred Profile:'
+        if 'reasoning:' not in text.lower():
+            log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
+            return ''
+
+        # Ignore case when searching for 'reasoning:'
+        return text.split('easoning:')[1].split('\n\nPreferred Profile:')[0]
+
+    @staticmethod
+    def parse_reasoning_json(text: str) -> str:
+        obj = json.loads(text)
+
+        # fuzzy find the reasoning key in the json object
+        # The json object should have the following structure:
+        # {
+        #     "reasoning": "[Your Reasoning]",
+        #     "preferred_profile": [1 or 2]
+        # }
+
+        for key in obj:
+            if 'reason' in key.lower():
+                return obj[key]
+
+        log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
+        return ''
+
+    @staticmethod
+    def parse_preferred_profile_json(text: str) -> bool:
+        # Returns True if the preferred profile is 1, False if it is 2
+        obj = json.loads(text)
+
+        # fuzzy find the preferred_profile key in the json object
+        # The json object should have the following structure:
+        # {
+        #     "reasoning": "[Your Reasoning]",
+        #     "preferred_profile": [1 or 2]
+        # }
+
+        for key in obj:
+            if 'preferred' in key.lower():
+                number = obj[key]
+                if number < 1 or number > 2:
+                    log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+                    return True
+
+                return number == 1
+
+        log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+        return True
+
+    @staticmethod
+    def parse_preferred_profile(text: str) -> bool:
+        # Return the tuple (preferred profile, other profile) based on the text
+        # Find the first number after 'Preferred Profile: ' and return the corresponding profile
+        match = re.search(r'[P|p]referred [P|p]rofile: (\d)', text)
+        if match:
+            number = int(match.group(1))
+            if number < 1 or number > 2:
+                log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+                return True
+
+            return number == 1
+
+        log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+        return True
+
+    @staticmethod
+    def parse(text: str) -> Ranking:
+        # Return the text between the first occurrence of 'Paper Text: ' and the next '\n\n\nProfile 1:'
+        paper_text, rest_text = text.split('Paper Text:')[1].split('\n\n\nProfile 1:', maxsplit=1)
+
+        # Return the text between the first occurrence of 'Profile 1:\n' and the next '\n\n\nProfile 2:'
+        profile_1, rest_text = rest_text.split('\n\n\nProfile 2:', maxsplit=1)
+
+        # Return the text between the first occurrence of 'Profile 2:\n' and the next '\n\n\nReasoning:'
+        profile_2, rest_text = rest_text.split('\n\n\nReasoning:', maxsplit=1)
+
+        reasoning = Ranking.parse_reasoning(rest_text)
+
+        parsed_profile_1 = Profile.parse(profile_1)
+        parsed_profile_2 = Profile.parse(profile_2)
+
+        is_profile_1_preferred = Ranking.parse_preferred_profile(rest_text)
+
+        preferred_profile = parsed_profile_1 if is_profile_1_preferred else parsed_profile_2
+        other_profile = parsed_profile_2 if is_profile_1_preferred else parsed_profile_1
+
+        return Ranking(
+            paper_text=paper_text,
+            reasoning=reasoning,
+            preferred_profile=preferred_profile,
+            other_profile=other_profile,
         )
 
 
@@ -271,7 +380,7 @@ class ExtractionResult:
     author: str
 
 
-DatabaseTypes = TypeVar('DatabaseTypes', Example, Summary, Evaluation, Combination)
+DatabaseTypes = TypeVar('DatabaseTypes', Example, Summary, Evaluation, Combination, Ranking)
 
 
 class Retriever(Protocol, Generic[DatabaseTypes]):
@@ -407,7 +516,17 @@ class EvaluationResult:
 
 
 @dataclass(frozen=True)
-class AuthorExtractionResult:
+class RankingResult:
+    # Represents a 2way ranking between two profiles
+    preferred_profile: ExtractedProfile
+    other_profile: ExtractedProfile
+    reasoning: str  # let the model generate the reasoning before returning the preferred profile
+
+
+@dataclass(frozen=True)
+class AuthorResult:
     evaluation_result: list[EvaluationResult]
+    ranking_results: list[RankingResult]
+    rankings: list[tuple[ExtractedProfile, int]]  # The profiles with their ranking compared to all other profiles
     titles: list[str]
     author: str
