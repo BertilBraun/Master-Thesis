@@ -85,7 +85,7 @@ def compare_profiles(
 
 
 def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[ExtractedProfile, ExtractedProfile], str]:
-    llm = OpenAILanguageModel(model)
+    llm = OpenAILanguageModel(model, debug_context_name='tournament_ranking')
 
     abstracts = '\n\n'.join(query.abstracts)
 

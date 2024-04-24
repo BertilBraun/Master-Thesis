@@ -237,6 +237,15 @@ def dump_database():
         print(f'Number of documents {collection.name}:', collection.count())
 
 
+def clear_collection(return_type: Type[DatabaseTypes]):
+    COLLECTIONS[return_type].delete(COLLECTIONS[return_type].get()['ids'])
+
+
+def clear_database():
+    for collection in client.list_collections():
+        client.delete_collection(collection.name)
+
+
 if __name__ == '__main__':
     from src.types import Profile, Example, Competency
 
@@ -280,8 +289,7 @@ if __name__ == '__main__':
     # bear_example()
 
     dump_database()
-
-    for collection in client.list_collections():
-        client.delete_collection(collection.name)
+    # clear_database()
+    # clear_collection(Ranking)
 
     # print('Database size (Example):', database_size(Example))

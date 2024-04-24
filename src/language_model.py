@@ -45,7 +45,7 @@ class OpenAILanguageModel(LanguageModel):
             messages=[message.to_dict() for message in prompt],
             stop=stop,
             stream=src.openai_defines.DEBUG,
-            temperature=0.2,  # TODO play with this?
+            temperature=0.5,  # TODO play with this?
             response_format={'type': response_format},
         )
 

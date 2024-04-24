@@ -45,6 +45,7 @@ from src.log import LogLevel, datetime_str, log
 #     'gpt-4',
 # ]
 
+BAD_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something not so strong to generate weaker extractions
 REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
@@ -257,35 +258,27 @@ def generate_ranking_references(number_of_references_to_generate: int):
     # TODO src.openai_defines.BASE_URL_LLM = None
 
     examples = get_sample_from_database(Example, number_of_references_to_generate)
-
-    generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
-    generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
-
-    for example in examples:
-        query = Query(
-            full_texts=['Unknown'],
-            abstracts=[example.abstract],
-            titles=['Unknown'],
-            author='Unknown',
-        )
-
-        profile2 = run_query_for_instance(
-            Instance(
-                model=REFERENCE_GENERATION_MODEL,
-                number_of_examples=2,
-                extract=extract_from_abstracts_json,
-            ),
+    queries = [
+        Query(full_texts=['Unknown'], abstracts=[example.abstract], titles=['Unknown'], author='Unknown')
+        for example in examples
+    ]
+    bad_profiles = [
+        run_query_for_instance(
+            Instance(model=BAD_REFERENCE_GENERATION_MODEL, number_of_examples=0, extract=extract_from_abstracts_json),
             query,
         )
+        for query in queries
+    ]
 
-        write_reference(Example(abstract=example.abstract, profile=profile2), generated_examples_file)
+    generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
 
+    for example, query, bad_profile in zip(examples, queries, bad_profiles):
         ranking_results, rankings = tournament_ranking(
             REFERENCE_GENERATION_MODEL,
             query,
             [
                 ExtractedProfile.from_profile(example.profile),
-                ExtractedProfile.from_profile(profile2),
+                ExtractedProfile.from_profile(bad_profile),
             ],
         )
 

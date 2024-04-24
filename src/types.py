@@ -228,16 +228,6 @@ class Ranking:
         return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.preferred_profile}\n\n\nProfile 2: {self.other_profile}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: 1"""
 
     @staticmethod
-    def parse_reasoning(text: str) -> str:
-        # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nPreferred Profile:'
-        if 'reasoning:' not in text.lower():
-            log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
-            return ''
-
-        # Ignore case when searching for 'reasoning:'
-        return text.split('easoning:')[1].split('\n\nPreferred Profile:')[0]
-
-    @staticmethod
     def parse_reasoning_json(text: str) -> str:
         obj = json.loads(text)
 
@@ -280,6 +270,16 @@ class Ranking:
         return True
 
     @staticmethod
+    def parse_reasoning(text: str) -> str:
+        # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nPreferred Profile:'
+        if 'reasoning:' not in text.lower():
+            log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
+            return ''
+
+        # Ignore case when searching for 'reasoning:'
+        return text.split('easoning:')[1].split('\n\nPreferred Profile:')[0]
+
+    @staticmethod
     def parse_preferred_profile(text: str) -> bool:
         # Return the tuple (preferred profile, other profile) based on the text
         # Find the first number after 'Preferred Profile: ' and return the corresponding profile
@@ -300,25 +300,16 @@ class Ranking:
         # Return the text between the first occurrence of 'Paper Text: ' and the next '\n\n\nProfile 1:'
         paper_text, rest_text = text.split('Paper Text:')[1].split('\n\n\nProfile 1:', maxsplit=1)
 
-        # Return the text between the first occurrence of 'Profile 1:\n' and the next '\n\n\nProfile 2:'
-        profile_1, rest_text = rest_text.split('\n\n\nProfile 2:', maxsplit=1)
-
-        # Return the text between the first occurrence of 'Profile 2:\n' and the next '\n\n\nReasoning:'
-        profile_2, rest_text = rest_text.split('\n\n\nReasoning:', maxsplit=1)
-
-        reasoning = Ranking.parse_reasoning(rest_text)
-
-        parsed_profile_1 = Profile.parse(profile_1)
-        parsed_profile_2 = Profile.parse(profile_2)
+        profile_1, profile_2 = rest_text.split('\n\n\nProfile 2:', maxsplit=1)
 
         is_profile_1_preferred = Ranking.parse_preferred_profile(rest_text)
 
-        preferred_profile = parsed_profile_1 if is_profile_1_preferred else parsed_profile_2
-        other_profile = parsed_profile_2 if is_profile_1_preferred else parsed_profile_1
+        preferred_profile = Profile.parse(profile_1) if is_profile_1_preferred else Profile.parse(profile_2)
+        other_profile = Profile.parse(profile_2) if is_profile_1_preferred else Profile.parse(profile_1)
 
         return Ranking(
             paper_text=paper_text,
-            reasoning=reasoning,
+            reasoning=Ranking.parse_reasoning(rest_text),
             preferred_profile=preferred_profile,
             other_profile=other_profile,
         )
