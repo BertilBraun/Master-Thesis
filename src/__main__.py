@@ -166,7 +166,7 @@ def generate_example_references(number_of_references_to_generate: int):
 
         example = Example(abstract=query.abstracts[0], profile=profile)
 
-        # Write the extracted Profile as reference to a file
+        # Write the extracted Profile as reference to a file and database
         write_reference(example, generated_examples_file)
 
 
@@ -208,7 +208,7 @@ def generate_combination_references(number_of_references_to_generate: int):
             combined_profile=combined_profile,
         )
 
-        # Write the combination as reference to a file
+        # Write the combination as reference to a file and database
         write_reference(combination, generated_combinations_file)
 
         if len(query.abstracts) != len(extracted_profiles):
@@ -252,7 +252,7 @@ def generate_evaluation_references(number_of_references_to_generate: int):
             score=evaluation_result[0].score,
         )
 
-        # Write the evaluation as reference to a file
+        # Write the evaluation as reference to a file and database
         write_reference(evaluation, generated_evaluations_file)
 
 
@@ -262,23 +262,28 @@ def generate_ranking_references(number_of_references_to_generate: int):
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
     # TODO src.openai_defines.BASE_URL_LLM = None
 
+    generated_examples_file = f'logs/generated_example_references/{datetime_str()}.log'
+    generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
+
     examples = get_sample_from_database(Example, number_of_references_to_generate)
     queries = [
         Query(full_texts=['Unknown'], abstracts=[example.abstract], titles=['Unknown'], author='Unknown')
         for example in examples
     ]
-    bad_profiles = [
+    other_profiles = [
         run_query_for_instance(
             Instance(model=OTHER_REFERENCE_GENERATION_MODEL, number_of_examples=0, extract=extract_from_abstracts_json),
             query,
         )
         for query in queries
     ]
+    for example, profile in zip(examples, other_profiles):
+        if profile is not None:
+            # Write the extracted Profile as reference to a file and database
+            write_reference(Example(abstract=example.abstract, profile=profile), generated_examples_file)
 
-    generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
-
-    for example, query, bad_profile in zip(examples, queries, bad_profiles):
-        if bad_profile is None:
+    for example, query, other_profile in zip(examples, queries, other_profiles):
+        if other_profile is None:
             continue
 
         ranking_results, rankings = tournament_ranking(
@@ -286,7 +291,7 @@ def generate_ranking_references(number_of_references_to_generate: int):
             query,
             [
                 ExtractedProfile.from_profile(example.profile),
-                ExtractedProfile.from_profile(bad_profile),
+                ExtractedProfile.from_profile(other_profile),
             ],
         )
 
@@ -297,7 +302,7 @@ def generate_ranking_references(number_of_references_to_generate: int):
             preferred_profile=ranking_results[0].preferred_profile,
         )
 
-        # Write the evaluation as reference to a file
+        # Write the evaluation as reference to a file and database
         write_reference(ranking, generated_rankings_file)
 
 
