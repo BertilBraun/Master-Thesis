@@ -4,7 +4,7 @@ import dotenv
 dotenv.load_dotenv()
 
 
-DEBUG = False
+DEBUG = False  # Set to True to enable debugging output (streaming of the AI's output to the console)
 
 LOCAL_AI_LOCALHOST = 'http://localhost:8080'
 LOCAL_AI_CODER = 'http://coder.aifb.kit.edu:8080'

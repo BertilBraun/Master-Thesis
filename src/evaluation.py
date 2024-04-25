@@ -99,13 +99,14 @@ def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[Ext
     def prompt_for_tournament_ranking(profile1: ExtractedProfile, profile2: ExtractedProfile) -> str:
         prompt = [
             SystemMessage(
-                content="""You are a skilled evaluator tasked with assessing the relevance of competency profiles relative to the provided scientific abstracts. Evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Then compare the two profiles and determine which one is more relevant to the abstracts. Structure your response as json as follows:
+                content="""You are a skilled evaluator tasked with evaluating the relevance of two competency profiles that were extracted by another system from provided scientific abstracts. Each profile is expected to reflect a specific domain of expertise and list 3 to 8 key competencies demonstrated by the author. Your task is to evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Compare the two profiles and determine which one is more relevant to the abstracts, structuring your response as follows:
 ```json
 {
     "reasoning": "[Your Evaluation and Reasoning]",
     "preferred_profile": [1 or 2]
 }
-```"""
+```
+Your analysis should be neutral, accurate, and detailed, based on the content of the abstracts provided."""
             ),
             *json_examples,
             HumanMessage(
