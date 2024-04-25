@@ -50,10 +50,10 @@ REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
 MODELS = [
-    # 'gpt-4',  # maps to Hermes-2-Pro-Mistral-7B.Q2_K via LocalAI
     'mistral',
     'neural',
     # 'mixtral',
+    # TODO 'gpt-4-turbo', 'gpt-4', 'llama3'
 ]
 
 EXAMPLES = [2, 1, 0]
@@ -127,9 +127,14 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
 
     try:
         profile = instance.extract(query, retriever_getter, llm)
-    except Exception | AssertionError as e:
+    except Exception as e:
         log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
         log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
+
+        # if e is keyboard interrupt, exit the program
+        if isinstance(e, KeyboardInterrupt):
+            raise e
+
         return None
 
     return profile
@@ -814,7 +819,7 @@ if __name__ == '__main__':
         generate_ranking_references(int(sys.argv[2]))
 
     if sys.argv[1] == 'author':
-        result = process_author(sys.argv[2], number_of_papers=2)
+        result = process_author(sys.argv[2], number_of_papers=4)
 
         log('Final result:')
         log(result, use_pprint=True)

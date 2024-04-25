@@ -11,6 +11,7 @@ from src.types import (
     HumanMessage,
 )
 from src.language_model import OpenAILanguageModel
+from src.log import LogLevel, log
 
 
 def evaluate_with(
@@ -73,7 +74,11 @@ def compare_profiles(
 ) -> RankingResult:
     # Compare two profiles based using a llm model to determine the winner. Return the winner, loser, and reasoning.
 
-    response = evaluator(profile1, profile2)
+    try:
+        response = evaluator(profile1, profile2)
+    except Exception as e:
+        log(f'Error evaluating profiles: {e}', level=LogLevel.WARNING)
+        return RankingResult(profiles=(profile1, profile2), reasoning='Error evaluating profiles', preferred_profile=0)
 
     reasoning = Ranking.parse_reasoning_json(response)
     is_profile_1_preferred = Ranking.parse_preferred_profile_json(response)

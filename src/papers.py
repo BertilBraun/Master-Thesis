@@ -77,9 +77,10 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
         # Remove the line breaks
         page_text = page_text.replace('-\n', '').replace('\n', ' ')
 
-        if 'References' in page_text:
+        # if references are found case insensitive, break the loop
+        if 'references' in page_text.lower():
             # Strip the references and appendix but add the last page up to the references as well
-            full_text += page_text[: page_text.index('References')]
+            full_text += page_text[: page_text.lower().index('references')]
             break
         else:
             full_text += page_text
