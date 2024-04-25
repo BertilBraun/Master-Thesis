@@ -1,3 +1,4 @@
+from src.language_model import trim_text_to_token_length
 from src.types import (
     Combination,
     Example,
@@ -66,7 +67,9 @@ For each scientific paper, generate a summary following this standardized struct
 Please exclude redundant information such as authors, publication date, and location. Focus solely on the content of the paper."""
             ),
             # TODO do examples really help? Prompt is way too long already *get_summary_messages(full_text, retriever(Summary)),
-            HumanMessage(content=f'Summarize the following paper.\nPaper:\n{full_text}'),
+            HumanMessage(
+                content=f'Summarize the following paper.\nPaper:\n\n{trim_text_to_token_length(full_text, 6000)}\n\nNow generate a summary of this paper.'
+            ),
         ]
         for full_text in query.full_texts
     ]
@@ -121,7 +124,7 @@ List all pertinent competencies, clearly detailing how each is evidenced in the 
             HumanMessage(
                 content=f"""Please extract the professional competencies from this complete document text:
                 
-{full_text}
+{trim_text_to_token_length(full_text, 6000)}
 
 
 The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document.  This is the format:

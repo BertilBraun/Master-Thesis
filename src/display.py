@@ -19,6 +19,8 @@ def custom_asdict(obj):
         return obj.value
     elif isinstance(obj, list):
         return [custom_asdict(item) for item in obj]
+    elif isinstance(obj, tuple):
+        return [custom_asdict(item) for item in obj]
     elif callable(obj):
         return obj.__qualname__  # Save the function's qualname if it's a callable
     else:
@@ -32,7 +34,8 @@ def generate_html_file_for_extraction_result(author_result: AuthorResult):
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
 
-    _write_and_display(html_content, 'extraction_result')
+    output_file_path = os.path.abspath(f'results/{author_result.author}.html')
+    _write_and_display(html_content, output_file_path)
 
 
 def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'):
@@ -42,16 +45,16 @@ def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'
 
     html_content = html_template.replace('"{{chatData}}"', json_data).replace('"{{fileName}}"', chat_name)
 
-    _write_and_display(html_content, chat_name)
+    output_file_path = os.path.abspath(f'logs/{date_str()}/chat_{chat_name}.html')
+    _write_and_display(html_content, output_file_path)
 
 
-def _write_and_display(html_content: str, file_name: str):
-    output_file_path = os.path.abspath(f'logs/{date_str()}/chat_{file_name}.html')
-
+def _write_and_display(html_content: str, output_file_path: str):
     os.makedirs(os.path.dirname(output_file_path), exist_ok=True)
     with open(output_file_path, 'w') as file:
         file.write(html_content)
 
+    file_name = os.path.basename(output_file_path)
     print(f'You can open the html chat file of {file_name} here:')
     print('file:///' + output_file_path.replace('\\', '/'))
 
@@ -82,7 +85,9 @@ if __name__ == '__main__':
         extraction_time=0.5,
     )
     evaluation_result = [EvaluationResult(extracted_profile, 'High accuracy in predictive modeling', 95)]
-    author_result = AuthorResult(evaluation_result, [], [], ['Paper on AI', 'Thesis on ML'], 'John Doe')
+    author_result = AuthorResult(
+        evaluation_result, [], [(extracted_profile, 1)], ['Paper on AI', 'Thesis on ML'], 'John Doe'
+    )
 
     generate_html_file_for_extraction_result(author_result)
 

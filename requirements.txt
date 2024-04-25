@@ -4,3 +4,4 @@ pyalex
 openai
 python-dotenv 
 chromadb
+tiktoken

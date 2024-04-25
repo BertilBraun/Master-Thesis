@@ -154,6 +154,12 @@
             titlesList.appendChild(li);
         });
 
+        const rankings = {};
+        // Add authorData.rankings to rankings object
+        for (const ranking of authorData.rankings) {
+            rankings[ranking[0]] = ranking[1];
+        }
+
         const cardsContainer = document.getElementById('cardsContainer');
         authorData.evaluation_result.forEach((result, index) => {
             const card = document.createElement('div');
@@ -173,11 +179,11 @@
                     <div class="subcard" id="subcard${index}" style="display:none;">
                         <p><strong>Reasoning:</strong> ${result.reasoning}</p>
                         <p><strong>Score:</strong> ${result.score}</p>
-                        <p><strong>Instance Model:</strong> ${result.extraction.instance.model}</p>
-                        <p><strong>Extraction Type:</strong> ${result.extraction.instance.extract}</p>
+                        <p><strong>Ranking (how often this extraction was preferred):</strong> ${rankings[result]}</p>
+                        <p><strong>Extraction Model:</strong> ${result.extraction.model}</p>
+                        <p><strong>Extraction Type:</strong> ${result.extraction.extraction_function}</p>
                         <p><strong>Extraction Time:</strong> ${result.extraction.extraction_time}</p>
-                        <p><strong>Example Type:</strong> ${result.extraction.instance.example_type}</p>
-                        <p><strong>Number of Examples:</strong> ${result.extraction.instance.number_of_examples}</p>
+                        <p><strong>Number of Examples:</strong> ${result.extraction.number_of_examples}</p>
                     </div>
                 </div>
                 <div style="display: flex; flex-direction: row; justify-content: space-between;">

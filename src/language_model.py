@@ -1,5 +1,6 @@
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
+import tiktoken
 from typing import Literal
 
 from openai import OpenAI
@@ -80,3 +81,13 @@ class OpenAILanguageModel(LanguageModel):
 
     def invoke_profile_json(self, prompt: list[Message]) -> Profile:
         return Profile.parse_json(self.invoke(prompt, response_format='json_object', stop=['\n\n']))
+
+
+def trim_text_to_token_length(text: str, desired_token_length: int, model_name: str = 'gpt-3.5-turbo') -> str:
+    encoding = tiktoken.encoding_for_model(model_name)
+    encoded = encoding.encode(text)
+    if len(encoded) <= desired_token_length:
+        return text
+
+    # Trim the text to the desired token length
+    return encoding.decode(encoded[:desired_token_length], errors='ignore')

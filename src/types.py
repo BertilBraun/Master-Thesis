@@ -22,14 +22,17 @@ class Competency:
         return f'{self.name}: {self.description}'
 
     @staticmethod
-    def parse(text: str) -> Competency | None:
+    def parse(text: str) -> Competency:
         # Return a Competency object if the text matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
 
         match = _COMPETENCY_PATTERN.match(text)
         if match:
             name, description = match.groups()
             return Competency(name=name, description=description)
-        return None
+        log(f'Invalid competency format: {text}.', level=LogLevel.DEBUG)
+        if text.startswith('- '):
+            return Competency(name=text[2:], description='')
+        return Competency(name=text, description='')
 
 
 @dataclass(frozen=True)
