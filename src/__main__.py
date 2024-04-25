@@ -19,9 +19,18 @@ from src.extraction_json import (
     extract_from_full_texts_json,
     extract_from_summaries_json,
 )
-from src.database import add_element_to_database, database_size, get_retriever_getter, get_sample_from_database
+from src.database import (
+    add_element_to_database,
+    database_size,
+    get_retriever_getter,
+    get_sample_from_database,
+)
 from src.display import generate_html_file_for_extraction_result
-from src.papers import get_authors_of_kit, get_papers_by_author, get_random_papers
+from src.papers import (
+    get_authors_of_kit,
+    get_papers_by_author,
+    get_random_papers,
+)
 from src.types import (
     AuthorResult,
     Combination,
@@ -38,12 +47,6 @@ from src.types import (
 from src.util import timeit
 from src.log import LogLevel, datetime_str, log
 
-# Remove base_url for OpenAI API and set the API key and use one of the following models to run the inference on the OpenAI API
-# MODELS = [
-#     'gpt-3.5-turbo',
-#     'gpt-4-turbo',
-#     'gpt-4',
-# ]
 
 OTHER_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something other than the REFERENCE_GENERATION_MODEL to generate different results which can be used for ranking
 REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
@@ -53,7 +56,9 @@ MODELS = [
     'mistral',
     'neural',
     # 'mixtral',
-    # TODO 'gpt-4-turbo', 'gpt-4', 'llama3'
+    # TODO 'llama3'
+    # Set src.openai_defines.BASE_URL_LLM = None for and set the API key and use one of the following models to run the inference on the OpenAI API
+    # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
 EXAMPLES = [2, 1, 0]
@@ -65,9 +70,7 @@ EXTRACTORS = [
     extract_from_summaries_json,
     extract_from_full_texts_custom,
     extract_from_full_texts_json,
-]  # [1:2]
-# Only use the extract_from_abstracts_json for now
-# TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
+][1::2]  # Only use the json extractors for now, as they are more reliable
 
 
 @timeit('Processing Author')
@@ -758,45 +761,6 @@ Overall, the profile's domain of "Materials Science and Chemistry" closely align
     )
 
 
-def format_mail(extraction_result: AuthorResult) -> str:
-    # Formats the extraction result into a mail template for the author to request a evaluation of the extracted profiles
-
-    titles = '- ' + '\n- '.join(extraction_result.titles)
-
-    # Make a copy of the profiles list to shuffle it (to avoid bias in the order of the profiles in the mail)
-    results = [result for result in extraction_result.evaluation_result]
-    random.shuffle(results)
-
-    profiles = ''
-    for i, result in enumerate(results):
-        profiles += f'{i+1}.: {result.extraction.profile}\n\n'
-
-    return f"""
-Hello Prof {extraction_result.author},
-
-As part of our ongoing research, we are developing a system to match researchers with the most suitable scientific communities based on their competencies and expertise areas. We are developing a system that can automatically extract competencies and expertise areas from scientific papers and we would like to know how well you think the extracted profiles match your competencies and expertise areas.
-
-We have processed the following papers for you:
-{titles}
-
-Based on these papers, we have extracted the following profiles for you:
-{profiles}
-
-We'd like to know which profile you think is the best match for you. Please provide a score between 0 and 100 for each profile based on how well you think it matches your competencies, themes, and expertise areas mentioned in the papers.
-
-A format for your response could be:
-1. 60
-2. 80
-3. 70   
-4. 90
-5. 85
-
-Thank you for your time and we look forward to hearing from you soon.
-
-Best regards,
-Bertil Braun"""
-
-
 if __name__ == '__main__':
     import sys
 
@@ -825,6 +789,3 @@ if __name__ == '__main__':
         log(result, use_pprint=True)
         log('-' * 50)
         generate_html_file_for_extraction_result(result)
-        with open(f'results/{result.author}.mail', 'w') as f:
-            f.write(format_mail(result))
-        log(format_mail(result))
