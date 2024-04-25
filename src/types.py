@@ -221,11 +221,11 @@ class Ranking:
     # Represents a 2way ranking between two profiles
     paper_text: str
     reasoning: str  # let the model generate the reasoning before returning the preferred profile
-    preferred_profile: Profile
-    other_profile: Profile
+    profiles: tuple[Profile, Profile]
+    preferred_profile: int  # (0 or 1) The index of the preferred profile in the profiles tuple
 
     def __str__(self) -> str:
-        return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.preferred_profile}\n\n\nProfile 2: {self.other_profile}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: 1"""
+        return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.profiles[0]}\n\n\nProfile 2: {self.profiles[1]}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: {self.preferred_profile + 1}"""
 
     @staticmethod
     def parse_reasoning_json(text: str) -> str:
@@ -304,14 +304,11 @@ class Ranking:
 
         is_profile_1_preferred = Ranking.parse_preferred_profile(rest_text)
 
-        preferred_profile = Profile.parse(profile_1) if is_profile_1_preferred else Profile.parse(profile_2)
-        other_profile = Profile.parse(profile_2) if is_profile_1_preferred else Profile.parse(profile_1)
-
         return Ranking(
             paper_text=paper_text,
             reasoning=Ranking.parse_reasoning(rest_text),
-            preferred_profile=preferred_profile,
-            other_profile=other_profile,
+            profiles=(Profile.parse(profile_1), Profile.parse(profile_2)),
+            preferred_profile=0 if is_profile_1_preferred else 1,
         )
 
 
@@ -509,9 +506,13 @@ class EvaluationResult:
 @dataclass(frozen=True)
 class RankingResult:
     # Represents a 2way ranking between two profiles
-    preferred_profile: ExtractedProfile
-    other_profile: ExtractedProfile
+    profiles: tuple[ExtractedProfile, ExtractedProfile]
+    preferred_profile: int  # (0 or 1) The index of the preferred profile in the profiles tuple
     reasoning: str  # let the model generate the reasoning before returning the preferred profile
+
+    @property
+    def winner(self) -> ExtractedProfile:
+        return self.profiles[self.preferred_profile]
 
 
 @dataclass(frozen=True)

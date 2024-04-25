@@ -183,10 +183,14 @@ def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> li
         for i, evaluation in enumerate(evaluations)
         for message in [
             HumanExampleMessage(
-                content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n\nProfile 1: {evaluation.preferred_profile}\n\n\nProfile 2: {evaluation.other_profile}'
+                content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n\nProfile 1:\n{evaluation.profiles[0]}\n\n\nProfile 2:\n{evaluation.profiles[1]}'
             ),
             AIExampleMessage(
-                content='{\n    "reasoning": "' + evaluation.reasoning + '",\n    "preferred_profile": 1\n}'
+                content='{\n    "reasoning": "'
+                + evaluation.reasoning
+                + '",\n    "preferred_profile": '
+                + str(evaluation.preferred_profile + 1)
+                + '\n}'
             ),
         ]
     ]

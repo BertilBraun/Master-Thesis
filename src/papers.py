@@ -142,7 +142,7 @@ def get_random_papers(number_of_papers: int) -> list[Query]:
         .filter(has_abstract=True)
         .filter(primary_location={'source': {'host_institution_lineage': KIT_INSTITUTION_ID}})
         .sample(number_of_papers * 2)  # Fetch more papers to be able to filter out papers with short abstracts locally
-        .get(per_page=number_of_papers)
+        .get(per_page=number_of_papers * 2)
     )
 
     authors = []
@@ -152,7 +152,7 @@ def get_random_papers(number_of_papers: int) -> list[Query]:
                 authors.append(author['author']['display_name'])
                 break
 
-    assert len(authors) == number_of_papers
+    assert len(authors) == len(papers)
 
     return [
         Query(

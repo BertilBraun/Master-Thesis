@@ -60,12 +60,19 @@ class OpenAILanguageModel(LanguageModel):
             result = response.choices[0].message.content or 'Error: No response from model'
 
         result = result.replace('<dummy32000>', '')
+        if response_format == 'json_object':
+            # result = result from first { to last } inclusive
+            result = result[result.find('{') : result.rfind('}') + 1]
+
         generate_html_file_for_chat(
             [*prompt, AIMessage(content=result)],
             f'{self.model}_{self.debug_context_name}_{time_str()}',
         )
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
+
+        if len(result) < 30:
+            log('Response is most likely empty. Check the chat history for more information.', level=LogLevel.WARNING)
         return result
 
     def invoke_profile_custom(self, prompt: list[Message]) -> Profile:

@@ -70,7 +70,7 @@ def compare_profiles(
     profile1: ExtractedProfile,
     profile2: ExtractedProfile,
     evaluator: Callable[[ExtractedProfile, ExtractedProfile], str],
-) -> tuple[ExtractedProfile, ExtractedProfile, str]:
+) -> RankingResult:
     # Compare two profiles based using a llm model to determine the winner. Return the winner, loser, and reasoning.
 
     response = evaluator(profile1, profile2)
@@ -78,10 +78,9 @@ def compare_profiles(
     reasoning = Ranking.parse_reasoning_json(response)
     is_profile_1_preferred = Ranking.parse_preferred_profile_json(response)
 
-    if is_profile_1_preferred:
-        return profile1, profile2, reasoning
-    else:
-        return profile2, profile1, reasoning
+    return RankingResult(
+        profiles=(profile1, profile2), reasoning=reasoning, preferred_profile=0 if is_profile_1_preferred else 1
+    )
 
 
 def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[ExtractedProfile, ExtractedProfile], str]:
@@ -148,10 +147,10 @@ def tournament_ranking(
 
         # Pair profiles and determine winners for the next round
         for i in range(0, len(current_round) - 1, 2):
-            winner, loser, reasoning = compare_profiles(current_round[i], current_round[i + 1], evaluator)
-            next_round.append(winner)
-            ranking_results.append(RankingResult(preferred_profile=winner, other_profile=loser, reasoning=reasoning))
-            extraction_levels[id(winner)] = round_number  # Update winner level
+            ranking_result = compare_profiles(current_round[i], current_round[i + 1], evaluator)
+            next_round.append(ranking_result.winner)
+            ranking_results.append(ranking_result)
+            extraction_levels[id(ranking_result.winner)] = round_number  # Update winner level
 
         # If odd number of profiles, last one automatically moves to the next round
         if len(current_round) % 2 == 1:

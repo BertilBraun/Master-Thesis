@@ -45,7 +45,7 @@ from src.log import LogLevel, datetime_str, log
 #     'gpt-4',
 # ]
 
-BAD_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something not so strong to generate weaker extractions
+OTHER_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something other than the REFERENCE_GENERATION_MODEL to generate different results which can be used for ranking
 REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
@@ -65,7 +65,7 @@ EXTRACTORS = [
     extract_from_summaries_json,
     extract_from_full_texts_custom,
     extract_from_full_texts_json,
-][1:2]
+]  # [1:2]
 # Only use the extract_from_abstracts_json for now
 # TODO [:4]  # Only use the first 4 extractors for now, extract_from_full_texts fails too often with the current models
 
@@ -89,11 +89,7 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
         )
 
         start = time.time()
-        try:
-            profile = run_query_for_instance(instance, query)
-        except AssertionError as e:
-            log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
-            log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
+        if (profile := run_query_for_instance(instance, query)) is None:
             continue
 
         profiles.append(
@@ -122,14 +118,21 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
 
 
 @timeit('Querying Instance')
-def run_query_for_instance(instance: Instance, query: Query) -> Profile:
+def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
     log(f'Running query for instance: {instance}', level=LogLevel.INFO)
 
     retriever_getter = get_retriever_getter(instance.number_of_examples)
 
     llm = OpenAILanguageModel(instance.model, debug_context_name=instance.extract.__qualname__)
 
-    return instance.extract(query, retriever_getter, llm)
+    try:
+        profile = instance.extract(query, retriever_getter, llm)
+    except Exception | AssertionError as e:
+        log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
+        log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
+        return None
+
+    return profile
 
 
 def write_reference(element: DatabaseTypes, file_name: str) -> None:
@@ -157,7 +160,9 @@ def generate_example_references(number_of_references_to_generate: int):
             number_of_examples=1,
             extract=extract_from_abstracts_json,
         )
-        profile = run_query_for_instance(instance, query)
+
+        if (profile := run_query_for_instance(instance, query)) is None:
+            continue
 
         example = Example(abstract=query.abstracts[0], profile=profile)
 
@@ -264,7 +269,7 @@ def generate_ranking_references(number_of_references_to_generate: int):
     ]
     bad_profiles = [
         run_query_for_instance(
-            Instance(model=BAD_REFERENCE_GENERATION_MODEL, number_of_examples=0, extract=extract_from_abstracts_json),
+            Instance(model=OTHER_REFERENCE_GENERATION_MODEL, number_of_examples=0, extract=extract_from_abstracts_json),
             query,
         )
         for query in queries
@@ -273,6 +278,9 @@ def generate_ranking_references(number_of_references_to_generate: int):
     generated_rankings_file = f'logs/generated_ranking_references/{datetime_str()}.log'
 
     for example, query, bad_profile in zip(examples, queries, bad_profiles):
+        if bad_profile is None:
+            continue
+
         ranking_results, rankings = tournament_ranking(
             REFERENCE_GENERATION_MODEL,
             query,
@@ -285,8 +293,8 @@ def generate_ranking_references(number_of_references_to_generate: int):
         ranking = Ranking(
             paper_text=example.abstract,
             reasoning=ranking_results[0].reasoning,
-            preferred_profile=ranking_results[0].preferred_profile.profile,
-            other_profile=ranking_results[0].other_profile.profile,
+            profiles=(ranking_results[0].profiles[0].profile, ranking_results[0].profiles[1].profile),
+            preferred_profile=ranking_results[0].preferred_profile,
         )
 
         # Write the evaluation as reference to a file
