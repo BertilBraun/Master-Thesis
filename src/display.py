@@ -38,6 +38,17 @@ def generate_html_file_for_extraction_result(author_result: AuthorResult):
     _write_and_display(html_content, output_file_path)
 
 
+def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult):
+    json_data = json.dumps(custom_asdict(author_result), indent=4)
+    with open('src/template_tournament_ranking_result.html', 'r') as file:
+        html_template = file.read()
+
+    html_content = html_template.replace('"{{authorData}}"', json_data)
+
+    output_file_path = os.path.abspath(f'results/tournament_{author_result.author}.html')
+    _write_and_display(html_content, output_file_path)
+
+
 def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'):
     json_data = json.dumps([message.to_dict() for message in messages], indent=4)
     with open('src/template_chat.html', 'r') as file:
@@ -90,6 +101,8 @@ if __name__ == '__main__':
     )
 
     generate_html_file_for_extraction_result(author_result)
+
+    generate_html_file_for_tournament_ranking_result(author_result)
 
     messages = [
         SystemMessage('Welcome to the Chat!'),
