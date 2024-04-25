@@ -45,7 +45,7 @@ def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
 
-    output_file_path = os.path.abspath(f'results/tournament_{author_result.author}.html')
+    output_file_path = os.path.abspath(f'results/{author_result.author}.tournament.html')
     _write_and_display(html_content, output_file_path)
 
 

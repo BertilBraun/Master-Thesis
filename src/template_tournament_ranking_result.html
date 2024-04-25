@@ -149,31 +149,6 @@
                 treeDiv.appendChild(levelDiv);
                 current_round = next_round;
             }
-
-
-
-
-
-
-            return;
-
-
-
-
-
-            for (let levelCount = 1; levelCount <= levels; levelCount++) {
-                const levelDiv = document.createElement('div');
-                levelDiv.className = 'level';
-                const matches = rankingResults.slice(Math.pow(2, levelCount - 1) - 1, Math.pow(2, levelCount) - 1);
-                matches.forEach((match, index) => {
-                    const node = document.createElement('div');
-                    node.className = 'node';
-                    node.textContent = `${index + 1 + Math.pow(2, levelCount - 1) - 1}`;
-                    node.onclick = () => showMatchDetails(rankingResults[index + Math.pow(2, levelCount - 1) - 1]);
-                    levelDiv.appendChild(node);
-                });
-                treeDiv.appendChild(levelDiv);
-            }
         }
 
         function showMatchDetails(match) {
@@ -205,7 +180,7 @@
                     <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
                 `;
                 if (idx === match.preferred_profile) {
-                    card.innerHTML += `<p><strong>Reasoning:</strong>${match.reasoning}</p>
+                    card.innerHTML += `<p><strong>Reasoning:</strong> ${match.reasoning}</p>
                     `;
                 }
                 container.appendChild(card);
