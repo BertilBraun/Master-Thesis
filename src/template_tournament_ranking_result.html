@@ -208,13 +208,15 @@
                 return [node, ...node.children.flatMap(getNodes)];
             }
 
+            var selectedNode = null;
+
             const canvas = document.getElementById('graphCanvas');
             canvas.width = screenX;
             canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
             const ctx = canvas.getContext('2d');
 
             // Function to draw nodes
-            function drawNodes(node) {
+            function drawNodes(node, selected) {
                 node.children.forEach(child => {
                     ctx.beginPath();
                     ctx.moveTo(node.x, node.y);
@@ -224,7 +226,7 @@
 
                 ctx.beginPath();
                 ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
-                ctx.fillStyle = '#ddd'
+                ctx.fillStyle = (node === selected) ? '#aaa' : '#ddd';
                 ctx.fill();
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = '#000';
@@ -233,7 +235,7 @@
                 ctx.fillStyle = '#000';
                 ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
 
-                node.children.forEach(drawNodes);
+                node.children.forEach(child => drawNodes(child, selected));
             }
 
             // Function to check if a point is inside a node
@@ -247,14 +249,22 @@
                 const x = event.clientX - rect.left;
                 const y = event.clientY - rect.top;
 
+                var newSelectedNode = null;
+
                 getNodes(root).forEach(node => {
                     if (isPointInNode(x, y, node)) {
+                        newSelectedNode = node;
                         showMatchDetails(node.match);
                     }
                 });
+
+                if (newSelectedNode) {
+                    selectedNode = newSelectedNode;
+                    drawNodes(root, selectedNode);
+                }
             });
 
-            drawNodes(root);
+            drawNodes(root, selectedNode);
         }
 
 

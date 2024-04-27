@@ -71,7 +71,7 @@ Please exclude redundant information such as authors, publication date, and loca
             ),
             # TODO do examples really help? Prompt is way too long already *get_summary_messages(full_text, retriever(Summary)),
             HumanMessage(
-                content=f'Summarize the following paper.\nPaper:\n\n{trim_text_to_token_length(full_text, 6000)}\n\nNow generate a summary of this paper.'
+                content=f'Summarize the following paper.\nPaper:\n\n{trim_text_to_token_length(full_text, 6000)}\n\nNow generate a comprehensive summary of this paper that includes the title, background, objectives, methods, results, discussion, contributions, limitations, and future research directions.'
             ),
         ]
         for full_text in query.full_texts

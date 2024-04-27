@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Results Visualization</title>
+    <style>
+        body,
+        html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+            overflow-x: hidden;
+        }
+
+        #tree {
+            width: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 20px;
+        }
+
+        .level {
+            display: flex;
+            justify-content: space-evenly;
+        }
+
+        .node {
+            width: 65px;
+            padding: 10px;
+            border: 1px solid black;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            white-space: nowrap;
+        }
+
+        .node:hover {
+            background-color: #e3e3e3;
+        }
+
+        #container {
+            display: none;
+            width: 100%;
+            flex-direction: row;
+            overflow-y: auto;
+        }
+
+        .card {
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 50px;
+            cursor: pointer;
+            box-sizing: border-box;
+            height: fit-content;
+        }
+
+        .preferred {
+            background-color: #aaffaa;
+            /* Light green background for preferred profile */
+        }
+
+        /* The Modal (background) */
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            /* Stay in place */
+            z-index: 1;
+            /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Full width */
+            height: 100%;
+            /* Full height */
+            overflow: auto;
+            /* Enable scroll if needed */
+            background-color: rgb(0, 0, 0);
+            /* Fallback color */
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Black w/ opacity */
+        }
+
+        /* Modal Content/Box */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            /* Could be more or less, depending on screen size */
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="position: absolute; top: 0; left: 30px; display: none;" id="TournamentTitle">Tournament Tree</h1>
+    <canvas id="graphCanvas" width="800" height="600"></canvas>
+    <div id="container"></div>
+    <div id="startModal" class="modal" style="display: block;">
+        <div class="modal-content">
+            <h1 id="startModalHeading"></h1>
+
+            <p>As part of my Master's thesis, I'm looking at competence extraction and we want to evaluate the
+                performance of different extraction systems based on expert evaluations. We performed automatic
+                competence extraction with different methods for your profile, which includes some of your papers listed
+                below:</p>
+            <ul id="titlesList"></ul>
+            <p>Please help us to evaluate these extractions by <strong>clicking on the profile</strong> which you think
+                best represents your competencies.</p>
+            <button class="button" onclick="startEvaluation()">Start Evaluation</button>
+        </div>
+    </div>
+    <div id="submitModal" class="modal" style="display: none;">
+
+        <!-- Modal content -->
+        <div class="modal-content">
+            <h2>Submitting Your Evaluations</h2>
+
+            <p>Thank you for participating in the evaluation. You can now submit your evaluations by clicking the button
+                below.</p>
+
+            <button class="button" onclick="submitData()" id="submit">Submit</button>
+
+            <h3 style="color: red; font-weight: bold; text-align: center; margin-top: 50px; display: none;"
+                id="pleaseWait">Please wait
+                a few seconds until the submission success is shown.</h3>
+        </div>
+
+    </div>
+
+    <script>
+        const authorData = "{{authorData}}"; // Replace with actual JSON data
+        const rankingResults = authorData.ranking_results;
+
+        document.getElementById('startModalHeading').textContent = `Welcome ${authorData.author}!`;
+        document.getElementById('titlesList').innerHTML = authorData.titles.map(title => `<li>${title}</li>`).join('');
+
+
+        function toggleVisibility(id, display = 'block') {
+            var element = document.getElementById(id);
+            if (element) element.style.display = (element.style.display === display ? 'none' : display);
+        }
+
+
+        function startEvaluation() {
+            toggleVisibility('startModal');
+            toggleVisibility('TournamentTitle');
+            buildTree();
+        }
+
+        function submitData() {
+            let preferences = []; // every match -> {instances: [instance1, instance2], preferred_instance: 0/1}
+            let profiles = {}; // (extraction_function, model, number_of_examples) -> profile_id
+            let mapped_profiles = {}; // profile_id -> profile
+            let profile_id = 0;
+
+            function mapProfile(profile) {
+                const key = JSON.stringify([profile.extraction_function, profile.model, profile.number_of_examples]);
+                if (profiles[key] === undefined) {
+                    profile_id += 1;
+                    profiles[key] = profile_id;
+                    mapped_profiles[profile_id] = profile;
+                }
+                return profiles[key];
+            }
+
+            getNodes(root).forEach(node => {
+                const match = node.match;
+                const preferredProfile = mapProfile(match.profiles[match.evaluator_preference]);
+
+                if (match.profiles.length > 1)
+                    preferences.push({
+                        instances: match.profiles.map(mapProfile),
+                        preferred_instance: match.evaluator_preference
+                    });
+
+                // The winner profile is also preferred over all profiles in the looser bracket
+                // make sure the allLooserProfiles are unique
+                const allLoserProfiles = getNodesInLoserBracket(node)
+                    .flatMap(loserNode => loserNode.match.profiles)
+                    .map(mapProfile)
+                    .filter((profile, index, self) => index === self.findIndex(p => p === profile));
+
+                allLoserProfiles.forEach(profile => {
+                    preferences.push({
+                        instances: [preferredProfile, profile],
+                        preferred_instance: 0
+                    });
+                });
+
+                /* Python code to verify correctness of the preferences
+                
+def verify_instances(data):
+    preferred_dict = {}
+    
+    for entry in data:
+        original_instances = entry['instances']
+        preferred_value = original_instances[entry['preferred_instance']]
+        
+        # Sort the instances to normalize the order
+        sorted_instances = sorted(original_instances)
+        
+        # Find the new index of the previously preferred value
+        new_preferred_index = sorted_instances.index(preferred_value)
+        
+        # Create a tuple of the sorted instances for consistent grouping
+        instances_tuple = tuple(sorted_instances)
+        
+        # Check if this group of instances has been encountered before
+        if instances_tuple in preferred_dict:
+            # If yes, verify the preferred instance index is the same
+            if preferred_dict[instances_tuple] != new_preferred_index:
+                return False, f"Inconsistency found in group {instances_tuple}"
+        else:
+            # If not, add to the dictionary
+            preferred_dict[instances_tuple] = new_preferred_index
+    
+    return True, "All instances are consistent"
+
+# Example usage:
+data = [
+    {"instances": [1, 15], "preferred_instance": 0},
+    {"instances": [15, 1], "preferred_instance": 1},
+    {"instances": [1, 16], "preferred_instance": 0},
+    {"instances": [1, 17], "preferred_instance": 0}
+]
+
+result, message = verify_instances(data)
+print(result, message)
+*/
+            });
+
+            const postData = {
+                "author": authorData.author,
+                "titles": authorData.titles,
+                "profiles": mapped_profiles,
+                "preferences": preferences
+            };
+
+            console.log(postData);
+            console.log(nodes)
+
+            var pleaseWait = document.getElementById('pleaseWait');
+            pleaseWait.style.display = 'block';
+
+            // delete submit and finalBack buttons to prevent multiple submissions
+            document.getElementById('submit').style.display = 'none';
+
+            fetch('https://api.jsonbin.io/v3/b', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': '$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm',
+                    'X-Bin-Name': `${authorData.author}_evaluation_${new Date().toISOString()}`
+                },
+                body: JSON.stringify(postData)
+            }).then(response => response.json())
+                .then(data => {
+                    pleaseWait.textContent = 'Thank you for participating in the evaluation. You can close this tab now.';
+                    pleaseWait.style.color = 'black';
+                })
+                .catch((error) => alert('Submission Failed\n\nError: ' + error));
+        }
+
+        function Node(match, index) {
+            this.match = match;
+            this.index = index;
+            this.children = [];
+            this.x = -1; // X position to be set based on layout
+            this.y = -1; // Y position to be set based on layout
+            this.radius = 20; // Node radius
+            this.was_evaluated = false;
+            this.is_ready = false;
+            this.is_selected = false;
+        }
+
+        function getNodes(node) {
+            return [node, ...node.children.flatMap(getNodes)];
+        }
+
+        function getNodesInLoserBracket(node) {
+            if (node.children.length < 2) return [];
+
+            const winnerIndex = node.match.evaluator_preference;
+
+            return getNodes(node.children[1 - winnerIndex]);
+        }
+
+        let nodes = [];
+        let root = null;
+
+        function buildTree() {
+            /* The following code is the Python implementation of the tournament creation and ranking process. The tree should reflect the same structure as the one generated by the Python code. 
+            
+            current_round = extractions
+            ranking_results: list[RankingResult] = []
+
+            round_number = 0
+            # Run the tournament until we have one winner
+            while len(current_round) > 1:
+                next_round: list[ExtractedProfile] = []
+                round_number += 1
+
+                # Pair profiles and determine winners for the next round
+                for i in range(0, len(current_round) - 1, 2):
+                    ranking_result = compare_profiles(current_round[i], current_round[i + 1], evaluator)
+                    next_round.append(ranking_result.winner)
+                    ranking_results.append(ranking_result)
+
+                # If odd number of profiles, last one automatically moves to the next round
+                if len(current_round) % 2 == 1:
+                    next_round.append(current_round[-1])
+
+                current_round = next_round
+            */
+
+            if (authorData.evaluation_result.length === 0) {
+                return alert('No evaluation results to display.');
+            }
+
+            var last_round = [];
+            var last_round_index = 0;
+            var current_round = authorData.evaluation_result;
+            var round_number = 0;
+            var current_ranking_index = 0;
+            var match_number = 0;
+
+            const push_child = (node) => {
+                if (last_round.length > last_round_index) {
+                    node.children.push(last_round[last_round_index]);
+                    last_round_index += 1;
+                }
+            };
+
+            while (current_round.length > 1) {
+                console.log(last_round)
+                var next_round = [];
+                var next_last_round = [];
+                round_number += 1;
+
+                for (var i = 0; i < current_round.length - 1; i += 2) {
+                    const ranking_result = rankingResults[current_ranking_index];
+                    current_ranking_index += 1;
+
+                    const matchNode = new Node(ranking_result, match_number);
+                    push_child(matchNode);
+                    push_child(matchNode);
+                    next_last_round.push(matchNode);
+                    nodes.push(matchNode);
+
+                    match_number += 1;
+
+                    next_round.push(ranking_result.profiles[0]);
+                }
+
+                if (current_round.length % 2 == 1) {
+                    const matchNode = new Node({
+                        profiles: [current_round[current_round.length - 1]],
+                        evaluator_preference: 0,
+                        reasoning: 'Only one profile left in the round.'
+                    }, match_number);
+                    push_child(matchNode);
+                    nodes.push(matchNode);
+
+                    match_number += 1;
+
+                    next_round.push(current_round[current_round.length - 1]);
+                }
+
+                last_round = next_last_round;
+                last_round_index = 0;
+                current_round = next_round;
+            }
+
+            root = last_round[0];
+
+            function getLeaves(node) {
+                if (node.children.length === 0) return [node];
+
+                return node.children.flatMap(getLeaves);
+            }
+
+            const leaves = getLeaves(root);
+
+            // Bottom y should be log2(number of leaves) * 70 (arbitrary value for spacing)
+            const bottomY = Math.log2(leaves.length) * 70;
+            const screenX = window.innerWidth;
+
+            // Set the leaves evenly spaced along the x-axis
+            const spacing = screenX / (leaves.length + 1);
+            leaves.forEach((leaf, i) => {
+                leaf.x = (i + 1) * spacing;
+                leaf.y = bottomY;
+            });
+
+            // Set the leaves as ready
+            leaves.forEach(leaf => leaf.is_ready = true);
+
+            function positionNodes(node) {
+                if (node.x !== -1 && node.y !== -1) {
+                    return;
+                }
+                if (node.children.length === 0) {
+                    return alert('Error: Node without position or children.');
+                }
+                node.children.forEach(positionNodes);
+                const midpointOfChildren = node.children.reduce((acc, child) => acc + child.x, 0) / node.children.length;
+                node.x = midpointOfChildren;
+                node.y = node.children[0].y - 50;
+            }
+
+            positionNodes(root);
+
+            const canvas = document.getElementById('graphCanvas');
+            canvas.width = screenX;
+            canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
+            const ctx = canvas.getContext('2d');
+
+            // Function to draw nodes
+            function drawNodes(node) {
+                node.children.forEach(child => {
+                    ctx.beginPath();
+                    ctx.moveTo(node.x, node.y);
+                    ctx.lineTo(child.x, child.y);
+                    ctx.stroke();
+                });
+
+                ctx.beginPath();
+                ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
+                if (!node.is_ready) {
+                    ctx.fillStyle = '#fff';
+                } else {
+                    if (node.was_evaluated) {
+                        if (node.is_selected) {
+                            ctx.fillStyle = '#0d0';
+                        } else {
+                            ctx.fillStyle = '#0f0';
+                        }
+                    } else {
+                        if (node.is_selected) {
+                            ctx.fillStyle = '#aaa';
+                        } else {
+                            ctx.fillStyle = '#ddd';
+                        }
+                    }
+                }
+                ctx.fill();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = '#000';
+                ctx.stroke();
+                ctx.textAlign = 'center';
+                ctx.fillStyle = '#000';
+                ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
+
+                node.children.forEach(drawNodes);
+            }
+
+            // Function to check if a point is inside a node
+            function isPointInNode(x, y, node) {
+                return Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2) < node.radius;
+            }
+
+            function showMatchDetails(node) {
+                const container = document.getElementById('container');
+                container.style.display = 'flex';
+                container.innerHTML = '';
+
+                node.is_selected = true;
+
+                const match = node.match;
+
+                match.profiles.forEach((profile, idx) => {
+                    const card = document.createElement('div');
+                    card.className = 'card';
+
+                    const profileDiv = document.createElement('div');
+                    profileDiv.innerHTML = `
+                    <h2>Profile ${idx + 1}</h2>
+                    <p><strong>Domain:</strong> ${profile.profile.domain}</p>
+                    <ul>
+                        ${profile.profile.competencies.map(comp => `<li><strong>${comp.name}:</strong> ${comp.description}</li>`).join('')}
+                    </ul>
+                    `;
+
+                    const moreInformation = document.createElement('div');
+                    moreInformation.innerHTML = `
+                        <button onclick="toggleVisibility('more_details${idx}')">More Details</button>
+                        <div id="more_details${idx}" style="display: none">
+                            <p><strong>Model:</strong> ${profile.model}</p>
+                            <p><strong>Extraction Function:</strong> ${profile.extraction_function}</p>
+                            <p><strong>Extraction Time:</strong> ${profile.extraction_time}s</p>
+                            <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
+                        </div>
+                    `;
+
+                    if (match.evaluator_preference === idx) {
+                        card.classList.add('preferred');
+                    }
+
+                    profileDiv.onclick = () => {
+                        node.was_evaluated = true;
+                        match.evaluator_preference = idx;
+
+                        if (node === root) {
+                            drawNodes(root);
+                            toggleVisibility('submitModal');
+                            return;
+                        }
+
+                        // remove preferred class from all cards
+                        document.querySelectorAll('.card').forEach(card => card.classList.remove('preferred'));
+
+                        // add preferred class to selected card
+                        card.classList.add('preferred');
+
+                        // set parents to ready
+                        function setParentsReady() {
+                            nodes.forEach(node => {
+                                if (node.children.every(child => child.was_evaluated)) {
+                                    node.is_ready = true;
+                                    if (node.children.length === 0) return;
+                                    node.match.profiles = [];
+                                    node.children.forEach(child => node.match.profiles.push(child.match.profiles[child.match.evaluator_preference]));
+                                }
+                            });
+                        }
+                        setParentsReady();
+
+                        // select next node after small delay
+                        setTimeout(() => {
+                            let nextNode = nodes.find(node => !node.was_evaluated && node.is_ready);
+                            if (nextNode) {
+                                if (nextNode.children.length === 1) {
+                                    nextNode.was_evaluated = true;
+                                    nextNode.match.evaluator_preference = 0;
+                                    setParentsReady();
+                                    nextNode = nodes.find(node => !node.was_evaluated && node.is_ready);
+                                }
+                                showMatchDetails(nextNode);
+                                drawNodes(root);
+                            }
+                        }, 250);
+                    };
+                    card.appendChild(profileDiv);
+                    card.appendChild(moreInformation);
+                    container.appendChild(card);
+                });
+            }
+
+            // Event listener for mouse clicks
+            canvas.addEventListener('click', function (event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                nodes.forEach(node => {
+                    node.is_selected = isPointInNode(x, y, node) && node.is_ready;
+                    if (node.is_selected) {
+                        showMatchDetails(node);
+                    }
+                });
+
+                drawNodes(root);
+            });
+
+            drawNodes(root);
+            showMatchDetails(leaves[0]);
+        }
+    </script>
+</body>
+
+</html>

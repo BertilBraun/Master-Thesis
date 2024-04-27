@@ -56,7 +56,8 @@ MODELS = [
     'mistral',
     'neural',
     # 'mixtral',
-    # TODO 'llama3'
+    # TODO 'phi3 mini' 3.8B parameters
+    # TODO 'llama3' 8B parameters (ultra sota)
     # Set src.openai_defines.BASE_URL_LLM = None for and set the API key and use one of the following models to run the inference on the OpenAI API
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
