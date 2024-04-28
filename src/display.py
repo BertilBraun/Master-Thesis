@@ -43,7 +43,10 @@ def generate_html_file_for_tournament_evaluation(author_result: AuthorResult):
     with open('src/template_tournament_evaluation.html', 'r') as file:
         html_template = file.read()
 
-    html_content = html_template.replace('"{{authorData}}"', json_data)
+    from src.tournament_example_extraction import CONTENT
+
+    html_content = html_template.replace('"{{authorData}}"', CONTENT)
+    # html_content = html_template.replace('"{{authorData}}"', json_data)
 
     output_file_path = os.path.abspath(f'results/{author_result.author}.evaluation.html')
     _write_and_display(html_content, output_file_path)
@@ -54,7 +57,10 @@ def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult
     with open('src/template_tournament_ranking_result.html', 'r') as file:
         html_template = file.read()
 
-    html_content = html_template.replace('"{{authorData}}"', json_data)
+    from src.tournament_example_extraction import CONTENT
+
+    html_content = html_template.replace('"{{authorData}}"', CONTENT)
+    # html_content = html_template.replace('"{{authorData}}"', json_data)
 
     output_file_path = os.path.abspath(f'results/{author_result.author}.tournament.html')
     _write_and_display(html_content, output_file_path)
@@ -92,6 +98,8 @@ if __name__ == '__main__':
         AIMessage,
         AIExampleMessage,
         HumanExampleMessage,
+        TournamentNode,
+        RankingResult,
     )
 
     competencies = [
@@ -107,8 +115,15 @@ if __name__ == '__main__':
         extraction_time=0.5,
     )
     evaluation_result = [EvaluationResult(extracted_profile, 'High accuracy in predictive modeling', 95)]
+    ranking_result = RankingResult(
+        profiles=(extracted_profile, extracted_profile), reasoning='Same profile', preferred_profile=0
+    )
     author_result = AuthorResult(
-        evaluation_result, [], [(extracted_profile, 1)], ['Paper on AI', 'Thesis on ML'], 'John Doe'
+        evaluation_result,
+        TournamentNode(match=ranking_result, children=[]),
+        [ranking_result],
+        ['Paper on AI', 'Thesis on ML'],
+        'John Doe',
     )
 
     generate_html_file_for_extraction_result(author_result)

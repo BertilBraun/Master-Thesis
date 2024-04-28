@@ -4,7 +4,7 @@ import re
 import json
 
 from typing import Callable, Generic, Literal, Protocol, Type, TypeVar
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from openai.types.chat import ChatCompletionMessageParam
 
@@ -519,9 +519,28 @@ class RankingResult:
 
 
 @dataclass(frozen=True)
+class TournamentNode:
+    match: RankingResult
+    children: list[TournamentNode] = field(default_factory=list)
+
+    @property
+    def all_nodes(self) -> list[TournamentNode]:
+        nodes: list[TournamentNode] = [self]
+        for child in self.children:
+            nodes.extend(child.all_nodes)
+        return nodes
+
+    @property
+    def all_loser_nodes(self) -> list[TournamentNode]:
+        if len(self.children) < 2:
+            return []
+        return self.children[1 - self.match.preferred_profile].all_nodes
+
+
+@dataclass(frozen=True)
 class AuthorResult:
     evaluation_result: list[EvaluationResult]
-    ranking_results: list[RankingResult]
-    rankings: list[tuple[ExtractedProfile, int]]  # The profiles with their ranking compared to all other profiles
+    root: TournamentNode
+    preferences: list[RankingResult]
     titles: list[str]
     author: str

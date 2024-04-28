@@ -9,6 +9,7 @@ from src.types import (
     RankingResult,
     SystemMessage,
     HumanMessage,
+    TournamentNode,
 )
 from src.language_model import OpenAILanguageModel
 from src.log import LogLevel, log
@@ -130,10 +131,12 @@ def tournament_ranking(
     model: str,
     query: Query,
     extractions: list[ExtractedProfile],
-) -> tuple[list[RankingResult], list[tuple[ExtractedProfile, int]]]:
+) -> tuple[TournamentNode, list[RankingResult]]:
     """This function runs a tournament ranking between a list of profiles to determine the rankings of the profiles.
     We run a tournament where profiles are compared in pairs, and the winner moves to the next round.
-    The tournament continues until we have a single winner. The ranking is determined by the number of rounds each profile wins.
+    The tournament continues until we have a single winner.
+
+    The function returns the root node of the tournament tree and a list of all pairwise preferences that were determined during the tournament.
     """
 
     assert len(extractions) > 1, 'Tournament ranking requires at least two profiles to compare.'
@@ -141,33 +144,69 @@ def tournament_ranking(
     evaluator = get_prompt_for_tournament_ranking(model, query)
 
     current_round = extractions
-    ranking_results: list[RankingResult] = []
-    # Track depth level of each profile in the tournament
-    extraction_levels = {id(extraction): 0 for extraction in extractions}
 
-    round_number = 0
+    last_round_index = 0
+    last_round_nodes: list[TournamentNode] = []
+
+    def add_child(node: TournamentNode) -> None:
+        nonlocal last_round_index
+        if last_round_index < len(last_round_nodes):
+            child = last_round_nodes[last_round_index]
+            last_round_index += 1
+            node.children.append(child)
+
     # Run the tournament until we have one winner
     while len(current_round) > 1:
         next_round: list[ExtractedProfile] = []
-        round_number += 1
+        next_last_round_nodes: list[TournamentNode] = []
 
         # Pair profiles and determine winners for the next round
         for i in range(0, len(current_round) - 1, 2):
             ranking_result = compare_profiles(current_round[i], current_round[i + 1], evaluator)
+
+            node = TournamentNode(match=ranking_result)
+            add_child(node)
+            add_child(node)
+            next_last_round_nodes.append(node)
+
             next_round.append(ranking_result.winner)
-            ranking_results.append(ranking_result)
-            extraction_levels[id(ranking_result.winner)] = round_number  # Update winner level
 
         # If odd number of profiles, last one automatically moves to the next round
         if len(current_round) % 2 == 1:
             next_round.append(current_round[-1])
+            node = TournamentNode(
+                match=RankingResult(
+                    profiles=(current_round[-1], current_round[-1]),
+                    preferred_profile=0,
+                    reasoning='Only one profile left in the round.',
+                )
+            )
+            add_child(node)
+            next_last_round_nodes.append(node)
 
         current_round = next_round
+        last_round_nodes = next_last_round_nodes
+        last_round_index = 0
 
-    # If only one profile, it wins by default
-    extraction_levels[id(current_round[0])] = round_number
+    root = last_round_nodes[0]
 
-    # Prepare final ranking list
-    ranked_tuples = [(extraction, extraction_levels[id(extraction)]) for extraction in extractions]
+    preferences: list[RankingResult] = []
 
-    return ranking_results, ranked_tuples
+    for node in root.all_nodes:
+        preferences.append(node.match)
+
+        # The winner profile is also preferred over all profiles in the looser bracket (unique)
+        all_loser_profiles: set[ExtractedProfile] = {
+            loser_profile for loser_node in node.all_loser_nodes for loser_profile in loser_node.match.profiles
+        }
+
+        for loser_profile in all_loser_profiles:
+            preferences.append(
+                RankingResult(
+                    profiles=(node.match.winner, loser_profile),
+                    reasoning='Automatically preferred over all profiles in the looser bracket.',
+                    preferred_profile=0,
+                )
+            )
+
+    return root, preferences

@@ -108,12 +108,12 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
         log(profiles[-1], use_pprint=True, log_file_name=extracted_profile_log)
 
     evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
-    ranking_results, ranked_tuples = tournament_ranking(EVALUATION_MODEL, query, profiles)
+    root, preferences = tournament_ranking(EVALUATION_MODEL, query, profiles)
 
     result = AuthorResult(
         evaluation_result=evaluation_result,
-        ranking_results=ranking_results,
-        rankings=ranked_tuples,
+        root=root,
+        preferences=preferences,
         titles=query.titles,
         author=query.author,
     )
@@ -295,7 +295,7 @@ def generate_ranking_references(number_of_references_to_generate: int):
         if other_profile is None:
             continue
 
-        ranking_results, rankings = tournament_ranking(
+        root, preferences = tournament_ranking(
             REFERENCE_GENERATION_MODEL,
             query,
             [
@@ -306,9 +306,9 @@ def generate_ranking_references(number_of_references_to_generate: int):
 
         ranking = Ranking(
             paper_text=example.abstract,
-            reasoning=ranking_results[0].reasoning,
-            profiles=(ranking_results[0].profiles[0].profile, ranking_results[0].profiles[1].profile),
-            preferred_profile=ranking_results[0].preferred_profile,
+            reasoning=root.match.reasoning,
+            profiles=(root.match.profiles[0].profile, root.match.profiles[1].profile),
+            preferred_profile=root.match.preferred_profile,
         )
 
         # Write the evaluation as reference to a file and database

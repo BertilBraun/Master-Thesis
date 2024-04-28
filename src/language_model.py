@@ -22,9 +22,13 @@ class OpenAILanguageModel(LanguageModel):
         /,
         stop: list[str] = [],
         response_format: Literal['text'] | Literal['json_object'] = 'text',
+        temperature: float = 0.5,
     ) -> list[str]:
         log('------------------ Start of batch ------------------', level=LogLevel.DEBUG)
-        results = [self.invoke(prompt, stop=stop, response_format=response_format) for prompt in prompts]
+        results = [
+            self.invoke(prompt, stop=stop, response_format=response_format, temperature=temperature)
+            for prompt in prompts
+        ]
         log('------------------- End of batch -------------------', level=LogLevel.DEBUG)
         return results
 
@@ -34,6 +38,7 @@ class OpenAILanguageModel(LanguageModel):
         /,
         stop: list[str] = [],
         response_format: Literal['text'] | Literal['json_object'] = 'text',
+        temperature: float = 0.5,
     ) -> str:
         assert len(stop) <= 4, 'The maximum number of stop tokens is 4'
         assert len(prompt) > 0, 'The prompt must contain at least one message'
@@ -46,7 +51,7 @@ class OpenAILanguageModel(LanguageModel):
             messages=[message.to_dict() for message in prompt],
             stop=stop,
             stream=src.openai_defines.DEBUG,
-            temperature=0.5,  # TODO play with this?
+            temperature=temperature,  # TODO play with this?
             response_format={'type': response_format},
         )
 
@@ -76,11 +81,21 @@ class OpenAILanguageModel(LanguageModel):
             log('Response is most likely empty. Check the chat history for more information.', level=LogLevel.WARNING)
         return result
 
-    def invoke_profile_custom(self, prompt: list[Message]) -> Profile:
-        return Profile.parse(self.invoke(prompt))
+    def invoke_profile_custom(
+        self,
+        prompt: list[Message],
+        temperature: float = 0.5,
+    ) -> Profile:
+        return Profile.parse(self.invoke(prompt, temperature=temperature))
 
-    def invoke_profile_json(self, prompt: list[Message]) -> Profile:
-        return Profile.parse_json(self.invoke(prompt, response_format='json_object', stop=['\n\n']))
+    def invoke_profile_json(
+        self,
+        prompt: list[Message],
+        temperature: float = 0.5,
+    ) -> Profile:
+        return Profile.parse_json(
+            self.invoke(prompt, response_format='json_object', stop=['\n\n'], temperature=temperature)
+        )
 
 
 def trim_text_to_token_length(text: str, desired_token_length: int, model_name: str = 'gpt-3.5-turbo') -> str:

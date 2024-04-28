@@ -5,3 +5,7 @@ openai
 python-dotenv 
 chromadb
 tiktoken
+torch
+datasets
+transformers
+trl
