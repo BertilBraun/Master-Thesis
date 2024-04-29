@@ -195,7 +195,7 @@ def tournament_ranking(
     for node in root.all_nodes:
         preferences.append(node.match)
 
-        # The winner profile is also preferred over all profiles in the looser bracket (unique)
+        # The winner profile is also preferred over all profiles in the loser bracket (unique)
         all_loser_profiles = [
             loser_profile for loser_node in node.all_loser_nodes for loser_profile in loser_node.match.profiles
         ]
@@ -209,7 +209,7 @@ def tournament_ranking(
             preferences.append(
                 RankingResult(
                     profiles=(node.match.winner, loser_profile),
-                    reasoning='Automatically preferred over all profiles in the looser bracket.',
+                    reasoning='Automatically preferred over all profiles in the loser bracket.',
                     preferred_profile=0,
                 )
             )

@@ -92,6 +92,31 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     return verify_is_text(full_text)
 
 
+@timeit('Get Paper by Title')
+@cache_to_file('paper_cache.cache', Query)
+def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None:
+    # Get the paper with the given title
+    papers = Works().search_filter(title=title).get()
+
+    if not papers:
+        return None
+
+    paper = papers[0]
+
+    if load_full_text:
+        full_text = load_paper_full_text(paper['open_access']['oa_url'])  # type: ignore
+        if not full_text:
+            log('Failed to load full text for paper:', title, level=LogLevel.WARNING)
+            return None
+
+    return Query(
+        abstracts=[paper['abstract']],  # type: ignore
+        full_texts=[full_text] if load_full_text else [],
+        titles=[paper['title']],  # type: ignore
+        author=paper['authorships'][0]['author']['display_name'],  # type: ignore
+    )
+
+
 @timeit('Get Papers by Author')
 @cache_to_file('papers_cache.cache', Query)
 def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:

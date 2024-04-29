@@ -13,5 +13,6 @@ downloads/**
 generated_examples_**
 
 results/**
+**.db
 
 #tournament_example_extraction.py

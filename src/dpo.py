@@ -112,89 +112,160 @@ dpo_trainer = DPOTrainer(
 
 import json
 import requests
+import sqlite3
 
-from src.types import Profile, Competency, RankingResult
+from enum import Enum
+from typing import Dict, List
 
-
-class DPOData:
-    def __init__(self):
-        self.prompts: list[str] = []
-        self.chosen: list[str] = []
-        self.rejected: list[str] = []
-
-    def add(self, prompt: str, chosen: str, rejected: str) -> None:
-        self.prompts.append(prompt)
-        self.chosen.append(chosen)
-        self.rejected.append(rejected)
-
-    def __add__(self, other: DPOData) -> DPOData:
-        new = DPOData()
-        new.prompts = self.prompts + other.prompts
-        new.chosen = self.chosen + other.chosen
-        new.rejected = self.rejected + other.rejected
-        return new
-
-    def get_dataset(self) -> dict:
-        return {
-            'prompt': self.prompts,
-            'chosen': self.chosen,
-            'rejected': self.rejected,
-        }
+from src.types import AuthorResult, Profile, Competency
+from src.papers import get_paper_by_title
+from src.log import log, LogLevel
 
 
-def get_jsonbin(route: str) -> dict | list[dict]:
-    print('Getting jsonbin data from', 'https://api.jsonbin.io/v3' + route)
-    response = requests.get(
-        f'https://api.jsonbin.io/v3{route}',
-        headers={
-            'X-Master-Key': '$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm',
-            'Content-Type': 'application/json',
-        },
-        json={},
-    )
-
-    return json.loads(response.text)
+class EvaluationType(Enum):
+    EXPERT = 'expert'
+    AUTOMATIC = 'automatic'
 
 
-def get_jsonbin_bins() -> list[str]:
-    # loads all the uncategorized bin ids from the jsonbin api and returns them as a list
-    bins: list[str] = []
+class DPODatabase:
+    def __init__(self, db_path: str) -> None:
+        self.conn = sqlite3.connect(db_path)
+        self.cursor = self.conn.cursor()
+        self.setup()
 
-    ten_bins = get_jsonbin('/c/uncategorized/bins')
-    for bin in ten_bins:
-        bins.append(bin['record'])
+    def setup(self) -> None:
+        self.cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS preferences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                prompt TEXT,
+                chosen TEXT,
+                rejected TEXT,
+                evaluation_type TEXT,
+                external_id OPTIONAL TEXT,
+                author_name TEXT
+            )
+        """
+        )
+        self.conn.commit()
 
-    last_requested = ''
+    def add_entry(
+        self,
+        prompt: str,
+        chosen: str,
+        rejected: str,
+        eval_type: EvaluationType,
+        author_name: str,
+        external_id: str | None = None,
+    ) -> None:
+        self.cursor.execute(
+            """
+            INSERT INTO preferences (prompt, chosen, rejected, evaluation_type, external_id, author_name)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """,
+            (prompt, chosen, rejected, eval_type.value, external_id, author_name),
+        )
+        self.conn.commit()
 
-    while last_requested != bins[-1] and len(ten_bins) == 10:
-        last_requested = bins[-1]
-        ten_bins = get_jsonbin(f'/c/uncategorized/bins/{last_requested}')
+    def get_entries_by_type(self, eval_type: EvaluationType) -> Dict[str, List[str]]:
+        self.cursor.execute(
+            """
+            SELECT prompt, chosen, rejected FROM preferences WHERE evaluation_type=?
+        """,
+            (eval_type.value,),
+        )
+        rows = self.cursor.fetchall()
+
+        data = {'prompt': [], 'chosen': [], 'rejected': []}
+        for prompt, chosen, rejected in rows:
+            data['prompt'].append(prompt)
+            data['chosen'].append(chosen)
+            data['rejected'].append(rejected)
+
+        return data
+
+    def check_existence_by_external_id(self, external_id: str) -> bool:
+        self.cursor.execute(
+            """
+            SELECT 1 FROM preferences WHERE external_id=?
+        """,
+            (external_id,),
+        )
+        exists = self.cursor.fetchone() is not None
+        return exists
+
+    def check_existence_by_author_name_and_eval_type(self, author_name: str, eval_type: EvaluationType) -> bool:
+        self.cursor.execute(
+            """
+            SELECT 1 FROM preferences WHERE author_name=? AND evaluation_type=?
+        """,
+            (author_name, eval_type.value),
+        )
+        exists = self.cursor.fetchone() is not None
+        return exists
+
+
+class JsonBin:
+    def __init__(self, api_key: str) -> None:
+        self.api_key = api_key
+
+    def get(self, route: str) -> dict | list[dict]:
+        print('Getting jsonbin data from', 'https://api.jsonbin.io/v3' + route)
+        response = requests.get(
+            f'https://api.jsonbin.io/v3{route}',
+            headers={
+                'X-Master-Key': self.api_key,
+                'Content-Type': 'application/json',
+            },
+            json={},
+        )
+
+        return json.loads(response.text)
+
+    def bins(self) -> list[str]:
+        # loads all the uncategorized bin ids from the jsonbin api and returns them as a list
+        bins: list[str] = []
+
+        ten_bins = self.get('/c/uncategorized/bins')
         for bin in ten_bins:
             bins.append(bin['record'])
 
-    return bins
+        last_requested = ''
+
+        while last_requested != bins[-1] and len(ten_bins) == 10:
+            last_requested = bins[-1]
+            ten_bins = self.get(f'/c/uncategorized/bins/{last_requested}')
+            for bin in ten_bins:
+                bins.append(bin['record'])
+
+        return bins
+
+    def bin(self, bin_id: str) -> dict:
+        return self.get(f'/b/{bin_id}')['record']  # type: ignore
 
 
-def get_bin_data(bin_id: str) -> dict:
-    return get_jsonbin(f'/b/{bin_id}')['record']  # type: ignore
-
-
-def get_evaluation_data() -> dict:
-    # TODO save to file and dont always refetch
-    bins = get_jsonbin_bins()
+def get_dataset_from_expert_evaluation(db: DPODatabase) -> None:
+    jsonbin = JsonBin(api_key='$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm')
+    bins = jsonbin.bins()
     print('Found', len(bins), 'bins', bins)
 
-    data = DPOData()
-
     for bin_id in bins:
-        bin_data = get_bin_data(bin_id)
+        if db.check_existence_by_external_id(bin_id):
+            print('Bin', bin_id, 'already exists in the database')
+            continue
+
+        bin_data = jsonbin.bin(bin_id)
 
         author: str = bin_data['author']
         titles: list[str] = bin_data['titles']
-
         print('Processing bin', bin_id, 'by', author, 'with titles', titles)
 
-        prompt = 'Some prompt about the extraction of these profiles' + ' '.join(titles)  # TODO proper prompt
+        papers = [get_paper_by_title(title) for title in titles]
+        abstracts = [paper.abstracts[0] for paper in papers if paper]
+
+        prompt = 'Some prompt about the extraction of these profiles\n\n\n' + '\n\n'.join(
+            abstracts
+        )  # TODO proper prompt
 
         profile_mapping = {
             int(key): Profile(
@@ -222,20 +293,51 @@ def get_evaluation_data() -> dict:
             preferred_profile = profile_mapping[instances[preferred_instance_index]]
             other_profile = profile_mapping[instances[1 - preferred_instance_index]]
 
-            data.add(prompt, str(preferred_profile), str(other_profile))
-
-    return data.get_dataset()
+            db.add_entry(prompt, str(preferred_profile), str(other_profile), EvaluationType.EXPERT, author, bin_id)
 
 
-def get_something(evals: list[RankingResult]) -> dict:
-    # TODO write to file after the extraction ranking
-    # The assumption is, that all the determined ranking results are in the list evals
-    data = DPOData()
+def get_dataset_from_automatic_evaluation(db: DPODatabase, evaluation: AuthorResult) -> None:
+    # The assumption is, that all the determined ranking results are in the list preferences
+
+    if db.check_existence_by_author_name_and_eval_type(evaluation.author, EvaluationType.AUTOMATIC):
+        print('Automatic evaluation by', evaluation.author, 'already exists in the database')
+        return
+
+    papers = [get_paper_by_title(title) for title in evaluation.titles]
+    abstracts = [paper.abstracts[0] for paper in papers if paper]
+
+    prompt = 'Some prompt about the extraction of these profiles\n\n\n' + '\n\n'.join(abstracts)  # TODO proper prompt
+
+    for preference in evaluation.preferences:
+        preferred_profile = preference.winner.profile
+        other_profile = preference.loser.profile
+
+        db.add_entry(prompt, str(preferred_profile), str(other_profile), EvaluationType.AUTOMATIC, evaluation.author)
 
 
-from pprint import pprint
+db = DPODatabase('dpo.db')
 
-pprint(get_evaluation_data())
+# get_dataset_from_automatic_evaluation(db, AuthorResult(
+#     author='Test Author',
+#     titles=['Test Title 1', 'Test Title 2'],
+#     root=TournamentNode(),
+#     preferences=[
+#         RankingResult(
+#             profiles=(Profile('Test Domain 1', [Competency('Test Competency 1', 'Test Description 1')]),
+#                       Profile('Test Domain 2', [Competency('Test Competency 2', 'Test Description 2')])),
+#             preferred_profile=0,
+#             reasoning='Test Reasoning 1',
+#         ),
+#     ],
+# )
+
+get_dataset_from_expert_evaluation(db)
+
+log('Expert data:')
+log(db.get_entries_by_type(EvaluationType.EXPERT), use_pprint=True)
+log('Automatic data:')
+log(db.get_entries_by_type(EvaluationType.AUTOMATIC), use_pprint=True)
+
 exit()
 
 

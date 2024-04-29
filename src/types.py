@@ -516,6 +516,10 @@ class RankingResult:
     def winner(self) -> ExtractedProfile:
         return self.profiles[self.preferred_profile]
 
+    @property
+    def loser(self) -> ExtractedProfile:
+        return self.profiles[1 - self.preferred_profile]
+
 
 @dataclass(frozen=True)
 class TournamentNode:
