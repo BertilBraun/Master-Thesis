@@ -71,7 +71,7 @@ Your analysis should be detailed, citing specific elements from both the profile
 def compare_profiles(
     profile1: ExtractedProfile,
     profile2: ExtractedProfile,
-    evaluator: Callable[[ExtractedProfile, ExtractedProfile], str],
+    evaluator: Callable[[ExtractedProfile, ExtractedProfile], dict],
 ) -> RankingResult:
     # Compare two profiles based using a llm model to determine the winner. Return the winner, loser, and reasoning.
 
@@ -89,7 +89,7 @@ def compare_profiles(
     )
 
 
-def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[ExtractedProfile, ExtractedProfile], str]:
+def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[ExtractedProfile, ExtractedProfile], dict]:
     llm = OpenAILanguageModel(model, debug_context_name='tournament_ranking')
 
     abstracts = '\n\n'.join(query.abstracts)
@@ -97,7 +97,7 @@ def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[Ext
     retriever = get_retriever_getter(max_number_to_retrieve=1)(Ranking)
     json_examples = get_ranking_messages_json(abstracts, retriever)
 
-    def prompt_for_tournament_ranking(profile1: ExtractedProfile, profile2: ExtractedProfile) -> str:
+    def prompt_for_tournament_ranking(profile1: ExtractedProfile, profile2: ExtractedProfile) -> dict:
         prompt = [
             SystemMessage(
                 content="""You are a skilled evaluator tasked with evaluating the relevance of two competency profiles that were extracted by another system from provided scientific abstracts. Each profile is expected to reflect a specific domain of expertise and list 3 to 8 key competencies demonstrated by the author. Your task is to evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Compare the two profiles and determine which one is more relevant to the abstracts, structuring your response as follows:
@@ -122,7 +122,7 @@ Be specific and detailed in your reasoning and provide the number of the preferr
             ),
         ]
 
-        return llm.invoke(prompt, response_format='json_object', stop=['\n\n\n'])
+        return llm.invoke(prompt, response_format='json_object', stop=['\n\n\n\n'])
 
     return prompt_for_tournament_ranking
 
@@ -196,11 +196,16 @@ def tournament_ranking(
         preferences.append(node.match)
 
         # The winner profile is also preferred over all profiles in the looser bracket (unique)
-        all_loser_profiles: set[ExtractedProfile] = {
+        all_loser_profiles = [
             loser_profile for loser_node in node.all_loser_nodes for loser_profile in loser_node.match.profiles
-        }
-
+        ]
+        # make sure we don't add the same profile twice (but profiles are not hashable)
+        all_loser_profiles_filtered: list[ExtractedProfile] = []
         for loser_profile in all_loser_profiles:
+            if loser_profile not in all_loser_profiles_filtered:
+                all_loser_profiles_filtered.append(loser_profile)
+
+        for loser_profile in all_loser_profiles_filtered:
             preferences.append(
                 RankingResult(
                     profiles=(node.match.winner, loser_profile),

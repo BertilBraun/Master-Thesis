@@ -25,7 +25,11 @@ from src.database import (
     get_retriever_getter,
     get_sample_from_database,
 )
-from src.display import generate_html_file_for_extraction_result
+from src.display import (
+    generate_html_file_for_extraction_result,
+    generate_html_file_for_tournament_evaluation,
+    generate_html_file_for_tournament_ranking_result,
+)
 from src.papers import (
     get_authors_of_kit,
     get_papers_by_author,
@@ -62,7 +66,7 @@ MODELS = [
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
-EXAMPLES = [2, 1, 0]
+EXAMPLES = [2, 0]  # [2, 1, 0]
 
 EXTRACTORS = [
     extract_from_abstracts_custom,
@@ -95,19 +99,20 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
         start = time.time()
         if (profile := run_query_for_instance(instance, query)) is None:
             continue
+        extraction_time = time.time() - start
 
-        profiles.append(
-            ExtractedProfile(
-                profile=profile,
-                model=instance.model,
-                number_of_examples=instance.number_of_examples,
-                extraction_function=instance.extract.__qualname__,
-                extraction_time=time.time() - start,
-            )
+        extracted_profile = ExtractedProfile(
+            profile=profile,
+            model=instance.model,
+            number_of_examples=instance.number_of_examples,
+            extraction_function=instance.extract.__qualname__,
+            extraction_time=extraction_time,
         )
-        log(profiles[-1], use_pprint=True, log_file_name=extracted_profile_log)
 
-    evaluation_result = evaluate_with(EVALUATION_MODEL, query, profiles)
+        profiles.append(extracted_profile)
+        log(extracted_profile, use_pprint=True, log_file_name=extracted_profile_log)
+
+    evaluation_result = []  # TODO evaluate_with(EVALUATION_MODEL, query, profiles)
     root, preferences = tournament_ranking(EVALUATION_MODEL, query, profiles)
 
     result = AuthorResult(
@@ -790,3 +795,5 @@ if __name__ == '__main__':
         log(result, use_pprint=True)
         log('-' * 50)
         generate_html_file_for_extraction_result(result)
+        generate_html_file_for_tournament_evaluation(result)
+        generate_html_file_for_tournament_ranking_result(result)

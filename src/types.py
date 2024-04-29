@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import json
 
 from typing import Callable, Generic, Literal, Protocol, Type, TypeVar
 from dataclasses import dataclass, field
@@ -54,7 +53,11 @@ Competencies:
             + self.domain
             + '",\n    "competencies": {\n'
             + ',\n'.join(
-                [f'        "{competency.name}": "{competency.description}"' for competency in self.competencies]
+                [
+                    f'        "{competency.name}": "{competency.description}"'
+                    for competency in self.competencies
+                    if competency.name and competency.description
+                ]
             )
             + '\n    }\n}'
         )
@@ -92,9 +95,7 @@ Competencies:
         )
 
     @staticmethod
-    def parse_json(text: str) -> Profile:
-        obj = json.loads(text)
-
+    def parse_json(obj: dict) -> Profile:
         # fuzzy find the domain and competencies keys in the json object
         # The json object should have the following structure:
         # {
@@ -114,7 +115,8 @@ Competencies:
                 domain = obj[key]
             elif 'competencies' in key.lower():
                 for competency in obj[key]:
-                    competencies.append(Competency(name=competency, description=obj[key][competency]))
+                    if competency and obj[key][competency]:  # check if the competency and its description are not empty
+                        competencies.append(Competency(name=competency, description=obj[key][competency]))
 
         return Profile(domain=domain, competencies=competencies)
 
@@ -194,7 +196,7 @@ class Evaluation:
             if 0 <= number <= 100:
                 return number
 
-        log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.WARNING)
+        log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.DEBUG)
 
         # Return the last occurrence of a number between 0 and 100
         match = re.findall(r'\d+', text)
@@ -231,9 +233,7 @@ class Ranking:
         return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.profiles[0]}\n\n\nProfile 2: {self.profiles[1]}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: {self.preferred_profile + 1}"""
 
     @staticmethod
-    def parse_reasoning_json(text: str) -> str:
-        obj = json.loads(text)
-
+    def parse_reasoning_json(obj: dict) -> str:
         # fuzzy find the reasoning key in the json object
         # The json object should have the following structure:
         # {
@@ -245,13 +245,12 @@ class Ranking:
             if 'reason' in key.lower():
                 return obj[key]
 
-        log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
+        log(f'Invalid reasoning format: {obj}.', level=LogLevel.WARNING)
         return ''
 
     @staticmethod
-    def parse_preferred_profile_json(text: str) -> bool:
+    def parse_preferred_profile_json(obj: dict) -> bool:
         # Returns True if the preferred profile is 1, False if it is 2
-        obj = json.loads(text)
 
         # fuzzy find the preferred_profile key in the json object
         # The json object should have the following structure:
@@ -264,12 +263,12 @@ class Ranking:
             if 'preferred' in key.lower():
                 number = obj[key]
                 if number < 1 or number > 2:
-                    log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+                    log(f'Invalid preferred profile format: {obj}.', level=LogLevel.WARNING)
                     return True
 
                 return number == 1
 
-        log(f'Invalid preferred profile format: {text}.', level=LogLevel.WARNING)
+        log(f'Invalid preferred profile format: {obj}.', level=LogLevel.WARNING)
         return True
 
     @staticmethod

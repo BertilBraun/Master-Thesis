@@ -1,7 +1,9 @@
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import tiktoken
-from typing import Literal
+
+from typing import Literal, overload
+from partialjson.json_parser import JSONParser
 
 from openai import OpenAI
 
@@ -16,69 +18,125 @@ class OpenAILanguageModel(LanguageModel):
         self.openai = OpenAI(base_url=src.openai_defines.BASE_URL_LLM)
         self.debug_context_name = debug_context_name
 
+    @overload
     def batch(
         self,
         prompts: list[list[Message]],
         /,
         stop: list[str] = [],
-        response_format: Literal['text'] | Literal['json_object'] = 'text',
+        response_format: Literal['text'] = 'text',
         temperature: float = 0.5,
     ) -> list[str]:
+        ...
+
+    @overload
+    def batch(
+        self,
+        prompts: list[list[Message]],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['json_object'] = 'json_object',
+        temperature: float = 0.5,
+    ) -> list[dict]:
+        ...
+
+    def batch(
+        self,
+        prompts: list[list[Message]],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['text', 'json_object'] = 'text',
+        temperature: float = 0.5,
+    ) -> list[str] | list[dict]:
         log('------------------ Start of batch ------------------', level=LogLevel.DEBUG)
         results = [
             self.invoke(prompt, stop=stop, response_format=response_format, temperature=temperature)
             for prompt in prompts
         ]
         log('------------------- End of batch -------------------', level=LogLevel.DEBUG)
-        return results
+        return results  # type: ignore
+
+    @overload
+    def invoke(
+        self,
+        prompt: list[Message],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['text'] = 'text',
+        temperature: float = 0.5,
+    ) -> str:
+        ...
+
+    @overload
+    def invoke(
+        self,
+        prompt: list[Message],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['json_object'] = 'json_object',
+        temperature: float = 0.5,
+    ) -> dict:
+        ...
 
     def invoke(
         self,
         prompt: list[Message],
         /,
         stop: list[str] = [],
-        response_format: Literal['text'] | Literal['json_object'] = 'text',
+        response_format: Literal['text', 'json_object'] = 'text',
         temperature: float = 0.5,
-    ) -> str:
+    ) -> str | dict:
         assert len(stop) <= 4, 'The maximum number of stop tokens is 4'
         assert len(prompt) > 0, 'The prompt must contain at least one message'
 
         log(f'Running model: {self.model}', level=LogLevel.DEBUG)
         log(f'Prompt:\n{[m.to_dict() for m in prompt]}', level=LogLevel.DEBUG)
 
-        response = self.openai.chat.completions.create(
-            model=self.model,
-            messages=[message.to_dict() for message in prompt],
-            stop=stop,
-            stream=src.openai_defines.DEBUG,
-            temperature=temperature,  # TODO play with this?
-            response_format={'type': response_format},
-        )
+        retries = src.openai_defines.MAX_RETRIES
+        has_failed = True
 
-        if src.openai_defines.DEBUG:
-            result = ''
-            for chunk in response:  # type: ignore
-                delta = chunk.choices[0].delta.content or ''  # type: ignore
-                print(delta, end='', flush=True)
-                result += delta
-            print('\n\n')
-        else:
-            result = response.choices[0].message.content or 'Error: No response from model'
+        while retries > 0 and has_failed and temperature > 0.2:
+            retries -= 1
+            has_failed = False
 
-        result = result.replace('<dummy32000>', '')
-        if response_format == 'json_object':
-            # result = result from first { to last } inclusive
-            result = result[result.find('{') : result.rfind('}') + 1]
+            response = self.openai.chat.completions.create(
+                model=self.model,
+                messages=[message.to_dict() for message in prompt],
+                stop=stop,
+                stream=src.openai_defines.DEBUG,
+                temperature=temperature,  # TODO play with this?
+                response_format={'type': response_format},
+            )
 
-        generate_html_file_for_chat(
-            [*prompt, AIMessage(content=result)],
-            f'{self.model}_{self.debug_context_name}_{time_str()}',
-        )
+            if src.openai_defines.DEBUG:
+                result = ''
+                for chunk in response:  # type: ignore
+                    delta = chunk.choices[0].delta.content or ''  # type: ignore
+                    print(delta, end='', flush=True)
+                    result += delta
+                print('\n\n')
+            else:
+                result = response.choices[0].message.content or 'Error: No response from model'
+
+            generate_html_file_for_chat(
+                [*prompt, AIMessage(content=result)],
+                f'{self.model}_{self.debug_context_name}_{time_str()}_try_{src.openai_defines.MAX_RETRIES-retries}',
+            )
+
+            result = result.replace('<dummy32000>', '')
+            if response_format == 'json_object':
+                # result = result from first { to last } inclusive
+                result = result[result.find('{') : result.rfind('}') + 1]
+                result = JSONParser().parse(result)
+            elif len(result) < 30:
+                log(
+                    'Response is most likely empty. Check the chat history for more information.',
+                    level=LogLevel.WARNING,
+                )
+                has_failed = True
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
 
-        if len(result) < 30:
-            log('Response is most likely empty. Check the chat history for more information.', level=LogLevel.WARNING)
         return result
 
     def invoke_profile_custom(
@@ -94,7 +152,7 @@ class OpenAILanguageModel(LanguageModel):
         temperature: float = 0.5,
     ) -> Profile:
         return Profile.parse_json(
-            self.invoke(prompt, response_format='json_object', stop=['\n\n'], temperature=temperature)
+            self.invoke(prompt, response_format='json_object', stop=['\n\n\n\n'], temperature=temperature)
         )
 
 
