@@ -4329,3 +4329,2383 @@ CONTENT = """{
             ],
             "author": "Andreas Oberweis"
         }"""
+
+CONTENT2 = """{
+    "evaluation_result": [],
+    "root": {
+        "match": {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Profile 1 focuses on various aspects of parallel computing, performance optimization, and algorithm development. It covers MPI performance benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and the use of semi-synthetic validation benchmarks to handle complex datasets. Profile 2, on the other hand, emphasizes computer science competencies related to performance optimization, parallel computing, and communication algorithms, as well as energy-efficient scheduling and semi-synthetic benchmarks. While both profiles are relevant to the abstracts, Profile 1 provides a more comprehensive overview of the topics discussed."
+        },
+        "children": [
+            {
+                "match": {
+                    "profiles": [
+                        {
+                            "profile": {
+                                "domain": "Computational Biology and High-Performance Computing",
+                                "competencies": [
+                                    {
+                                        "name": "Benchmarking",
+                                        "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                                    },
+                                    {
+                                        "name": "All-to-All Communication Algorithms",
+                                        "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                                    },
+                                    {
+                                        "name": "Energy Efficient Scheduling",
+                                        "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                                    },
+                                    {
+                                        "name": "Biological Image Simulation",
+                                        "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                                    },
+                                    {
+                                        "name": "Task Segmentation and Tracking",
+                                        "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                                    }
+                                ]
+                            },
+                            "model": "mistral",
+                            "number_of_examples": 0,
+                            "extraction_function": "extract_from_summaries_json",
+                            "extraction_time": 42.28907227516174
+                        },
+                        {
+                            "profile": {
+                                "domain": "Parallel Computing and Performance Optimization",
+                                "competencies": [
+                                    {
+                                        "name": "MPI Performance Benchmarking",
+                                        "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                                    },
+                                    {
+                                        "name": "All-to-All Communication Algorithm",
+                                        "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                                    },
+                                    {
+                                        "name": "Energy-Efficient Scheduling",
+                                        "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                                    },
+                                    {
+                                        "name": "Algorithm Validation",
+                                        "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                                    },
+                                    {
+                                        "name": "Zebrafish Embryo Simulation",
+                                        "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                                    },
+                                    {
+                                        "name": "Complex Dataset Handling",
+                                        "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                                    }
+                                ]
+                            },
+                            "model": "neural",
+                            "number_of_examples": 0,
+                            "extraction_function": "extract_from_abstracts_json",
+                            "extraction_time": 10.932563304901123
+                        }
+                    ],
+                    "preferred_profile": 1,
+                    "reasoning": "Profile 1 focuses on benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. Profile 2, on the other hand, incorporates MPI performance benchmarking, energy-efficient scheduling, algorithm validation, and complex dataset handling. Both profiles cover a wide range of competencies relevant to the scientific abstracts. However, Profile 2 appears to be more comprehensive and covers a broader range of topics. Therefore, Profile 2 is more relevant to the abstracts."
+                },
+                "children": [
+                    {
+                        "match": {
+                            "profiles": [
+                                {
+                                    "profile": {
+                                        "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                                        "competencies": [
+                                            {
+                                                "name": "MPI Communication Library",
+                                                "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                                            },
+                                            {
+                                                "name": "SKaMPI Benchmarking",
+                                                "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                                            },
+                                            {
+                                                "name": "Performance Portability",
+                                                "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                                            },
+                                            {
+                                                "name": "All-to-All Communication Algorithm",
+                                                "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                                            },
+                                            {
+                                                "name": "Optimal Scheduling with Energy Minimization",
+                                                "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                                            },
+                                            {
+                                                "name": "Malleable Jobs and Energy Functions",
+                                                "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                                            },
+                                            {
+                                                "name": "Systematic Validation in Algorithm Development",
+                                                "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                                            },
+                                            {
+                                                "name": "Semi-Synthetic Benchmark Generation",
+                                                "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                                            }
+                                        ]
+                                    },
+                                    "model": "mistral",
+                                    "number_of_examples": 2,
+                                    "extraction_function": "extract_from_abstracts_json",
+                                    "extraction_time": 15.93254828453064
+                                },
+                                {
+                                    "profile": {
+                                        "domain": "Computational Biology and High-Performance Computing",
+                                        "competencies": [
+                                            {
+                                                "name": "Benchmarking",
+                                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                                            },
+                                            {
+                                                "name": "All-to-All Communication Algorithms",
+                                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                                            },
+                                            {
+                                                "name": "Energy Efficient Scheduling",
+                                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                                            },
+                                            {
+                                                "name": "Biological Image Simulation",
+                                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                                            },
+                                            {
+                                                "name": "Task Segmentation and Tracking",
+                                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                                            }
+                                        ]
+                                    },
+                                    "model": "mistral",
+                                    "number_of_examples": 0,
+                                    "extraction_function": "extract_from_summaries_json",
+                                    "extraction_time": 42.28907227516174
+                                }
+                            ],
+                            "preferred_profile": 1,
+                            "reasoning": "Profile 1 focuses on various aspects of high-performance computing, performance benchmarking, and algorithm development. It covers topics such as MPI communication library, SKaMPI benchmark, performance portability, all-to-all communication algorithms, optimal scheduling with energy minimization, and semi-synthetic benchmark generation. Profile 2, on the other hand, delves deeper into computational biology and high-performance computing, focusing on benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. Although both profiles are relevant to the scientific abstracts, Profile 2 provides a more comprehensive understanding of the topics discussed."
+                        },
+                        "children": [
+                            {
+                                "match": {
+                                    "profiles": [
+                                        {
+                                            "profile": {
+                                                "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                                                "competencies": [
+                                                    {
+                                                        "name": "MPI Communication Library",
+                                                        "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                                                    },
+                                                    {
+                                                        "name": "SKaMPI Benchmarking",
+                                                        "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                                                    },
+                                                    {
+                                                        "name": "Performance Portability",
+                                                        "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication Algorithm",
+                                                        "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                                                    },
+                                                    {
+                                                        "name": "Optimal Scheduling with Energy Minimization",
+                                                        "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                                                    },
+                                                    {
+                                                        "name": "Malleable Jobs and Energy Functions",
+                                                        "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                                                    },
+                                                    {
+                                                        "name": "Systematic Validation in Algorithm Development",
+                                                        "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                                                    },
+                                                    {
+                                                        "name": "Semi-Synthetic Benchmark Generation",
+                                                        "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "mistral",
+                                            "number_of_examples": 2,
+                                            "extraction_function": "extract_from_abstracts_json",
+                                            "extraction_time": 15.93254828453064
+                                        },
+                                        {
+                                            "profile": {
+                                                "domain": "Parallel Computing, Benchmarking, and Image Simulation",
+                                                "competencies": [
+                                                    {
+                                                        "name": "Parallel Computing and Benchmarking",
+                                                        "description": "Understands the importance of parallel computing, benchmarking, and the development of efficient algorithms for all-to-all communication and resource scheduling."
+                                                    },
+                                                    {
+                                                        "name": "Energy Efficient Frequency Scaling",
+                                                        "description": "Demonstrates knowledge of energy-efficient frequency scaling techniques for malleable tasks in computing systems."
+                                                    },
+                                                    {
+                                                        "name": "Realistic Image Simulation",
+                                                        "description": "Familiar with the process of generating realistic benchmark images of developing embryos using a simulation framework, including object-based approaches and empirical parameter determination."
+                                                    },
+                                                    {
+                                                        "name": "Developmental Biology Research Tools",
+                                                        "description": "Recognizes the value of realistic benchmark images for the development and validation of image analysis and tracking methods in developmental biology research."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "mistral",
+                                            "number_of_examples": 2,
+                                            "extraction_function": "extract_from_summaries_json",
+                                            "extraction_time": 45.21289944648743
+                                        }
+                                    ],
+                                    "preferred_profile": 0,
+                                    "reasoning": "Profile 1 focuses on various aspects of performance benchmarking, algorithm development, and high-performance computing, while also touching upon the developmental biology research tools. Profile 2, on the other hand, highlights parallel computing, benchmarking, and image simulation, along with energy-efficient frequency scaling and realistic image simulation. The first profile appears to be more comprehensive and directly relevant to the provided abstracts, as they discuss several detailed algorithms and benchmarking techniques."
+                                },
+                                "children": []
+                            },
+                            {
+                                "match": {
+                                    "profiles": [
+                                        {
+                                            "profile": {
+                                                "domain": "High-Performance Computing and Parallel Programming",
+                                                "competencies": [
+                                                    {
+                                                        "name": "MPI Communication",
+                                                        "description": "Developing a communication library for portable parallel programming within the message-passing paradigm."
+                                                    },
+                                                    {
+                                                        "name": "Performance Benchmarking",
+                                                        "description": "Designing and implementing SKaMPI benchmark to provide comprehensive, detailed, and accurate performance figures for different hardware platforms and MPI implementations for performance portability and understanding."
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication Algorithm",
+                                                        "description": "Creating an algorithm for all-to-all communication in clusters of processing nodes, considering different numbers of processors and maintaining optimality up to an additive term."
+                                                    },
+                                                    {
+                                                        "name": "Energy-Efficient Scheduling",
+                                                        "description": "Solving a scheduling problem to minimize energy consumption by controlling processor clock frequencies, considering malleable jobs and more realistic energy consumption functions."
+                                                    },
+                                                    {
+                                                        "name": "Systematic Validation",
+                                                        "description": "Developing a new semi-synthetic approach to generate realistic 3D+t benchmarks for time-resolved 3D fluorescence microscopy imaging experiments, considering challenging cellular movement dynamics, real embryos, and various parametrizable options."
+                                                    },
+                                                    {
+                                                        "name": "Image Analysis",
+                                                        "description": "Applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours of its early existence for validating image analysis problems."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "mistral",
+                                            "number_of_examples": 0,
+                                            "extraction_function": "extract_from_abstracts_json",
+                                            "extraction_time": 11.474284648895264
+                                        },
+                                        {
+                                            "profile": {
+                                                "domain": "Computational Biology and High-Performance Computing",
+                                                "competencies": [
+                                                    {
+                                                        "name": "Benchmarking",
+                                                        "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication Algorithms",
+                                                        "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                                                    },
+                                                    {
+                                                        "name": "Energy Efficient Scheduling",
+                                                        "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                                                    },
+                                                    {
+                                                        "name": "Biological Image Simulation",
+                                                        "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                                                    },
+                                                    {
+                                                        "name": "Task Segmentation and Tracking",
+                                                        "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                                                    }
+                                                ]
+                                            },
+                                            "model": "mistral",
+                                            "number_of_examples": 0,
+                                            "extraction_function": "extract_from_summaries_json",
+                                            "extraction_time": 42.28907227516174
+                                        }
+                                    ],
+                                    "preferred_profile": 1,
+                                    "reasoning": "Profile 1 focuses on a wide range of competencies, including performance benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and image analysis. Profile 2, on the other hand, delves deeper into specific aspects of computational biology and high-performance computing, such as benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. While both profiles are relevant to the abstracts, Profile 2's emphasis on computational biology makes it more closely related to the content discussed."
+                                },
+                                "children": []
+                            }
+                        ]
+                    },
+                    {
+                        "match": {
+                            "profiles": [
+                                {
+                                    "profile": {
+                                        "domain": "Computational Biology and Algorithms",
+                                        "competencies": [
+                                            {
+                                                "name": "Malleable Tasks Scheduling and Frequency Scaling",
+                                                "description": "Develops an algorithm for energy-efficient scheduling and frequency scaling for jobs with malleable parallelism."
+                                            },
+                                            {
+                                                "name": "Semi-Synthetic Embryomics Benchmarks",
+                                                "description": "Presents a framework for generating realistic benchmark datasets for embryonic development research, combining real and simulated data."
+                                            },
+                                            {
+                                                "name": "Non-Hierarchical Factor Algorithm Extension",
+                                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, extending the well-known algorithm for non-hierarchical systems."
+                                            },
+                                            {
+                                                "name": "SKaMPI Comprehensive Benchmark",
+                                                "description": "Develops a tool for public benchmarking of MPI communication libraries, providing comprehensive performance data for MPI implementations across various platforms and hardware configurations."
+                                            },
+                                            {
+                                                "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, modifying the non-hierarchical factor algorithm for improved performance."
+                                            },
+                                            {
+                                                "name": "Energy E\\ufb03cient Frequency Scaling and Scheduling",
+                                                "description": "Analyzes the energy function for jobs with non-integer processor numbers and develops guidelines for computing the optimal energy-efficient solution for malleable tasks on a given number of processors."
+                                            }
+                                        ]
+                                    },
+                                    "model": "neural",
+                                    "number_of_examples": 2,
+                                    "extraction_function": "extract_from_summaries_json",
+                                    "extraction_time": 181.4146111011505
+                                },
+                                {
+                                    "profile": {
+                                        "domain": "Parallel Computing and Performance Optimization",
+                                        "competencies": [
+                                            {
+                                                "name": "MPI Performance Benchmarking",
+                                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                                            },
+                                            {
+                                                "name": "All-to-All Communication Algorithm",
+                                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                                            },
+                                            {
+                                                "name": "Energy-Efficient Scheduling",
+                                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                                            },
+                                            {
+                                                "name": "Algorithm Validation",
+                                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                                            },
+                                            {
+                                                "name": "Zebrafish Embryo Simulation",
+                                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                                            },
+                                            {
+                                                "name": "Complex Dataset Handling",
+                                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                                            }
+                                        ]
+                                    },
+                                    "model": "neural",
+                                    "number_of_examples": 0,
+                                    "extraction_function": "extract_from_abstracts_json",
+                                    "extraction_time": 10.932563304901123
+                                }
+                            ],
+                            "preferred_profile": 1,
+                            "reasoning": "Profile 1 focuses on specific aspects of the abstracts such as scheduling, communication algorithms, and benchmarking. Profile 2, on the other hand, encompasses broader competencies related to parallel computing, performance optimization, and complex dataset handling. Although both profiles are relevant, Profile 2 offers a more comprehensive understanding of the scientific content. Therefore, Profile 2 is more relevant to the abstracts."
+                        },
+                        "children": [
+                            {
+                                "match": {
+                                    "profiles": [
+                                        {
+                                            "profile": {
+                                                "domain": "Parallel Computing, Performance Evaluation, and Algorithmic Optimization",
+                                                "competencies": [
+                                                    {
+                                                        "name": "MPI Communication Library",
+                                                        "description": "Understands the MPI library, its performance characteristics, and the importance of benchmarking for performance portability."
+                                                    },
+                                                    {
+                                                        "name": "MPI Benchmarking",
+                                                        "description": "Develops and maintains a public performance database of MPI benchmarks to ensure accuracy and reliability."
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication Algorithms",
+                                                        "description": "Creates efficient algorithms for regular, personalized all-to-all communication in cluster environments."
+                                                    },
+                                                    {
+                                                        "name": "Energy-Efficient Scheduling",
+                                                        "description": "Optimizes energy consumption in scheduling problems with malleable jobs and realistic energy consumption functions."
+                                                    },
+                                                    {
+                                                        "name": "Systematic Validation in Algorithm Development",
+                                                        "description": "Recognizes the importance of systematic validation in algorithm development and the challenges associated with large-scale datasets and complex imaging experiments."
+                                                    },
+                                                    {
+                                                        "name": "Semi-Synthetic Benchmark Generation",
+                                                        "description": "Demonstrates semi-synthetic approach to generate realistic benchmarks for algorithmic validation in 3D+t fluorescence microscopy imaging experiments."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 2,
+                                            "extraction_function": "extract_from_abstracts_json",
+                                            "extraction_time": 14.211020946502686
+                                        },
+                                        {
+                                            "profile": {
+                                                "domain": "Computational Biology and Algorithms",
+                                                "competencies": [
+                                                    {
+                                                        "name": "Malleable Tasks Scheduling and Frequency Scaling",
+                                                        "description": "Develops an algorithm for energy-efficient scheduling and frequency scaling for jobs with malleable parallelism."
+                                                    },
+                                                    {
+                                                        "name": "Semi-Synthetic Embryomics Benchmarks",
+                                                        "description": "Presents a framework for generating realistic benchmark datasets for embryonic development research, combining real and simulated data."
+                                                    },
+                                                    {
+                                                        "name": "Non-Hierarchical Factor Algorithm Extension",
+                                                        "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, extending the well-known algorithm for non-hierarchical systems."
+                                                    },
+                                                    {
+                                                        "name": "SKaMPI Comprehensive Benchmark",
+                                                        "description": "Develops a tool for public benchmarking of MPI communication libraries, providing comprehensive performance data for MPI implementations across various platforms and hardware configurations."
+                                                    },
+                                                    {
+                                                        "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                                        "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, modifying the non-hierarchical factor algorithm for improved performance."
+                                                    },
+                                                    {
+                                                        "name": "Energy E\\ufb03cient Frequency Scaling and Scheduling",
+                                                        "description": "Analyzes the energy function for jobs with non-integer processor numbers and develops guidelines for computing the optimal energy-efficient solution for malleable tasks on a given number of processors."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 2,
+                                            "extraction_function": "extract_from_summaries_json",
+                                            "extraction_time": 181.4146111011505
+                                        }
+                                    ],
+                                    "preferred_profile": 1,
+                                    "reasoning": "Profile 1 focuses on specific competencies such as MPI benchmarking, all-to-all communication algorithms, and energy-efficient scheduling. Profile 2, on the other hand, covers a broader range of topics including scheduling and frequency scaling, benchmarking, and algorithms for specific communication problems. Both profiles offer valuable insights into the scientific abstracts, but Profile 2 provides a more comprehensive understanding of the research areas due to the wider range of competencies discussed."
+                                },
+                                "children": []
+                            },
+                            {
+                                "match": {
+                                    "profiles": [
+                                        {
+                                            "profile": {
+                                                "domain": "Computer Science",
+                                                "competencies": [
+                                                    {
+                                                        "name": "MPI Benchmarking",
+                                                        "description": "SKaMPI provides comprehensive benchmarking for MPI, using four patterns to evaluate performance and user-defined datatype handling."
+                                                    },
+                                                    {
+                                                        "name": "Patterns and Measurement Strategy",
+                                                        "description": "SKaMPI employs various patterns and measurement methods for accurate results with adaptive parameter refinement and multiple runs."
+                                                    },
+                                                    {
+                                                        "name": "Post-Processing",
+                                                        "description": "Results can be processed in a post-processing step, filtering outliers and generating graphical representations for better comparison."
+                                                    },
+                                                    {
+                                                        "name": "Result Database",
+                                                        "description": "SKaMPI stores results in a database, enabling users to query and analyze data for further analysis."
+                                                    },
+                                                    {
+                                                        "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                                        "description": "The algorithm optimizes communication for clusters of processing nodes, employing a non-hierarchical factor algorithm, phase loop, round loop, 1-factorization of complete graphs, and node ordering."
+                                                    },
+                                                    {
+                                                        "name": "Energy Efficient Frequency Scaling and Scheduling for Malleable Tasks",
+                                                        "description": "Optimizes energy usage for malleable tasks, considering scheduling and power budgeting techniques, as well as analyzing various speedup functions."
+                                                    },
+                                                    {
+                                                        "name": "Embryonic Development Simulation and Benchmarking",
+                                                        "description": "Simulates embryonic development with realistic cell movement dynamics and interactions, while generating large-scale, artificially flawed images for evaluation of image analysis and tracking algorithms."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 2,
+                                            "extraction_function": "extract_from_full_texts_json",
+                                            "extraction_time": 38.977405309677124
+                                        },
+                                        {
+                                            "profile": {
+                                                "domain": "Parallel Computing and Performance Optimization",
+                                                "competencies": [
+                                                    {
+                                                        "name": "MPI Performance Benchmarking",
+                                                        "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication Algorithm",
+                                                        "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                                                    },
+                                                    {
+                                                        "name": "Energy-Efficient Scheduling",
+                                                        "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                                                    },
+                                                    {
+                                                        "name": "Algorithm Validation",
+                                                        "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                                                    },
+                                                    {
+                                                        "name": "Zebrafish Embryo Simulation",
+                                                        "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                                                    },
+                                                    {
+                                                        "name": "Complex Dataset Handling",
+                                                        "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 0,
+                                            "extraction_function": "extract_from_abstracts_json",
+                                            "extraction_time": 10.932563304901123
+                                        }
+                                    ],
+                                    "preferred_profile": 1,
+                                    "reasoning": "Profile 1 focuses on MPI communication library, benchmarking, and optimization algorithms. It also includes aspects of energy-efficient scheduling and simulation for embryonic development. Profile 2, on the other hand, expands on the first profile by covering more aspects like all-to-all communication and handling complex dataset sizes. Therefore, Profile 2 is more comprehensive and relevant to the abstracts."
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "match": {
+                    "profiles": [
+                        {
+                            "profile": {
+                                "domain": "Computer Science",
+                                "competencies": [
+                                    {
+                                        "name": "Performance Optimization",
+                                        "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                                    },
+                                    {
+                                        "name": "Parallel Computing and Communication Algorithms",
+                                        "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                                    },
+                                    {
+                                        "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                        "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                                    },
+                                    {
+                                        "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                        "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                                    }
+                                ]
+                            },
+                            "model": "neural",
+                            "number_of_examples": 0,
+                            "extraction_function": "extract_from_full_texts_json",
+                            "extraction_time": 61.78067135810852
+                        },
+                        {
+                            "profile": {
+                                "domain": "Computer Science",
+                                "competencies": [
+                                    {
+                                        "name": "Performance Optimization",
+                                        "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                                    },
+                                    {
+                                        "name": "Parallel Computing and Communication Algorithms",
+                                        "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                                    },
+                                    {
+                                        "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                        "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                                    },
+                                    {
+                                        "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                        "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                                    }
+                                ]
+                            },
+                            "model": "neural",
+                            "number_of_examples": 0,
+                            "extraction_function": "extract_from_full_texts_json",
+                            "extraction_time": 61.78067135810852
+                        }
+                    ],
+                    "preferred_profile": 0,
+                    "reasoning": "Only one profile left in the round."
+                },
+                "children": [
+                    {
+                        "match": {
+                            "profiles": [
+                                {
+                                    "profile": {
+                                        "domain": "Computer Science",
+                                        "competencies": [
+                                            {
+                                                "name": "Performance Optimization",
+                                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                                            },
+                                            {
+                                                "name": "Parallel Computing and Communication Algorithms",
+                                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                                            },
+                                            {
+                                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                                            },
+                                            {
+                                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                                            }
+                                        ]
+                                    },
+                                    "model": "neural",
+                                    "number_of_examples": 0,
+                                    "extraction_function": "extract_from_full_texts_json",
+                                    "extraction_time": 61.78067135810852
+                                },
+                                {
+                                    "profile": {
+                                        "domain": "Computer Science",
+                                        "competencies": [
+                                            {
+                                                "name": "Performance Optimization",
+                                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                                            },
+                                            {
+                                                "name": "Parallel Computing and Communication Algorithms",
+                                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                                            },
+                                            {
+                                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                                            },
+                                            {
+                                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                                            }
+                                        ]
+                                    },
+                                    "model": "neural",
+                                    "number_of_examples": 0,
+                                    "extraction_function": "extract_from_full_texts_json",
+                                    "extraction_time": 61.78067135810852
+                                }
+                            ],
+                            "preferred_profile": 0,
+                            "reasoning": "Only one profile left in the round."
+                        },
+                        "children": [
+                            {
+                                "match": {
+                                    "profiles": [
+                                        {
+                                            "profile": {
+                                                "domain": "Computer Science: Parallel and Distributed Computing",
+                                                "competencies": [
+                                                    {
+                                                        "name": "Performance Benchmarking",
+                                                        "description": "[Development of SKaMPI benchmark for MPI performance evaluation]"
+                                                    },
+                                                    {
+                                                        "name": "All-to-All Communication",
+                                                        "description": "[Proposed Hierarchical Factor Algorithm for efficient communication in hierarchical systems]"
+                                                    },
+                                                    {
+                                                        "name": "Energy Efficient Scheduling",
+                                                        "description": "[Optimization of energy consumption for malleable tasks through frequency scaling and scheduling]"
+                                                    },
+                                                    {
+                                                        "name": "Benchmark Generation",
+                                                        "description": "[Development of a framework for generating semi-synthetic validation benchmarks for embryomics]"
+                                                    },
+                                                    {
+                                                        "name": "Algorithm Development",
+                                                        "description": "[Problem solving through algorithm design and optimization]"
+                                                    },
+                                                    {
+                                                        "name": "Performance Analysis",
+                                                        "description": "[Evaluation of algorithms and benchmarks through results and discussion sections]"
+                                                    },
+                                                    {
+                                                        "name": "Numerical Simulations",
+                                                        "description": "[Creation of realistic scenarios for simulating biological processes and image analysis problems]"
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 0,
+                                            "extraction_function": "extract_from_summaries_json",
+                                            "extraction_time": 47.658222675323486
+                                        },
+                                        {
+                                            "profile": {
+                                                "domain": "Computer Science",
+                                                "competencies": [
+                                                    {
+                                                        "name": "Performance Optimization",
+                                                        "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                                                    },
+                                                    {
+                                                        "name": "Parallel Computing and Communication Algorithms",
+                                                        "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                                                    },
+                                                    {
+                                                        "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                                        "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                                                    },
+                                                    {
+                                                        "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                                        "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                                                    }
+                                                ]
+                                            },
+                                            "model": "neural",
+                                            "number_of_examples": 0,
+                                            "extraction_function": "extract_from_full_texts_json",
+                                            "extraction_time": 61.78067135810852
+                                        }
+                                    ],
+                                    "preferred_profile": 1,
+                                    "reasoning": "Profile 1 focuses on various aspects of computer science, including performance benchmarking, all-to-all communication, energy-efficient scheduling, and benchmark generation. Profile 2 covers a broader range of topics, such as performance optimization, parallel computing, energy-efficient frequency scaling, and semi-synthetic benchmark generation. Both profiles are relevant to the abstracts but Profile 2 provides a more comprehensive understanding of the scientific content."
+                                },
+                                "children": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "preferences": [
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Profile 1 focuses on various aspects of parallel computing, performance optimization, and algorithm development. It covers MPI performance benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and the use of semi-synthetic validation benchmarks to handle complex datasets. Profile 2, on the other hand, emphasizes computer science competencies related to performance optimization, parallel computing, and communication algorithms, as well as energy-efficient scheduling and semi-synthetic benchmarks. While both profiles are relevant to the abstracts, Profile 1 provides a more comprehensive overview of the topics discussed."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science: Parallel and Distributed Computing",
+                        "competencies": [
+                            {
+                                "name": "Performance Benchmarking",
+                                "description": "[Development of SKaMPI benchmark for MPI performance evaluation]"
+                            },
+                            {
+                                "name": "All-to-All Communication",
+                                "description": "[Proposed Hierarchical Factor Algorithm for efficient communication in hierarchical systems]"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "[Optimization of energy consumption for malleable tasks through frequency scaling and scheduling]"
+                            },
+                            {
+                                "name": "Benchmark Generation",
+                                "description": "[Development of a framework for generating semi-synthetic validation benchmarks for embryomics]"
+                            },
+                            {
+                                "name": "Algorithm Development",
+                                "description": "[Problem solving through algorithm design and optimization]"
+                            },
+                            {
+                                "name": "Performance Analysis",
+                                "description": "[Evaluation of algorithms and benchmarks through results and discussion sections]"
+                            },
+                            {
+                                "name": "Numerical Simulations",
+                                "description": "[Creation of realistic scenarios for simulating biological processes and image analysis problems]"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 47.658222675323486
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. Profile 2, on the other hand, incorporates MPI performance benchmarking, energy-efficient scheduling, algorithm validation, and complex dataset handling. Both profiles cover a wide range of competencies relevant to the scientific abstracts. However, Profile 2 appears to be more comprehensive and covers a broader range of topics. Therefore, Profile 2 is more relevant to the abstracts."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                            },
+                            {
+                                "name": "SKaMPI Benchmarking",
+                                "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                            },
+                            {
+                                "name": "Performance Portability",
+                                "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                            },
+                            {
+                                "name": "Optimal Scheduling with Energy Minimization",
+                                "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                            },
+                            {
+                                "name": "Malleable Jobs and Energy Functions",
+                                "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 15.93254828453064
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing, Benchmarking, and Image Simulation",
+                        "competencies": [
+                            {
+                                "name": "Parallel Computing and Benchmarking",
+                                "description": "Understands the importance of parallel computing, benchmarking, and the development of efficient algorithms for all-to-all communication and resource scheduling."
+                            },
+                            {
+                                "name": "Energy Efficient Frequency Scaling",
+                                "description": "Demonstrates knowledge of energy-efficient frequency scaling techniques for malleable tasks in computing systems."
+                            },
+                            {
+                                "name": "Realistic Image Simulation",
+                                "description": "Familiar with the process of generating realistic benchmark images of developing embryos using a simulation framework, including object-based approaches and empirical parameter determination."
+                            },
+                            {
+                                "name": "Developmental Biology Research Tools",
+                                "description": "Recognizes the value of realistic benchmark images for the development and validation of image analysis and tracking methods in developmental biology research."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 45.21289944648743
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing and Parallel Programming",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication",
+                                "description": "Developing a communication library for portable parallel programming within the message-passing paradigm."
+                            },
+                            {
+                                "name": "Performance Benchmarking",
+                                "description": "Designing and implementing SKaMPI benchmark to provide comprehensive, detailed, and accurate performance figures for different hardware platforms and MPI implementations for performance portability and understanding."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Creating an algorithm for all-to-all communication in clusters of processing nodes, considering different numbers of processors and maintaining optimality up to an additive term."
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Solving a scheduling problem to minimize energy consumption by controlling processor clock frequencies, considering malleable jobs and more realistic energy consumption functions."
+                            },
+                            {
+                                "name": "Systematic Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic 3D+t benchmarks for time-resolved 3D fluorescence microscopy imaging experiments, considering challenging cellular movement dynamics, real embryos, and various parametrizable options."
+                            },
+                            {
+                                "name": "Image Analysis",
+                                "description": "Applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours of its early existence for validating image analysis problems."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 11.474284648895264
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                            },
+                            {
+                                "name": "SKaMPI Benchmarking",
+                                "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                            },
+                            {
+                                "name": "Performance Portability",
+                                "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                            },
+                            {
+                                "name": "Optimal Scheduling with Energy Minimization",
+                                "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                            },
+                            {
+                                "name": "Malleable Jobs and Energy Functions",
+                                "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 15.93254828453064
+                },
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on various aspects of high-performance computing, performance benchmarking, and algorithm development. It covers topics such as MPI communication library, SKaMPI benchmark, performance portability, all-to-all communication algorithms, optimal scheduling with energy minimization, and semi-synthetic benchmark generation. Profile 2, on the other hand, delves deeper into computational biology and high-performance computing, focusing on benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. Although both profiles are relevant to the scientific abstracts, Profile 2 provides a more comprehensive understanding of the topics discussed."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                },
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                            },
+                            {
+                                "name": "SKaMPI Benchmarking",
+                                "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                            },
+                            {
+                                "name": "Performance Portability",
+                                "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                            },
+                            {
+                                "name": "Optimal Scheduling with Energy Minimization",
+                                "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                            },
+                            {
+                                "name": "Malleable Jobs and Energy Functions",
+                                "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 15.93254828453064
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing, Benchmarking, and Image Simulation",
+                        "competencies": [
+                            {
+                                "name": "Parallel Computing and Benchmarking",
+                                "description": "Understands the importance of parallel computing, benchmarking, and the development of efficient algorithms for all-to-all communication and resource scheduling."
+                            },
+                            {
+                                "name": "Energy Efficient Frequency Scaling",
+                                "description": "Demonstrates knowledge of energy-efficient frequency scaling techniques for malleable tasks in computing systems."
+                            },
+                            {
+                                "name": "Realistic Image Simulation",
+                                "description": "Familiar with the process of generating realistic benchmark images of developing embryos using a simulation framework, including object-based approaches and empirical parameter determination."
+                            },
+                            {
+                                "name": "Developmental Biology Research Tools",
+                                "description": "Recognizes the value of realistic benchmark images for the development and validation of image analysis and tracking methods in developmental biology research."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 45.21289944648743
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing, Performance Benchmarking, and Algorithm Development",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the importance of MPI in high-performance computing systems and its performance characteristics."
+                            },
+                            {
+                                "name": "SKaMPI Benchmarking",
+                                "description": "Familiar with the SKaMPI benchmark, its objectives, and its role in understanding and improving MPI performance."
+                            },
+                            {
+                                "name": "Performance Portability",
+                                "description": "Aware of the importance of performance portability in ensuring predictable behavior across different hardware platforms and MPI implementations."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Developed an algorithm for all-to-all communication in a cluster of processing nodes, considering various node and processor configurations."
+                            },
+                            {
+                                "name": "Optimal Scheduling with Energy Minimization",
+                                "description": "Designed an efficient algorithm to optimally assign jobs to processors while minimizing energy consumption and satisfying a common deadline."
+                            },
+                            {
+                                "name": "Malleable Jobs and Energy Functions",
+                                "description": "Familiar with malleable jobs and more realistic energy consumption functions, including minimum and maximum clock frequencies and linear terms."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Understands the challenges in validating algorithms in the context of time-resolved 3D fluorescence microscopy imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates the ability to create realistic 3D+t benchmarks by combining real embryo cellular movement dynamics, simulated fluorescent nuclei, and artificial image distortions."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 15.93254828453064
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing, Benchmarking, and Image Simulation",
+                        "competencies": [
+                            {
+                                "name": "Parallel Computing and Benchmarking",
+                                "description": "Understands the importance of parallel computing, benchmarking, and the development of efficient algorithms for all-to-all communication and resource scheduling."
+                            },
+                            {
+                                "name": "Energy Efficient Frequency Scaling",
+                                "description": "Demonstrates knowledge of energy-efficient frequency scaling techniques for malleable tasks in computing systems."
+                            },
+                            {
+                                "name": "Realistic Image Simulation",
+                                "description": "Familiar with the process of generating realistic benchmark images of developing embryos using a simulation framework, including object-based approaches and empirical parameter determination."
+                            },
+                            {
+                                "name": "Developmental Biology Research Tools",
+                                "description": "Recognizes the value of realistic benchmark images for the development and validation of image analysis and tracking methods in developmental biology research."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 45.21289944648743
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Profile 1 focuses on various aspects of performance benchmarking, algorithm development, and high-performance computing, while also touching upon the developmental biology research tools. Profile 2, on the other hand, highlights parallel computing, benchmarking, and image simulation, along with energy-efficient frequency scaling and realistic image simulation. The first profile appears to be more comprehensive and directly relevant to the provided abstracts, as they discuss several detailed algorithms and benchmarking techniques."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "High-Performance Computing and Parallel Programming",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication",
+                                "description": "Developing a communication library for portable parallel programming within the message-passing paradigm."
+                            },
+                            {
+                                "name": "Performance Benchmarking",
+                                "description": "Designing and implementing SKaMPI benchmark to provide comprehensive, detailed, and accurate performance figures for different hardware platforms and MPI implementations for performance portability and understanding."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Creating an algorithm for all-to-all communication in clusters of processing nodes, considering different numbers of processors and maintaining optimality up to an additive term."
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Solving a scheduling problem to minimize energy consumption by controlling processor clock frequencies, considering malleable jobs and more realistic energy consumption functions."
+                            },
+                            {
+                                "name": "Systematic Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic 3D+t benchmarks for time-resolved 3D fluorescence microscopy imaging experiments, considering challenging cellular movement dynamics, real embryos, and various parametrizable options."
+                            },
+                            {
+                                "name": "Image Analysis",
+                                "description": "Applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours of its early existence for validating image analysis problems."
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 11.474284648895264
+                },
+                {
+                    "profile": {
+                        "domain": "Computational Biology and High-Performance Computing",
+                        "competencies": [
+                            {
+                                "name": "Benchmarking",
+                                "description": "Developing and applying comprehensive benchmarking tools and techniques, such as SKaMPI, for evaluating the performance of MPI implementations and parallel computing systems"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Designing efficient and optimal algorithms, like the Hierarchical Factor Algorithm, for all-to-all communication in hierarchical systems"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "Optimizing the scheduling of malleable tasks on processors to minimize energy consumption while considering factors such as frequency scaling and communication costs"
+                            },
+                            {
+                                "name": "Biological Image Simulation",
+                                "description": "Generating realistic benchmark images of developing embryos using a simulation framework driven by real embryo data and adjustable parameters"
+                            },
+                            {
+                                "name": "Task Segmentation and Tracking",
+                                "description": "Evaluating and validating algorithms for cell tracking and segmentation using the generated benchmark images and ground truth label data"
+                            }
+                        ]
+                    },
+                    "model": "mistral",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 42.28907227516174
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on a wide range of competencies, including performance benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and image analysis. Profile 2, on the other hand, delves deeper into specific aspects of computational biology and high-performance computing, such as benchmarking, all-to-all communication algorithms, energy-efficient scheduling, and biological image simulation. While both profiles are relevant to the abstracts, Profile 2's emphasis on computational biology makes it more closely related to the content discussed."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computational Biology and Algorithms",
+                        "competencies": [
+                            {
+                                "name": "Malleable Tasks Scheduling and Frequency Scaling",
+                                "description": "Develops an algorithm for energy-efficient scheduling and frequency scaling for jobs with malleable parallelism."
+                            },
+                            {
+                                "name": "Semi-Synthetic Embryomics Benchmarks",
+                                "description": "Presents a framework for generating realistic benchmark datasets for embryonic development research, combining real and simulated data."
+                            },
+                            {
+                                "name": "Non-Hierarchical Factor Algorithm Extension",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, extending the well-known algorithm for non-hierarchical systems."
+                            },
+                            {
+                                "name": "SKaMPI Comprehensive Benchmark",
+                                "description": "Develops a tool for public benchmarking of MPI communication libraries, providing comprehensive performance data for MPI implementations across various platforms and hardware configurations."
+                            },
+                            {
+                                "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, modifying the non-hierarchical factor algorithm for improved performance."
+                            },
+                            {
+                                "name": "Energy E\\ufb03cient Frequency Scaling and Scheduling",
+                                "description": "Analyzes the energy function for jobs with non-integer processor numbers and develops guidelines for computing the optimal energy-efficient solution for malleable tasks on a given number of processors."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 181.4146111011505
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on specific aspects of the abstracts such as scheduling, communication algorithms, and benchmarking. Profile 2, on the other hand, encompasses broader competencies related to parallel computing, performance optimization, and complex dataset handling. Although both profiles are relevant, Profile 2 offers a more comprehensive understanding of the scientific content. Therefore, Profile 2 is more relevant to the abstracts."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing, Performance Evaluation, and Algorithmic Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the MPI library, its performance characteristics, and the importance of benchmarking for performance portability."
+                            },
+                            {
+                                "name": "MPI Benchmarking",
+                                "description": "Develops and maintains a public performance database of MPI benchmarks to ensure accuracy and reliability."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Creates efficient algorithms for regular, personalized all-to-all communication in cluster environments."
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Optimizes energy consumption in scheduling problems with malleable jobs and realistic energy consumption functions."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Recognizes the importance of systematic validation in algorithm development and the challenges associated with large-scale datasets and complex imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates semi-synthetic approach to generate realistic benchmarks for algorithmic validation in 3D+t fluorescence microscopy imaging experiments."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 14.211020946502686
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                },
+                {
+                    "profile": {
+                        "domain": "Computational Biology and Algorithms",
+                        "competencies": [
+                            {
+                                "name": "Malleable Tasks Scheduling and Frequency Scaling",
+                                "description": "Develops an algorithm for energy-efficient scheduling and frequency scaling for jobs with malleable parallelism."
+                            },
+                            {
+                                "name": "Semi-Synthetic Embryomics Benchmarks",
+                                "description": "Presents a framework for generating realistic benchmark datasets for embryonic development research, combining real and simulated data."
+                            },
+                            {
+                                "name": "Non-Hierarchical Factor Algorithm Extension",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, extending the well-known algorithm for non-hierarchical systems."
+                            },
+                            {
+                                "name": "SKaMPI Comprehensive Benchmark",
+                                "description": "Develops a tool for public benchmarking of MPI communication libraries, providing comprehensive performance data for MPI implementations across various platforms and hardware configurations."
+                            },
+                            {
+                                "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, modifying the non-hierarchical factor algorithm for improved performance."
+                            },
+                            {
+                                "name": "Energy E\\ufb03cient Frequency Scaling and Scheduling",
+                                "description": "Analyzes the energy function for jobs with non-integer processor numbers and develops guidelines for computing the optimal energy-efficient solution for malleable tasks on a given number of processors."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 181.4146111011505
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Automatically preferred over all profiles in the looser bracket."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Parallel Computing, Performance Evaluation, and Algorithmic Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Communication Library",
+                                "description": "Understands the MPI library, its performance characteristics, and the importance of benchmarking for performance portability."
+                            },
+                            {
+                                "name": "MPI Benchmarking",
+                                "description": "Develops and maintains a public performance database of MPI benchmarks to ensure accuracy and reliability."
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithms",
+                                "description": "Creates efficient algorithms for regular, personalized all-to-all communication in cluster environments."
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Optimizes energy consumption in scheduling problems with malleable jobs and realistic energy consumption functions."
+                            },
+                            {
+                                "name": "Systematic Validation in Algorithm Development",
+                                "description": "Recognizes the importance of systematic validation in algorithm development and the challenges associated with large-scale datasets and complex imaging experiments."
+                            },
+                            {
+                                "name": "Semi-Synthetic Benchmark Generation",
+                                "description": "Demonstrates semi-synthetic approach to generate realistic benchmarks for algorithmic validation in 3D+t fluorescence microscopy imaging experiments."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 14.211020946502686
+                },
+                {
+                    "profile": {
+                        "domain": "Computational Biology and Algorithms",
+                        "competencies": [
+                            {
+                                "name": "Malleable Tasks Scheduling and Frequency Scaling",
+                                "description": "Develops an algorithm for energy-efficient scheduling and frequency scaling for jobs with malleable parallelism."
+                            },
+                            {
+                                "name": "Semi-Synthetic Embryomics Benchmarks",
+                                "description": "Presents a framework for generating realistic benchmark datasets for embryonic development research, combining real and simulated data."
+                            },
+                            {
+                                "name": "Non-Hierarchical Factor Algorithm Extension",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, extending the well-known algorithm for non-hierarchical systems."
+                            },
+                            {
+                                "name": "SKaMPI Comprehensive Benchmark",
+                                "description": "Develops a tool for public benchmarking of MPI communication libraries, providing comprehensive performance data for MPI implementations across various platforms and hardware configurations."
+                            },
+                            {
+                                "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                "description": "Introduces a new algorithm for all-to-all communication in clusters with a hierarchy of nodes, modifying the non-hierarchical factor algorithm for improved performance."
+                            },
+                            {
+                                "name": "Energy E\\ufb03cient Frequency Scaling and Scheduling",
+                                "description": "Analyzes the energy function for jobs with non-integer processor numbers and develops guidelines for computing the optimal energy-efficient solution for malleable tasks on a given number of processors."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 181.4146111011505
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on specific competencies such as MPI benchmarking, all-to-all communication algorithms, and energy-efficient scheduling. Profile 2, on the other hand, covers a broader range of topics including scheduling and frequency scaling, benchmarking, and algorithms for specific communication problems. Both profiles offer valuable insights into the scientific abstracts, but Profile 2 provides a more comprehensive understanding of the research areas due to the wider range of competencies discussed."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "MPI Benchmarking",
+                                "description": "SKaMPI provides comprehensive benchmarking for MPI, using four patterns to evaluate performance and user-defined datatype handling."
+                            },
+                            {
+                                "name": "Patterns and Measurement Strategy",
+                                "description": "SKaMPI employs various patterns and measurement methods for accurate results with adaptive parameter refinement and multiple runs."
+                            },
+                            {
+                                "name": "Post-Processing",
+                                "description": "Results can be processed in a post-processing step, filtering outliers and generating graphical representations for better comparison."
+                            },
+                            {
+                                "name": "Result Database",
+                                "description": "SKaMPI stores results in a database, enabling users to query and analyze data for further analysis."
+                            },
+                            {
+                                "name": "Hierarchical Factor Algorithm for All-to-All Communication",
+                                "description": "The algorithm optimizes communication for clusters of processing nodes, employing a non-hierarchical factor algorithm, phase loop, round loop, 1-factorization of complete graphs, and node ordering."
+                            },
+                            {
+                                "name": "Energy Efficient Frequency Scaling and Scheduling for Malleable Tasks",
+                                "description": "Optimizes energy usage for malleable tasks, considering scheduling and power budgeting techniques, as well as analyzing various speedup functions."
+                            },
+                            {
+                                "name": "Embryonic Development Simulation and Benchmarking",
+                                "description": "Simulates embryonic development with realistic cell movement dynamics and interactions, while generating large-scale, artificially flawed images for evaluation of image analysis and tracking algorithms."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 2,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 38.977405309677124
+                },
+                {
+                    "profile": {
+                        "domain": "Parallel Computing and Performance Optimization",
+                        "competencies": [
+                            {
+                                "name": "MPI Performance Benchmarking",
+                                "description": "Developing the SKaMPI benchmark to provide comprehensive, accurate, and detailed performance figures for MPI on various hardware platforms and implementations"
+                            },
+                            {
+                                "name": "All-to-All Communication Algorithm",
+                                "description": "Designing an optimal algorithm for regular, personalized all-to-all communication in cluster environments"
+                            },
+                            {
+                                "name": "Energy-Efficient Scheduling",
+                                "description": "Creating an efficient algorithm for scheduling malleable jobs on processors to minimize energy consumption under common deadlines"
+                            },
+                            {
+                                "name": "Algorithm Validation",
+                                "description": "Developing a new semi-synthetic approach to generate realistic benchmarks for time-resolved 3D fluorescence microscopy imaging experiments"
+                            },
+                            {
+                                "name": "Zebrafish Embryo Simulation",
+                                "description": "Successfully applying the semi-synthetic approach to simulate the development of a zebrafish embryo with thousands of cells over 14 hours"
+                            },
+                            {
+                                "name": "Complex Dataset Handling",
+                                "description": "Addressing the challenges of handling enormous dataset sizes and complex experiments in algorithm development"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_abstracts_json",
+                    "extraction_time": 10.932563304901123
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on MPI communication library, benchmarking, and optimization algorithms. It also includes aspects of energy-efficient scheduling and simulation for embryonic development. Profile 2, on the other hand, expands on the first profile by covering more aspects like all-to-all communication and handling complex dataset sizes. Therefore, Profile 2 is more comprehensive and relevant to the abstracts."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Only one profile left in the round."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 0,
+            "reasoning": "Only one profile left in the round."
+        },
+        {
+            "profiles": [
+                {
+                    "profile": {
+                        "domain": "Computer Science: Parallel and Distributed Computing",
+                        "competencies": [
+                            {
+                                "name": "Performance Benchmarking",
+                                "description": "[Development of SKaMPI benchmark for MPI performance evaluation]"
+                            },
+                            {
+                                "name": "All-to-All Communication",
+                                "description": "[Proposed Hierarchical Factor Algorithm for efficient communication in hierarchical systems]"
+                            },
+                            {
+                                "name": "Energy Efficient Scheduling",
+                                "description": "[Optimization of energy consumption for malleable tasks through frequency scaling and scheduling]"
+                            },
+                            {
+                                "name": "Benchmark Generation",
+                                "description": "[Development of a framework for generating semi-synthetic validation benchmarks for embryomics]"
+                            },
+                            {
+                                "name": "Algorithm Development",
+                                "description": "[Problem solving through algorithm design and optimization]"
+                            },
+                            {
+                                "name": "Performance Analysis",
+                                "description": "[Evaluation of algorithms and benchmarks through results and discussion sections]"
+                            },
+                            {
+                                "name": "Numerical Simulations",
+                                "description": "[Creation of realistic scenarios for simulating biological processes and image analysis problems]"
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_summaries_json",
+                    "extraction_time": 47.658222675323486
+                },
+                {
+                    "profile": {
+                        "domain": "Computer Science",
+                        "competencies": [
+                            {
+                                "name": "Performance Optimization",
+                                "description": "Involves MPI performance benchmarking, portability, and analysis, as well as performance prediction and analysis tools."
+                            },
+                            {
+                                "name": "Parallel Computing and Communication Algorithms",
+                                "description": "Covers efficient algorithms, optimization, analysis, and application in libraries like MPI for various computing systems."
+                            },
+                            {
+                                "name": "Energy-efficient Frequency Scaling and Scheduling",
+                                "description": "Focuses on energy optimization, job scheduling, malleable tasks, and efficient parallel processing techniques for energy minimization."
+                            },
+                            {
+                                "name": "Generating Semi-Synthetic Validation Benchmarks",
+                                "description": "Includes benchmark initialization, cell division events, simulating fluorescence microscopy images, and simulating early zebrafish development."
+                            }
+                        ]
+                    },
+                    "model": "neural",
+                    "number_of_examples": 0,
+                    "extraction_function": "extract_from_full_texts_json",
+                    "extraction_time": 61.78067135810852
+                }
+            ],
+            "preferred_profile": 1,
+            "reasoning": "Profile 1 focuses on various aspects of computer science, including performance benchmarking, all-to-all communication, energy-efficient scheduling, and benchmark generation. Profile 2 covers a broader range of topics, such as performance optimization, parallel computing, energy-efficient frequency scaling, and semi-synthetic benchmark generation. Both profiles are relevant to the abstracts but Profile 2 provides a more comprehensive understanding of the scientific content."
+        }
+    ],
+    "titles": [
+        "SKaMPI: A Comprehensive Benchmark for Public Benchmarking of MPI",
+        "The Hierarchical Factor Algorithm for All-to-All Communication",
+        "Energy Efficient Frequency Scaling and Scheduling for Malleable Tasks",
+        "Generating semi-synthetic validation benchmarks for embryomics"
+    ],
+    "author": "Peter Sanders"
+}"""

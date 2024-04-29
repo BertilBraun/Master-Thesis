@@ -89,63 +89,50 @@
                 this.radius = 20; // Node radius
             }
 
-            if (authorData.evaluation_result.length === 0) {
-                return alert('No evaluation results to display.');
+            function parseTree(inputNode) {
+                let node = new Node(inputNode.match, 0); // index gets added later after bottom-up traversal
+                inputNode.children.forEach(child => node.children.push(parseTree(child)));
+                return node
             }
 
-            var last_round = [];
-            var last_round_index = 0;
-            var current_round = authorData.evaluation_result;
-            var round_number = 0;
-            var current_ranking_index = 0;
-            var match_number = 0;
+            const root = parseTree(authorData.root);
 
-            const push_child = (node) => {
-                if (last_round.length > last_round_index) {
-                    node.children.push(last_round[last_round_index]);
-                    last_round_index += 1;
-                }
-            };
 
-            while (current_round.length > 1) {
-                console.log(last_round)
-                var next_round = [];
-                var next_last_round = [];
-                round_number += 1;
-
-                for (var i = 0; i < current_round.length - 1; i += 2) {
-                    const ranking_result = rankingResults[current_ranking_index];
-                    current_ranking_index += 1;
-
-                    const matchNode = new Node(ranking_result, match_number);
-                    push_child(matchNode);
-                    push_child(matchNode);
-                    next_last_round.push(matchNode);
-
-                    match_number += 1;
-
-                    next_round.push(ranking_result.profiles[ranking_result.preferred_profile]);
+            function bottomUpTraversal(root) {
+                if (!root) {
+                    return [];
                 }
 
-                if (current_round.length % 2 == 1) {
-                    const matchNode = new Node({
-                        profiles: [current_round[current_round.length - 1]],
-                        preferred_profile: 0,
-                        reasoning: 'Only one profile left in the round.'
-                    }, match_number);
-                    push_child(matchNode);
+                const queue = [{ node: root, depth: 0 }];
+                const depthMap = {};
+                let maxDepth = 0;
 
-                    match_number += 1;
-
-                    next_round.push(current_round[current_round.length - 1]);
+                while (queue.length > 0) {
+                    const { node, depth } = queue.shift();
+                    if (!depthMap[depth]) {
+                        depthMap[depth] = [];
+                    }
+                    depthMap[depth].push(node);
+                    maxDepth = Math.max(maxDepth, depth);
+                    node.children.forEach(child => {
+                        queue.push({ node: child, depth: depth + 1 });
+                    });
                 }
 
-                last_round = next_last_round;
-                last_round_index = 0;
-                current_round = next_round;
+                const result = [];
+                for (let d = maxDepth; d >= 0; d--) {
+                    if (depthMap[d]) {
+                        result.push(...depthMap[d]);
+                    }
+                }
+
+                return result;
             }
 
-            const root = last_round[0];
+            const nodes = bottomUpTraversal(root);
+            // set index for each node
+            nodes.forEach((node, index) => node.index = index);
+
 
             function getLeaves(node) {
                 if (node.children.length === 0) return [node];
@@ -156,7 +143,7 @@
             const leaves = getLeaves(root);
 
             // Bottom y should be log2(number of leaves) * 70 (arbitrary value for spacing)
-            const bottomY = Math.log2(leaves.length) * 70;
+            const bottomY = Math.ceil(Math.log2(leaves.length)) * 70;
             const screenX = window.innerWidth;
 
             // Set the leaves evenly spaced along the x-axis
