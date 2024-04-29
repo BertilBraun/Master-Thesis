@@ -43,10 +43,7 @@ def generate_html_file_for_tournament_evaluation(author_result: AuthorResult):
     with open('src/template_tournament_evaluation.html', 'r') as file:
         html_template = file.read()
 
-    from src.tournament_example_extraction import CONTENT2
-
-    html_content = html_template.replace('"{{authorData}}"', CONTENT2)
-    # html_content = html_template.replace('"{{authorData}}"', json_data)
+    html_content = html_template.replace('"{{authorData}}"', json_data)
 
     output_file_path = os.path.abspath(f'results/{author_result.author}.evaluation.html')
     _write_and_display(html_content, output_file_path)
@@ -57,10 +54,7 @@ def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult
     with open('src/template_tournament_ranking_result.html', 'r') as file:
         html_template = file.read()
 
-    from src.tournament_example_extraction import CONTENT2
-
-    html_content = html_template.replace('"{{authorData}}"', CONTENT2)
-    # html_content = html_template.replace('"{{authorData}}"', json_data)
+    html_content = html_template.replace('"{{authorData}}"', json_data)
 
     output_file_path = os.path.abspath(f'results/{author_result.author}.tournament.html')
     _write_and_display(html_content, output_file_path)
