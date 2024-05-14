@@ -1,8 +1,10 @@
 import os
 import time
 
-from pprint import pprint
 from enum import Enum
+from pprint import pprint
+from rich.console import Console
+from rich.status import Status
 
 
 def datetime_str() -> str:
@@ -63,3 +65,10 @@ def log(
 
     if log_file_name != LOG_FILE:
         log_file.close()
+
+
+def progress_status(message: str) -> Status:
+    # Can be use like this:
+    # with good_progress_status('Some message'):
+    #     something that happens for some time and the message gets displayed in the meantime with a loading indicator
+    return Console().status('[bold green]' + message)

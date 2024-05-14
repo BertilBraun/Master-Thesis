@@ -1,0 +1,12 @@
+{
+    "python.analysis.extraPaths": [
+        "./src"
+    ],
+    "python.autoComplete.extraPaths": [
+        "./src"
+    ],
+    "editor.codeActionsOnSave": {
+        // "source.organizeImports": true,
+        // "source.addMissingImports": true
+    }
+}
