@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Callable, Generic, Literal, Protocol, Type, TypeVar
+from typing import Callable, Generic, Literal, Protocol, Type, TypeVar, overload
 from dataclasses import dataclass, field
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -78,7 +78,7 @@ Competencies:
         competencies: list[Competency] = []
         for line in text.split('\n'):
             competency = Competency.parse(line)
-            if competency:
+            if competency.name.strip():
                 competencies.append(competency)
             elif competencies:
                 # If the line doesn't match the pattern and we have already found competencies, we break
@@ -115,8 +115,8 @@ Competencies:
                 domain = obj[key]
             elif 'competencies' in key.lower():
                 for competency in obj[key]:
-                    if competency and obj[key][competency]:  # check if the competency and its description are not empty
-                        competencies.append(Competency(name=competency, description=obj[key][competency]))
+                    if competency.strip():  # check if the competency is not empty
+                        competencies.append(Competency(name=competency.strip(), description=obj[key][competency] or ''))
 
         return Profile(domain=domain, competencies=competencies)
 
@@ -433,22 +433,48 @@ class LanguageModel(Protocol):
     def __init__(self, model: str, debug_context_name: str = ''):
         ...
 
+    @overload
     def batch(
         self,
         prompts: list[list[Message]],
         /,
         stop: list[str] = [],
-        response_format: Literal['text'] | Literal['json_object'] = 'text',
+        response_format: Literal['text'] = 'text',
+        temperature: float = 0.5,
     ) -> list[str]:
         ...
 
+    @overload
+    def batch(
+        self,
+        prompts: list[list[Message]],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['json_object'] = 'json_object',
+        temperature: float = 0.5,
+    ) -> list[dict]:
+        ...
+
+    @overload
     def invoke(
         self,
         prompt: list[Message],
         /,
         stop: list[str] = [],
-        response_format: Literal['text'] | Literal['json_object'] = 'text',
+        response_format: Literal['text'] = 'text',
+        temperature: float = 0.5,
     ) -> str:
+        ...
+
+    @overload
+    def invoke(
+        self,
+        prompt: list[Message],
+        /,
+        stop: list[str] = [],
+        response_format: Literal['json_object'] = 'json_object',
+        temperature: float = 0.5,
+    ) -> dict:
         ...
 
     def invoke_profile_custom(self, prompt: list[Message]) -> Profile:

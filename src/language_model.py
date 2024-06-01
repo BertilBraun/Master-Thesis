@@ -124,9 +124,11 @@ class OpenAILanguageModel(LanguageModel):
             )
 
             result = result.replace('<dummy32000>', '')
+            result = result.replace('</s>', '')
+
             if response_format == 'json_object':
                 # result = result from first { to last } inclusive
-                result = result[result.find('{') : result.rfind('}') + 1]
+                # result = result[result.find('{') : result.rfind('}') + 1]
                 result = JSONParser().parse(result)
             elif len(result) < 30:
                 log(
@@ -144,7 +146,7 @@ class OpenAILanguageModel(LanguageModel):
         prompt: list[Message],
         temperature: float = 0.5,
     ) -> Profile:
-        return Profile.parse(self.invoke(prompt, temperature=temperature))
+        return Profile.parse(self.invoke(prompt, stop=['\n\n\n\n'], temperature=temperature))
 
     def invoke_profile_json(
         self,

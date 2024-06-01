@@ -152,7 +152,7 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
         for full_text in query.full_texts
     ]
 
-    llm_profiles = llm.batch(prompts)
+    llm_profiles = llm.batch(prompts, response_format='json_object', stop=['\n\n\n\n'])
 
     # Assuming conversion of profiles to string format and joining them happens here.
     profiles = [Profile.parse_json(profile) for profile in llm_profiles]  # TODO

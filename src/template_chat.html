@@ -66,6 +66,12 @@
             padding: 10px;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
         }
+
+        .json-content {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            /* Ensures long words will break to fit within the container */
+        }
     </style>
 </head>
 
@@ -79,7 +85,12 @@
             messages.forEach(message => {
                 const msgDiv = document.createElement('div');
                 msgDiv.className = 'message ' + message.role + (message.name ? ' ' + message.name : ' just_system');
-                msgDiv.innerText = message.content;
+
+                const pre = document.createElement('pre');
+                pre.className = 'json-content';
+                pre.innerText = message.content;
+                msgDiv.appendChild(pre);
+
                 chatContainer.appendChild(msgDiv);
             });
         }
