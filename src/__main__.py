@@ -7,7 +7,7 @@ from tqdm import tqdm
 from itertools import product
 
 from src.language_model import OpenAILanguageModel
-from src.evaluation import evaluate_with, tournament_ranking
+from src.evaluation import tournament_ranking
 from src.extraction_custom import (
     _extract_from_full_texts_custom,
     extract_from_abstracts_custom,
@@ -26,7 +26,6 @@ from src.database import (
     get_sample_from_database,
 )
 from src.display import (
-    generate_html_file_for_extraction_result,
     generate_html_file_for_tournament_evaluation,
     generate_html_file_for_tournament_ranking_result,
 )
@@ -40,7 +39,6 @@ from src.types import (
     Combination,
     Competency,
     DatabaseTypes,
-    Evaluation,
     ExtractedProfile,
     Profile,
     Example,
@@ -112,11 +110,9 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
         profiles.append(extracted_profile)
         log(extracted_profile, use_pprint=True, log_file_name=extracted_profile_log)
 
-    evaluation_result = []  # TODO evaluate_with(EVALUATION_MODEL, query, profiles)
     root, preferences = tournament_ranking(EVALUATION_MODEL, query, profiles)
 
     result = AuthorResult(
-        evaluation_result=evaluation_result,
         root=root,
         preferences=preferences,
         titles=query.titles,
@@ -235,39 +231,6 @@ def generate_combination_references(number_of_references_to_generate: int):
         for abstract, profile in zip(query.abstracts, extracted_profiles):
             example = Example(abstract=abstract, profile=profile)
             write_reference(example, generated_examples_file)
-
-
-def generate_evaluation_references(number_of_references_to_generate: int):
-    add_initial_evaluation_references()
-
-    # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
-    # TODO src.openai_defines.BASE_URL_LLM = None
-
-    examples = get_sample_from_database(Example, number_of_references_to_generate)
-
-    generated_evaluations_file = f'logs/generated_evaluation_references/{datetime_str()}.log'
-
-    for example in examples:
-        evaluation_result = evaluate_with(
-            REFERENCE_GENERATION_MODEL,
-            Query(
-                full_texts=['Unknown'],
-                abstracts=[example.abstract],
-                titles=['Unknown'],
-                author='Unknown',
-            ),
-            [ExtractedProfile.from_profile(example.profile)],
-        )
-
-        evaluation = Evaluation(
-            paper_text=example.abstract,
-            profile=example.profile,
-            reasoning=evaluation_result[0].reasoning,
-            score=evaluation_result[0].score,
-        )
-
-        # Write the evaluation as reference to a file and database
-        write_reference(evaluation, generated_evaluations_file)
 
 
 def generate_ranking_references(number_of_references_to_generate: int):
@@ -587,186 +550,6 @@ def add_initial_combination_references():
     # add_element_to_database(Combination(), is_reference=True)
 
 
-def add_initial_evaluation_references():
-    # Add some initial references to the database.
-    if database_size(Evaluation) > 0:
-        return  # Do not add references if there are already references in the database
-
-    add_element_to_database(
-        Evaluation(
-            paper_text='\n'
-            'A novel class of metal organic frameworks (MOFs) has been synthesized from Cu-acetate and '
-            'dicarboxylic acids using liquid phase epitaxy. The SURMOF-2 isoreticular series exhibits P4 '
-            'symmetry, for the longest linker a channel-size of 3 × 3 nm2 is obtained, one of the largest '
-            'values reported for any MOF so far. High quality, ab-initio electronic structure calculations '
-            'confirm the stability of a regular packing of (Cu++)2- carboxylate paddle-wheel planes with P4 '
-            'symmetry and reveal, that the SURMOF-2 structures are in fact metastable, with a fairly large '
-            'activation barrier for the transition to the bulk MOF-2 structures exhibiting a lower, twofold '
-            '(P2 or C2) symmetry. The theoretical calculations also allow identifying the mechanism for the '
-            'low-temperature epitaxial growth process and to explain, why a synthesis of this highly '
-            'interesting, new class of high-symmetry, metastable MOFs is not possible using the conventional '
-            'solvothermal process.',
-            profile=Profile(
-                domain='Materials Science and Chemistry',
-                competencies=[
-                    Competency(
-                        name='Synthesis Expertise',
-                        description='The ability to synthesize new materials using '
-                        'innovative methods, as demonstrated by the creation '
-                        'of a novel class of metal organic frameworks (MOFs) '
-                        'from Cu-acetate and dicarboxylic acids using liquid '
-                        'phase epitaxy.',
-                    ),
-                    Competency(
-                        name='Structural Analysis',
-                        description='Proficiency in analyzing the structure of complex '
-                        'materials, as evidenced by the identification of the '
-                        'P4 symmetry and channel-size of 3 × 3 nm2 in the '
-                        'SURMOF-2 isoreticular series.',
-                    ),
-                    Competency(
-                        name='Electronic Structure Calculations',
-                        description='Skill in performing high-quality, ab-initio '
-                        'electronic structure calculations to confirm the '
-                        'stability of material structures. This is '
-                        'demonstrated by the confirmation of regular packing '
-                        'of (Cu++)2- carboxylate paddle-wheel planes with P4 '
-                        'symmetry in SURMOF-2 structures.',
-                    ),
-                    Competency(
-                        name='Stability Assessment',
-                        description='Expertise in assessing the stability and '
-                        'metastability of materials. The text showcases this '
-                        'competency by revealing that SURMOF-2 structures are '
-                        'metastable with a fairly large activation barrier for '
-                        'the transition to bulk MOF-2 structures exhibiting '
-                        'lower symmetry.',
-                    ),
-                    Competency(
-                        name='Mechanism Identification',
-                        description='Proficiency in identifying the mechanisms behind '
-                        'material synthesis processes, as illustrated by the '
-                        'identification of the mechanism for the '
-                        'low-temperature epitaxial growth process of the novel '
-                        'MOFs.',
-                    ),
-                    Competency(
-                        name='Problem Solving',
-                        description='Ability to address and explain complex scientific '
-                        'challenges, as demonstrated by the explanation of why '
-                        'a synthesis of the highly interesting, new class of '
-                        'high-symmetry, metastable MOFs is not possible using '
-                        'the conventional solvothermal process.',
-                    ),
-                ],
-            ),
-            reasoning="""The competency profile aligns well with the themes and expertise areas presented in the scientific abstracts. The abstracts focus on the synthesis, structural analysis, electronic structure calculations, stability assessment, mechanism identification, and problem-solving aspects of a novel class of metal organic frameworks (MOFs). The profile competencies match these themes closely, as demonstrated by specific examples from the abstracts:
-
-1. Synthesis Expertise: The synthesis of the novel MOFs using liquid phase epitaxy is a clear example of this competency (Abstract).
-2. Structural Analysis: The identification of P4 symmetry and channel-size in the SURMOF-2 isoreticular series showcases structural analysis expertise (Abstract).
-3. Electronic Structure Calculations: The use of high-quality, ab-initio electronic structure calculations to confirm the stability of the MOF structures demonstrates this competency (Abstract).
-4. Stability Assessment: The revelation of the metastable nature of SURMOF-2 structures and the activation barrier for transition to bulk MOF-2 structures highlights stability assessment competency (Abstract).
-5. Mechanism Identification: The identification of the low-temperature epitaxial growth process mechanism is an example of mechanism identification competency (Abstract).        
-6. Problem Solving: The explanation of why the synthesis of these MOFs is not possible using conventional solvothermal processes demonstrates problem-solving ability (Abstract). 
-
-Overall, the profile's domain of "Materials Science and Chemistry" closely aligns with the focus areas of the abstracts, further supporting the relevance of the competencies listed in the profile.""",
-            score=90,
-        ),
-        is_reference=True,
-    )
-
-    add_element_to_database(
-        Evaluation(
-            paper_text='\n'
-            'A novel class of metal organic frameworks (MOFs) has been synthesized from Cu-acetate and '
-            'dicarboxylic acids using liquid phase epitaxy. The SURMOF-2 isoreticular series exhibits P4 '
-            'symmetry, for the longest linker a channel-size of 3 × 3 nm2 is obtained, one of the largest '
-            'values reported for any MOF so far. High quality, ab-initio electronic structure calculations '
-            'confirm the stability of a regular packing of (Cu++)2- carboxylate paddle-wheel planes with P4 '
-            'symmetry and reveal, that the SURMOF-2 structures are in fact metastable, with a fairly large '
-            'activation barrier for the transition to the bulk MOF-2 structures exhibiting a lower, twofold '
-            '(P2 or C2) symmetry. The theoretical calculations also allow identifying the mechanism for the '
-            'low-temperature epitaxial growth process and to explain, why a synthesis of this highly '
-            'interesting, new class of high-symmetry, metastable MOFs is not possible using the conventional '
-            'solvothermal process.',
-            profile=Profile(
-                domain='Materials Science and Chemistry',
-                competencies=[
-                    Competency(
-                        name='Synthesis Expertise',
-                        description='The ability to synthesize new materials using '
-                        'innovative methods, as demonstrated by the creation '
-                        'of a novel class of metal organic frameworks (MOFs) '
-                        'from Cu-acetate and dicarboxylic acids using liquid '
-                        'phase epitaxy.',
-                    ),
-                    Competency(
-                        name='Structural Analysis',
-                        description='Proficiency in analyzing the structure of complex '
-                        'materials, as evidenced by the identification of the '
-                        'P4 symmetry and channel-size of 3 × 3 nm2 in the '
-                        'SURMOF-2 isoreticular series.',
-                    ),
-                    Competency(
-                        name='Electronic Structure Calculations',
-                        description='Skill in performing high-quality, ab-initio '
-                        'electronic structure calculations to confirm the '
-                        'stability of material structures. This is '
-                        'demonstrated by the confirmation of regular packing '
-                        'of (Cu++)2- carboxylate paddle-wheel planes with P4 '
-                        'symmetry in SURMOF-2 structures.',
-                    ),
-                    Competency(
-                        name='Stability Assessment',
-                        description='Expertise in assessing the stability and '
-                        'metastability of materials. The text showcases this '
-                        'competency by revealing that SURMOF-2 structures are '
-                        'metastable with a fairly large activation barrier for '
-                        'the transition to bulk MOF-2 structures exhibiting '
-                        'lower symmetry.',
-                    ),
-                    Competency(
-                        name='Mechanism Identification',
-                        description='Proficiency in identifying the mechanisms behind '
-                        'material synthesis processes, as illustrated by the '
-                        'identification of the mechanism for the '
-                        'low-temperature epitaxial growth process of the novel '
-                        'MOFs.',
-                    ),
-                    Competency(
-                        name='Problem Solving',
-                        description='Ability to address and explain complex scientific '
-                        'challenges, as demonstrated by the explanation of why '
-                        'a synthesis of the highly interesting, new class of '
-                        'high-symmetry, metastable MOFs is not possible using '
-                        'the conventional solvothermal process.',
-                    ),
-                ],
-            ),
-            reasoning='The competency profile aligns closely with the themes and expertise areas presented in the '
-            'abstracts. The abstracts discuss the synthesis of a novel class of MOFs using liquid phase '
-            'epitaxy, which is directly related to the Synthesis Expertise competency in the profile. The '
-            'structural analysis of the SURMOF-2 isoreticular series, including the identification of P4 '
-            'symmetry and channel size, corresponds well with the Structural Analysis competency. The '
-            'electronic structure calculations performed to confirm the stability of the material structures '
-            'align with the Electronic Structure Calculations competency.\n'
-            '\n'
-            'The profile also highlights Stability Assessment, Mechanism Identification, and Problem Solving '
-            'competencies, which are all reflected in the abstracts. The text reveals the metastability of '
-            "SURMOF-2 structures, demonstrating the expert's ability to assess stability and metastability. "
-            'The identification of the mechanism for the low-temperature epitaxial growth process and the '
-            'explanation of why the synthesis of the new MOFs cannot be achieved using conventional '
-            'solvothermal processes showcase the Mechanism Identification and Problem Solving competencies, '
-            'respectively.\n'
-            '\n'
-            'Overall, the competency profile is highly coherent with the focus areas of the abstracts, with '
-            'specific competencies being well-represented and no significant gaps identified.',
-            score=95,
-        ),
-        is_reference=True,
-    )
-
-
 if __name__ == '__main__':
     import sys
 
@@ -782,9 +565,6 @@ if __name__ == '__main__':
     if sys.argv[1] == 'gen_combination':
         generate_combination_references(int(sys.argv[2]))
 
-    if sys.argv[1] == 'gen_evaluation':
-        generate_evaluation_references(int(sys.argv[2]))
-
     if sys.argv[1] == 'gen_ranking':
         generate_ranking_references(int(sys.argv[2]))
 
@@ -794,6 +574,5 @@ if __name__ == '__main__':
         log('Final result:')
         log(result, use_pprint=True)
         log('-' * 50)
-        generate_html_file_for_extraction_result(result)
         generate_html_file_for_tournament_evaluation(result)
         generate_html_file_for_tournament_ranking_result(result)

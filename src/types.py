@@ -168,60 +168,6 @@ class Summary:
 
 
 @dataclass(frozen=True)
-class Evaluation:
-    paper_text: str
-    profile: Profile
-    reasoning: str  # let the model generate the reasoning before returning the score
-    score: int
-
-    def __str__(self) -> str:
-        return f"""Paper Text: {self.paper_text}\n\n\nProfile: {self.profile}\n\n\nReasoning: {self.reasoning}\n\nScore: {self.score}"""
-
-    @staticmethod
-    def parse_reasoning(text: str) -> str:
-        # Return the text between the first occurrence of 'Reasoning: ' and the next '\n\nScore:'
-        if 'reasoning:' not in text.lower():
-            log(f'Invalid reasoning format: {text}.', level=LogLevel.WARNING)
-            return ''
-
-        # Ignore case when searching for 'reasoning:'
-        return text.split('easoning:')[1].split('\n\nScore:')[0]
-
-    @staticmethod
-    def parse_evaluation_score(text: str) -> int:
-        # Return the number after the first occurrence of 'Score: '
-        match = re.search(r'Score: (\d+)', text)
-        if match:
-            number = int(match.group(1))
-            if 0 <= number <= 100:
-                return number
-
-        log(f'Invalid score format: {text}. Trying to find a number...', level=LogLevel.DEBUG)
-
-        # Return the last occurrence of a number between 0 and 100
-        match = re.findall(r'\d+', text)
-        if match:
-            for number in match[::-1]:
-                number = int(number)
-                if 0 <= number <= 100:
-                    return number
-
-        assert False, f'Invalid score format: {text}'
-
-    @staticmethod
-    def parse(text: str) -> Evaluation:
-        # Return the text between the first occurrence of 'Paper Text: ' and the next '\n\n\nProfile:'
-        paper_text, rest_text = text.split('Paper Text: ')[1].split('\n\n\nProfile:', maxsplit=1)
-
-        return Evaluation(
-            paper_text=paper_text,
-            profile=Profile.parse(rest_text),
-            reasoning=Evaluation.parse_reasoning(rest_text),
-            score=Evaluation.parse_evaluation_score(rest_text),
-        )
-
-
-@dataclass(frozen=True)
 class Ranking:
     # Represents a 2way ranking between two profiles
     paper_text: str
@@ -370,7 +316,7 @@ class ExtractionResult:
     author: str
 
 
-DatabaseTypes = TypeVar('DatabaseTypes', Example, Summary, Evaluation, Combination, Ranking)
+DatabaseTypes = TypeVar('DatabaseTypes', Example, Summary, Combination, Ranking)
 
 
 class Retriever(Protocol, Generic[DatabaseTypes]):
@@ -525,13 +471,6 @@ class ExtractedProfile:
 
 
 @dataclass(frozen=True)
-class EvaluationResult:
-    extraction: ExtractedProfile
-    reasoning: str
-    score: int
-
-
-@dataclass(frozen=True)
 class RankingResult:
     # Represents a 2way ranking between two profiles
     profiles: tuple[ExtractedProfile, ExtractedProfile]
@@ -568,7 +507,6 @@ class TournamentNode:
 
 @dataclass(frozen=True)
 class AuthorResult:
-    evaluation_result: list[EvaluationResult]
     root: TournamentNode
     preferences: list[RankingResult]
     titles: list[str]

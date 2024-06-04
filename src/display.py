@@ -86,7 +86,6 @@ if __name__ == '__main__':
         Competency,
         Profile,
         ExtractedProfile,
-        EvaluationResult,
         SystemMessage,
         HumanMessage,
         AIMessage,
@@ -108,12 +107,10 @@ if __name__ == '__main__':
         extraction_function='extraction_function',
         extraction_time=0.5,
     )
-    evaluation_result = [EvaluationResult(extracted_profile, 'High accuracy in predictive modeling', 95)]
     ranking_result = RankingResult(
         profiles=(extracted_profile, extracted_profile), reasoning='Same profile', preferred_profile=0
     )
     author_result = AuthorResult(
-        evaluation_result,
         TournamentNode(match=ranking_result, children=[]),
         [ranking_result],
         ['Paper on AI', 'Thesis on ML'],
