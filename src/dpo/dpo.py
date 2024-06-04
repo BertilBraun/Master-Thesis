@@ -12,9 +12,7 @@ from trl import (
     DPOTrainer,
     ModelConfig,
     RichProgressCallback,
-    get_kbit_device_map,
     get_peft_config,
-    get_quantization_config,
 )
 
 from src.dpo.dpo_database import DPODatabase, EvaluationType
@@ -31,14 +29,22 @@ def load_dataset(
     evaluation_type: EvaluationType,
     test_percentage: float = TEST_PERCENTAGE,
 ) -> tuple[Dataset, Dataset]:
-    """
-    # TODO add the doc string with copilot :D
+    """Load the dataset from the database and split it into training and validation sets.
+    The dataset is preprocessed using the tokenizer and contains the following columns:
+    - prompt: list[str]
+    - chosen: list[str]
+    - rejected: list[str]
+
+    Args:
+        db (DPODatabase): The database object.
+        tokenizer (PreTrainedTokenizer | PreTrainedTokenizerFast): The tokenizer to use.
+        evaluation_type (EvaluationType): The type of evaluation to load.
+        test_percentage (float, optional): The percentage of data to use for testing. Defaults to TEST_PERCENTAGE.
+
+    Returns:
+        tuple[Dataset, Dataset]: The training and validation datasets.
     """
 
-    # Dataset with:
-    # prompt: list[str]
-    # chosen: list[str]
-    # rejected: list[str]
     ds = Dataset.from_dict(db.get_entries_by_type(evaluation_type))
 
     def process(row):
@@ -87,23 +93,41 @@ train_dataset, test_dataset = load_dataset(db, tokenizer, EvaluationType.AUTOMAT
 
 print(train_dataset, test_dataset)
 
+
+# TODO login to wandb
+# Parameters are from: https://github.com/huggingface/trl/blob/main/examples/scripts/dpo.py
 training_args = TrainingArguments(
     output_dir=OUTPUT_DIR,
     overwrite_output_dir=True,
-    per_device_train_batch_size=1,
+    gradient_accumulation_steps=1,
+    learning_rate=1e-3,
+    optim='rmsprop',  # TODO verify
+    per_device_train_batch_size=4,
     per_device_eval_batch_size=1,
     num_train_epochs=1,
     logging_dir='logs',
     logging_steps=10,
-    save_steps=10,
-    save_total_limit=1,
+    save_steps=2,
+    save_total_limit=2,
     evaluation_strategy='steps',
-    eval_steps=10,
-    report_to='none',
+    eval_steps=20,
+    report_to='wandb',
     logging_first_step=True,
     load_best_model_at_end=True,
     metric_for_best_model='eval_loss',
     greater_is_better=False,
+    warmup_steps=150,
+    remove_unused_columns=False,
+)
+
+model_config = ModelConfig(
+    model_name_or_path=MODEL,
+    torch_dtype='bfloat16',
+    attn_implementation='flash_attention_2',
+    trust_remote_code=False,
+    lora_r=16,
+    lora_alpha=16,
+    use_peft=True,
 )
 
 with progress_status('Initializing the DPOTrainer...'):
@@ -181,28 +205,4 @@ dpo_trainer = DPOTrainer(
     model_adapter_name="train",
     ref_adapter_name="reference",
 )
-"""
-
-"""
-Possible good default settings:
-
-# peft:
-python examples/scripts/dpo.py \
-    --dataset_name=trl-internal-testing/hh-rlhf-trl-style \
-    --model_name_or_path=gpt2 \
-    --per_device_train_batch_size 4 \
-    --learning_rate 1e-3 \
-    --gradient_accumulation_steps 1 \
-    --logging_steps 10 \
-    --eval_steps 500 \
-    --output_dir="dpo_anthropic_hh" \
-    --optim rmsprop \
-    --warmup_steps 150 \
-    --report_to wandb \
-    --bf16 \
-    --logging_first_step \
-    --no_remove_unused_columns \
-    --use_peft \
-    --lora_r=16 \
-    --lora_alpha=16
 """
