@@ -104,3 +104,9 @@ def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
         return wrapper
 
     return decorator
+
+
+def write_to_file(file_name: str, content: str) -> None:
+    os.makedirs(os.path.dirname(file_name), exist_ok=True)
+    with open(file_name, 'w') as f:
+        f.write(content)

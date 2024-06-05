@@ -16,3 +16,5 @@ results/**
 **.db
 
 #tournament_example_extraction.py
+
+**/jsonbin_cache/**
