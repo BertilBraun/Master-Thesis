@@ -142,8 +142,14 @@
         <div class="modal-content">
             <h2>Submitting Your Evaluations</h2>
 
-            <p>Thank you for participating in the evaluation. You can now submit your evaluations by clicking the button
+            <p>Thank you for participating in the evaluation.</p>
+            <p>If you have any additional comments or feedback, please feel free to include them in the text box below:
+            </p>
+            <textarea id="feedback" placeholder="Feedback" style="width: 300px; height: 100px;"></textarea>
+            <br>
+            <p>You can now submit your evaluations by clicking the button
                 below.</p>
+            <br>
 
             <button class="button" onclick="submitData()" id="submit">Submit</button>
 
@@ -260,7 +266,8 @@ print(result, message)
                 "author": authorData.author,
                 "titles": authorData.titles,
                 "profiles": mapped_profiles,
-                "preferences": preferences
+                "preferences": preferences,
+                "feedback": document.getElementById('feedback').value
             };
 
             console.log(postData);
