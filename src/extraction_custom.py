@@ -27,8 +27,8 @@ def extract_from_abstracts_custom(query: Query, retriever: RetrieverGetter, llm:
 ```
 Domain: [Short Domain Description]
 Competencies:
-- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the abstracts]
-- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the abstracts]
+- [Competency Name]: [Brief description of how Competency 1 is demonstrated across the abstracts]
+- [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
 ...
 ```
 Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
@@ -74,7 +74,7 @@ Please exclude redundant information such as authors, publication date, and loca
         for full_text in query.full_texts
     ]
 
-    summaries = '\n\n'.join(llm.batch(prompts))
+    summaries = '\n\n\n'.join(f'Summary {i + 1}:{summary}' for i, summary in enumerate(llm.batch(prompts)))
 
     # Second Stage: Extraction of Competencies from Summaries
 
@@ -84,15 +84,15 @@ Please exclude redundant information such as authors, publication date, and loca
 ```
 Domain: [Short Domain Description]
 Competencies:
-- [Competency 1]: [Brief description of how Competency 1 is demonstrated across the summaries]
-- [Competency 2]: [Brief description of how Competency 2 is demonstrated across the summaries]
+- [Competency Name]: [Brief description of how Competency 1 is demonstrated across the summaries]
+- [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
 ...
 ```
 Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
-            content=f'Please analyze these scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}'
+            content=f'Please analyze these {len(query.full_texts)} scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}'
         ),
     ]
 
@@ -114,8 +114,8 @@ def _extract_from_full_texts_custom(
 ```
 Domain: [Short Domain Description]
 Competencies:
-- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
-- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
+- [Competency Name]: [Detailed explanation of how Competency 1 is demonstrated in the text]
+- [Competency Name]: [Detailed explanation of how Competency 2 is demonstrated in the text]
 ...
 ```
 List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
@@ -131,8 +131,8 @@ The domain should succinctly summarize the general area of research of the paper
 ```
 Domain: [Short Domain Description]
 Competencies:
-- [Competency 1]: [Detailed explanation of how Competency 1 is demonstrated in the text]
-- [Competency 2]: [Detailed explanation of how Competency 2 is demonstrated in the text]
+- [Competency Name]: [Detailed explanation of how Competency 1 is demonstrated in the text]
+- [Competency Name]: [Detailed explanation of how Competency 2 is demonstrated in the text]
 ...
 ```
 Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
@@ -163,7 +163,7 @@ Combine the competencies into 3 to 8 competencies to reflect overarching skills 
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize these individual profiles into one comprehensive profile of 3 to 8 competencies:\n\n{profiles_str}'
+            content=f'Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}'
         ),
     ]
 

@@ -9,7 +9,7 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from src.log import LogLevel, log
 
-_COMPETENCY_PATTERN = re.compile(r'- (.+?): (.+)')
+_COMPETENCY_PATTERN = re.compile(r'([-|\d+].*?)? (.+?): (.+)')
 
 
 @dataclass(frozen=True)
@@ -26,11 +26,9 @@ class Competency:
 
         match = _COMPETENCY_PATTERN.match(text)
         if match:
-            name, description = match.groups()
+            prefix, name, description = match.groups()
             return Competency(name=name, description=description)
         log(f'Invalid competency format: {text}.', level=LogLevel.DEBUG)
-        if text.startswith('- '):
-            return Competency(name=text[2:], description='')
         return Competency(name=text, description='')
 
 
@@ -116,7 +114,7 @@ Competencies:
             elif 'competencies' in key.lower():
                 for competency in obj[key]:
                     if competency.strip():  # check if the competency is not empty
-                        competencies.append(Competency(name=competency.strip(), description=obj[key][competency] or ''))
+                        competencies.append(Competency(name=competency.strip(), description=str(obj[key][competency])))
 
         return Profile(domain=domain, competencies=competencies)
 
@@ -376,6 +374,8 @@ Message = SystemMessage | HumanMessage | AIMessage | HumanExampleMessage | AIExa
 
 
 class LanguageModel(Protocol):
+    debug_context_name: str
+
     def __init__(self, model: str, debug_context_name: str = ''):
         ...
 
@@ -449,6 +449,9 @@ class Instance:
             number_of_examples=0,
             extract=lambda q, r, l: Profile(domain='', competencies=[]),  # noqa
         )
+
+    def __str__(self) -> str:
+        return f'Instance({self.model} ({self.number_of_examples} examples) - {self.extract.__name__})'
 
 
 @dataclass(frozen=True)

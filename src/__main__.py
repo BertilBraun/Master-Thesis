@@ -1,9 +1,7 @@
 import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
-import time
 import random
 
-from tqdm import tqdm
 from itertools import product
 
 from src.language_model import OpenAILanguageModel
@@ -46,17 +44,19 @@ from src.types import (
     Query,
     Ranking,
 )
-from src.util import timeit
+from src.util import timeblock, timeit
 from src.log import LogLevel, datetime_str, log
 
 
 OTHER_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something other than the REFERENCE_GENERATION_MODEL to generate different results which can be used for ranking
 REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
+EVALUATION_MODEL = 'alias-large'
 
 MODELS = [
-    'mistral',
-    'neural',
+    'alias-fast',
+    # 'mistral',
+    # 'neural',
     # 'mixtral',
     # TODO 'phi3 mini' 3.8B parameters
     # TODO 'llama3' 8B parameters (ultra sota)
@@ -73,7 +73,7 @@ EXTRACTORS = [
     extract_from_summaries_json,
     extract_from_full_texts_custom,
     extract_from_full_texts_json,
-][1::2]  # Only use the json extractors for now, as they are more reliable
+]  # TODO [1::2]  # Only use the json extractors for now, as they are more reliable
 
 
 @timeit('Processing Author')
@@ -84,33 +84,32 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
 
     extracted_profile_log = f'logs/extracted_profiles/{name}_{datetime_str()}.log'
 
-    for model, number_of_examples, extract_func in tqdm(
-        product(MODELS, EXAMPLES, EXTRACTORS),
-        desc='Processing different models and extractors',
-    ):
-        instance = Instance(
-            model,
-            number_of_examples,
-            extract_func,
-        )
+    with timeblock(f'Processing Extracted Profiles for {name=}'):
+        for model, number_of_examples, extract_func in product(MODELS, EXAMPLES, EXTRACTORS):
+            instance = Instance(
+                model,
+                number_of_examples,
+                extract_func,
+            )
 
-        start = time.time()
-        if (profile := run_query_for_instance(instance, query)) is None:
-            continue
-        extraction_time = time.time() - start
+            with timeblock(f'Processing {instance}') as timer:
+                if (profile := run_query_for_instance(instance, query)) is None:
+                    continue
 
-        extracted_profile = ExtractedProfile(
-            profile=profile,
-            model=instance.model,
-            number_of_examples=instance.number_of_examples,
-            extraction_function=instance.extract.__qualname__,
-            extraction_time=extraction_time,
-        )
+                extracted_profile = ExtractedProfile(
+                    profile=profile,
+                    model=instance.model,
+                    number_of_examples=instance.number_of_examples,
+                    extraction_function=instance.extract.__qualname__,
+                    extraction_time=timer.elapsed_time,
+                )
 
-        profiles.append(extracted_profile)
-        log(extracted_profile, use_pprint=True, log_file_name=extracted_profile_log)
+                profiles.append(extracted_profile)
+                log(extracted_profile, use_pprint=True, log_file_name=extracted_profile_log)
 
-    root, preferences = tournament_ranking(EVALUATION_MODEL, query, profiles)
+    log('Creating tournament evaluation and ranking')
+    with timeblock('Processing Evaluation'):
+        root, preferences = tournament_ranking(EVALUATION_MODEL, query, profiles)
 
     result = AuthorResult(
         root=root,
@@ -118,20 +117,19 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
         titles=query.titles,
         author=query.author,
     )
-    log(result, use_pprint=True, log_file_name=extracted_profile_log)
+    log(result, use_pprint=True, log_file_name=extracted_profile_log, level=LogLevel.DEBUG)
     return result
 
 
-@timeit('Querying Instance')
 def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
-    log(f'Running query for instance: {instance}', level=LogLevel.INFO)
+    log(f'Running query for instance: {instance}')
 
     retriever_getter = get_retriever_getter(instance.number_of_examples)
 
     llm = OpenAILanguageModel(instance.model, debug_context_name=instance.extract.__qualname__)
 
     try:
-        profile = instance.extract(query, retriever_getter, llm)
+        return instance.extract(query, retriever_getter, llm)
     except Exception as e:
         log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
         log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
@@ -141,8 +139,6 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
             raise e
 
         return None
-
-    return profile
 
 
 def write_reference(element: DatabaseTypes, file_name: str) -> None:
@@ -191,12 +187,12 @@ def generate_combination_references(number_of_references_to_generate: int):
     random.shuffle(authors)
     authors = authors[:number_of_references_to_generate]
 
-    # Get papers from different authors but only look at the abstracts
-    queries = [get_papers_by_author(author.name, number_of_papers=3) for author in authors]
+    queries = [get_papers_by_author(author.name, number_of_papers=2) for author in authors]
     queries = [
         Query(
-            full_texts=query.abstracts,
             abstracts=query.abstracts,
+            # Get papers from different authors but only look at the abstracts
+            full_texts=query.abstracts,
             titles=query.titles,
             author=query.author,
         )
@@ -556,9 +552,6 @@ if __name__ == '__main__':
     if len(sys.argv) <= 2:
         sys.exit('Usage: python -m src <command> <query>')
 
-    if sys.argv[1] == 'add' and sys.argv[2] == 'references':
-        add_initial_example_references()
-
     if sys.argv[1] == 'gen_example':
         generate_example_references(int(sys.argv[2]))
 
@@ -571,8 +564,8 @@ if __name__ == '__main__':
     if sys.argv[1] == 'author':
         result = process_author(sys.argv[2], number_of_papers=4)
 
-        log('Final result:')
-        log(result, use_pprint=True)
+        # log('Final result:')
+        # log(result, use_pprint=True)
         log('-' * 50)
         generate_html_file_for_tournament_evaluation(result)
         generate_html_file_for_tournament_ranking_result(result)

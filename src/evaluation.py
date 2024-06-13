@@ -1,3 +1,4 @@
+import random
 from typing import Callable
 from src.database import get_ranking_messages_json, get_retriever_getter
 from src.types import (
@@ -46,23 +47,33 @@ def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[Ext
         prompt = [
             SystemMessage(
                 content="""You are a skilled evaluator tasked with evaluating the relevance of two competency profiles that were extracted by another system from provided scientific abstracts. Each profile is expected to reflect a specific domain of expertise and list 3 to 8 key competencies demonstrated by the author. Your task is to evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Compare the two profiles and determine which one is more relevant to the abstracts, structuring your response as follows:
-```json
 {
     "reasoning": "[Your Evaluation and Reasoning]",
     "preferred_profile": [1 or 2]
 }
-```
 Your analysis should be neutral, accurate, and detailed, based on the content of the abstracts provided."""
             ),
             *json_examples,
             HumanMessage(
-                content=f'Please assess the following competency profile in terms of its relevance to these scientific abstracts.\n\nAbstracts:\n{abstracts}\n\n\nProfile 1:\n{profile1.profile}\n\n\nProfile 2:\n{profile2.profile}\n\nYour evaluation must follow this json format:\n'
-                + """```json
-{
+                content=f"""Please assess the following competency profile in terms of its relevance to these scientific abstracts.
+
+Abstracts:
+{abstracts}
+
+
+Profile 1:
+{profile1.profile}
+
+
+Profile 2:
+{profile2.profile}
+
+
+Your evaluation must follow this json format:
+{{
     "reasoning": "[Your Evaluation and Reasoning]",
     "preferred_profile": [1 or 2]
-}
-```
+}}
 Be specific and detailed in your reasoning and provide the number of the preferred profile."""
             ),
         ]
@@ -88,7 +99,8 @@ def tournament_ranking(
 
     evaluator = get_prompt_for_tournament_ranking(model, query)
 
-    current_round = extractions
+    current_round = extractions.copy()
+    random.shuffle(current_round)
 
     last_round_index = 0
     last_round_nodes: list[TournamentNode] = []

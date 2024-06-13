@@ -1,3 +1,4 @@
+from contextlib import contextmanager
 import os
 import re
 import time
@@ -20,6 +21,35 @@ def timeit(message: str, level: LogLevel = LogLevel.INFO):
         return wrapper
 
     return decorator
+
+
+@contextmanager
+def timeblock(message: str, level: LogLevel = LogLevel.INFO):
+    """
+    with timeblock('Sleeping') as timer:
+        time.sleep(2)
+        print(f'Slept for {timer.elapsed_time} seconds')
+        time.sleep(1)
+
+    # Output:
+    # Slept for 2.001 seconds
+    # Timing Sleeping took: 3.002 seconds
+    """
+    start_time = time.time()  # Record the start time
+
+    class Timer:
+        # Nested class to allow access to elapsed time within the block
+        @property
+        def elapsed_time(self):
+            # Calculate elapsed time whenever it's requested
+            return time.time() - start_time
+
+    timer = Timer()
+
+    try:
+        yield timer  # Allow the block to access the timer
+    finally:
+        log(f'Timing {message} took: {timer.elapsed_time:.3f} seconds', level=level)
 
 
 def sanitize_filename(filename: str) -> str:

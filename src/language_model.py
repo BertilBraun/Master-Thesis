@@ -106,6 +106,8 @@ class OpenAILanguageModel(LanguageModel):
                 stream=src.openai_defines.DEBUG,
                 temperature=temperature,  # TODO play with this?
                 response_format={'type': response_format},
+                max_tokens=1024,
+                timeout=100,  # 100 seconds - should be enough for the model to respond (unless the backend is down)
             )
 
             if src.openai_defines.DEBUG:
@@ -118,9 +120,14 @@ class OpenAILanguageModel(LanguageModel):
             else:
                 result = response.choices[0].message.content or 'Error: No response from model'
 
+            try_str = (
+                ''
+                if retries == src.openai_defines.MAX_RETRIES - 1
+                else f' (try {src.openai_defines.MAX_RETRIES-retries})'
+            )
             generate_html_file_for_chat(
                 [*prompt, AIMessage(content=result)],
-                f'{self.model}_{self.debug_context_name}_{time_str()}_try_{src.openai_defines.MAX_RETRIES-retries}',
+                f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
             )
 
             result = result.replace('<dummy32000>', '')

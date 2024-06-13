@@ -7,10 +7,10 @@ from typing import Type
 
 import chromadb
 import chromadb.utils.embedding_functions
+from chromadb.api.types import Document, Embedding
 
 from src.types import (
     Combination,
-    Evaluation,
     Example,
     HumanExampleMessage,
     AIExampleMessage,
@@ -36,7 +36,6 @@ client = chromadb.PersistentClient(path='data')
 class DBEntryType(Enum):
     EXAMPLE = ('example', Example)
     SUMMARY = ('summary', Summary)  # NOTE currently not used
-    EVALUATION = ('evaluation', Evaluation)
     COMBINATION = ('combination', Combination)
     RANKING = ('ranking', Ranking)
 
@@ -44,7 +43,7 @@ class DBEntryType(Enum):
 COLLECTIONS = {
     element.value[1]: client.get_or_create_collection(
         name=element.value[0],
-        metadata={'reference': 'bool'},
+        metadata={'reference': 'bool', 'hnsw:space': 'cosine'},
         # embedding_function=chromadb.utils.embedding_functions.OpenAIEmbeddingFunction(
         #     api_base=src.openai_defines.BASE_URL_EMBEDDINGS, api_key=src.openai_defines.OPENAI_API_KEY
         # ),
@@ -82,6 +81,43 @@ def database_size(type: Type[DatabaseTypes]) -> int:
     return COLLECTIONS[type].count()
 
 
+def _cosine_similarity(a: Embedding, b: Embedding) -> float:
+    len_a = sum(x**2 for x in a) ** 0.5
+    len_b = sum(x**2 for x in b) ** 0.5
+    dot_product = sum(x * y for x, y in zip(a, b))
+    return dot_product / (len_a * len_b)
+
+
+# TODO adjust the threshold
+def _greedy_filter(
+    documents: list[Document],
+    embeddings: list[Embedding],
+    number_of_documents: int,
+    threshold: float,
+) -> list[str]:
+    final_documents: list[str] = []
+    added_embeddings: list[Embedding] = []
+    not_added_documents: list[str] = []
+
+    for document, embedding in zip(documents, embeddings):
+        for selected in added_embeddings:
+            if _cosine_similarity(embedding, selected) > threshold:
+                not_added_documents.append(document)
+                break
+        else:
+            # None of the selected embeddings were too close to the current one
+            final_documents.append(document)
+            added_embeddings.append(embedding)
+
+            if len(final_documents) == number_of_documents:
+                break
+
+    while len(final_documents) < number_of_documents:
+        final_documents.append(not_added_documents.pop(0))
+
+    return final_documents
+
+
 def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
     class DatabaseRetriever(Retriever[DatabaseTypes]):
         def __init__(self, return_type: Type[DatabaseTypes]):
@@ -90,7 +126,7 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
         def invoke(self, query: str) -> list[DatabaseTypes]:
             return self.batch([query])[0]
 
-        @timeit('RAG Retrieval')
+        @timeit('RAG Retrieval', level=LogLevel.DEBUG)
         def batch(self, queries: list[str]) -> list[list[DatabaseTypes]]:
             if max_number_to_retrieve == 0:
                 # No retrievals needed - chromadb will crash if we try to retrieve 0 documents
@@ -100,16 +136,29 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
 
             res = COLLECTIONS[self.return_type].query(
                 query_texts=queries,
-                n_results=max_number_to_retrieve,
+                # We want to get a few more than the maximum number of results we want to return to be able to filter out ones that are too close to each other
+                n_results=max_number_to_retrieve * 2,
                 where={'reference': True},
-                include=['documents'],
+                include=['documents', 'embeddings'],
             )
 
             log(f'Retrieved the following documents: {res}', level=LogLevel.DEBUG)
 
             assert res['documents'] is not None, f'No documents found for queries: {queries}'
+            assert res['embeddings'] is not None, f'No embeddings found for queries: {queries}'
 
-            return [[self.return_type.parse(doc) for doc in similar_docs] for similar_docs in res['documents']]
+            return [
+                [
+                    self.return_type.parse(doc)
+                    for doc in _greedy_filter(
+                        similar_docs,
+                        similar_embeddings,
+                        number_of_documents=max_number_to_retrieve,
+                        threshold=0.8,
+                    )
+                ]
+                for similar_docs, similar_embeddings in zip(res['documents'], res['embeddings'])
+            ]
 
     def get_retriever(return_type: Type[DatabaseTypes]) -> Retriever[DatabaseTypes]:
         return DatabaseRetriever[DatabaseTypes](return_type=return_type)
@@ -158,19 +207,6 @@ def get_summary_messages(content: str, retriever: Retriever[Summary]) -> list[Me
         for message in [
             HumanExampleMessage(content=f'Example {i + 1}:\n{summary.full_text}'),
             AIExampleMessage(content=summary.summary),
-        ]
-    ]
-
-
-def get_evaluation_messages(content: str, retriever: Retriever[Evaluation]) -> list[Message]:
-    evaluations = retriever.invoke(content)
-
-    return [
-        message
-        for i, evaluation in enumerate(evaluations)
-        for message in [
-            HumanExampleMessage(content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n{evaluation.profile}'),
-            AIExampleMessage(content=f'Evaluation and Reasoning: {evaluation.reasoning}\nScore: {evaluation.score}'),
         ]
     ]
 

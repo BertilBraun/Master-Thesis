@@ -76,8 +76,6 @@ def _write_and_display(html_content: str, output_file_path: str):
     with open(output_file_path, 'w') as file:
         file.write(html_content)
 
-    file_name = os.path.basename(output_file_path)
-    print(f'You can open the html chat file of {file_name} here:')
     print('file:///' + output_file_path.replace('\\', '/'))
 
 
