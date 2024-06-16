@@ -1,4 +1,4 @@
-import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
+import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import os
 

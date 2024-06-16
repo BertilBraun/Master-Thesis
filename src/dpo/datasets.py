@@ -1,3 +1,4 @@
+import src.defines
 from src.dpo.dpo_database import DPODatabase, EvaluationType
 from src.dpo.jsonbin import JsonBin
 from src.types import AuthorResult, Profile, Competency
@@ -25,7 +26,7 @@ Abstracts:
 
 
 def add_to_dataset_from_expert_evaluation(db: DPODatabase) -> None:
-    jsonbin = JsonBin(api_key='$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm')
+    jsonbin = JsonBin(api_key=src.defines.JSONBIN_API_KEY)
     bins = jsonbin.bins()
     print('Found', len(bins), 'bins', bins)
 

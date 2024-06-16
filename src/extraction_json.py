@@ -161,7 +161,7 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
         SystemMessage(
             content="""You are tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as a json object as follows:
 {
-    "domain": "[Short Domain Description]",
+    "domain": "[Short Consolidated Domain Description]",
     "competencies": {
         "[Competency Name]": "[Consolidated description based on individual profiles as one string]",
         "[Competency Name]": "[Consolidated description based on individual profiles as one string]",

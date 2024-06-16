@@ -1,4 +1,6 @@
-import src.openai_defines  # noqa # sets the OpenAI API key and base URL to the environment variables
+import json
+import os
+import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import tiktoken
 
@@ -15,7 +17,7 @@ from src.display import generate_html_file_for_chat
 class OpenAILanguageModel(LanguageModel):
     def __init__(self, model: str, debug_context_name: str = ''):
         self.model = model
-        self.openai = OpenAI(base_url=src.openai_defines.BASE_URL_LLM)
+        self.openai = OpenAI(base_url=src.defines.BASE_URL_LLM)
         self.debug_context_name = debug_context_name
 
     @overload
@@ -92,61 +94,124 @@ class OpenAILanguageModel(LanguageModel):
         log(f'Running model: {self.model}', level=LogLevel.DEBUG)
         log(f'Prompt:\n{[m.to_dict() for m in prompt]}', level=LogLevel.DEBUG)
 
-        retries = src.openai_defines.MAX_RETRIES
-        has_failed = True
+        key = json.dumps(
+            {
+                'model': self.model,
+                'messages': [message.to_dict() for message in prompt],
+                'stop': stop,
+                'temperature': temperature,
+                'response_format': response_format,
+            }
+        )
+        if os.path.exists('llm.json.cache'):
+            with open('llm.json.cache', 'r') as f:
+                cache = json.load(f)
+                if key in cache:
+                    return cache[key]
+        else:
+            cache = {}
 
-        while retries > 0 and has_failed and temperature > 0.2:
-            retries -= 1
-            has_failed = False
+        success, result = self._invoke_with_retry(
+            prompt,
+            stop,
+            response_format,
+            temperature,
+            src.defines.MAX_RETRIES,
+        )
 
-            response = self.openai.chat.completions.create(
-                model=self.model,
-                messages=[message.to_dict() for message in prompt],
-                stop=stop,
-                stream=src.openai_defines.DEBUG,
-                temperature=temperature,  # TODO play with this?
-                response_format={'type': response_format},
-                max_tokens=1024,
-                timeout=100,  # 100 seconds - should be enough for the model to respond (unless the backend is down)
-            )
+        if success:
+            with open('llm.json.cache', 'w') as f:
+                cache[key] = result
+                json.dump(cache, f)
 
-            if src.openai_defines.DEBUG:
-                result = ''
-                for chunk in response:  # type: ignore
-                    delta = chunk.choices[0].delta.content or ''  # type: ignore
-                    print(delta, end='', flush=True)
-                    result += delta
-                print('\n\n')
-            else:
-                result = response.choices[0].message.content or 'Error: No response from model'
+        return result
 
-            try_str = (
-                ''
-                if retries == src.openai_defines.MAX_RETRIES - 1
-                else f' (try {src.openai_defines.MAX_RETRIES-retries})'
-            )
+    def _invoke_with_retry(
+        self,
+        prompt: list[Message],
+        stop: list[str],
+        response_format: Literal['text', 'json_object'],
+        temperature: float,
+        retries: int,
+    ) -> tuple[bool, str | dict]:
+        # Returns [success, result string or error message or json object]
+        while retries > 0:
+            success, result = self._invoke(prompt, stop, response_format, temperature)
+
+            try_str = '' if retries == src.defines.MAX_RETRIES else f' (try {src.defines.MAX_RETRIES-retries+1})'
             generate_html_file_for_chat(
-                [*prompt, AIMessage(content=result)],
+                prompt + [AIMessage(content=result)],
                 f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
             )
 
-            result = result.replace('<dummy32000>', '')
-            result = result.replace('</s>', '')
+            if not success:
+                retries -= 1
+                continue
 
             if response_format == 'json_object':
                 # result = result from first { to last } inclusive
                 # result = result[result.find('{') : result.rfind('}') + 1]
                 result = JSONParser().parse(result)
-            elif len(result) < 30:
-                log(
-                    'Response is most likely empty. Check the chat history for more information.',
-                    level=LogLevel.WARNING,
-                )
-                has_failed = True
+
+            return True, result
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
 
-        return result
+        return False, result
+
+    def _invoke(
+        self,
+        prompt: list[Message],
+        stop: list[str],
+        response_format: Literal['text', 'json_object'],
+        temperature: float,
+    ) -> tuple[bool, str]:
+        # Returns [success, result string or error message]
+        try:
+            response = self.openai.chat.completions.create(
+                model=self.model,
+                messages=[message.to_dict() for message in prompt],
+                stop=stop,
+                stream=src.defines.DEBUG,
+                temperature=temperature,  # TODO play with this?
+                response_format={'type': response_format},
+                max_tokens=1024,
+                timeout=100,  # 100 seconds - should be enough for the model to respond (unless the backend is down)
+            )
+        except Exception as e:
+            log(
+                f'Error Generating Response: {e} for model {self.model} with debug context {self.debug_context_name}',
+                level=LogLevel.WARNING,
+            )
+            return False, f'Error: Exception occurred while generating response {e}'
+
+        if src.defines.DEBUG:
+            result = ''
+            for chunk in response:  # type: ignore
+                delta = chunk.choices[0].delta.content or ''  # type: ignore
+                print(delta, end='', flush=True)
+                result += delta
+            print('\n\n')
+        else:
+            if not response.choices or not response.choices[0].message.content:
+                log(
+                    f'Error: No response from model for model {self.model} with debug context {self.debug_context_name}',
+                    level=LogLevel.WARNING,
+                )
+                return False, 'Error: No response from model'
+            result = response.choices[0].message.content
+
+        result = result.replace('<dummy32000>', '')
+        result = result.replace('</s>', '')
+
+        if len(result) < 30:
+            log(
+                'Response is most likely empty. Check the chat history for more information.',
+                level=LogLevel.WARNING,
+            )
+            return False, result
+
+        return True, result
 
     def invoke_profile_custom(
         self,

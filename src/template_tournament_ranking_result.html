@@ -95,7 +95,7 @@
                 return node
             }
 
-            const root = parseTree(authorData.root);
+            const root = parseTree(authorData.tournament);
 
 
             function bottomUpTraversal(root) {
@@ -179,6 +179,10 @@
             canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
             const ctx = canvas.getContext('2d');
 
+            function isNodeSkipped(node) {
+                return node.match.reasoning.toLowerCase().includes('one profile left');
+            }
+
             // Function to draw nodes
             function drawNodes(node, selected) {
                 node.children.forEach(child => {
@@ -188,16 +192,18 @@
                     ctx.stroke();
                 });
 
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
-                ctx.fillStyle = (node === selected) ? '#aaa' : '#ddd';
-                ctx.fill();
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = '#000';
-                ctx.stroke();
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#000';
-                ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
+                if (!isNodeSkipped(node)) {
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = (node === selected) ? '#aaa' : '#ddd';
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
+                }
 
                 node.children.forEach(child => drawNodes(child, selected));
             }
@@ -216,7 +222,7 @@
                 var newSelectedNode = null;
 
                 getNodes(root).forEach(node => {
-                    if (isPointInNode(x, y, node)) {
+                    if (isPointInNode(x, y, node) && !isNodeSkipped(node)) {
                         newSelectedNode = node;
                         showMatchDetails(node.match);
                     }
@@ -236,11 +242,14 @@
             const container = document.getElementById('container');
             container.style.display = 'flex';
             container.innerHTML = '';
+            console.log(match)
+            console.log(authorData.profiles)
 
-            match.profiles.forEach((profile, idx) => {
+            match.profiles.forEach((profile_index, idx) => {
+                const profile = authorData.profiles[profile_index];
                 const card = document.createElement('div');
                 card.className = 'card';
-                if (idx === match.preferred_profile) {
+                if (idx === match.preferred_profile_index) {
                     card.classList.add('preferred');
                     card.innerHTML = `
                         <h2>Profile ${idx + 1} (Preferred)</h2>
@@ -260,7 +269,7 @@
                     <p><strong>Extraction Time:</strong> ${profile.extraction_time}s</p>
                     <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
                 `;
-                if (idx === match.preferred_profile) {
+                if (idx === match.preferred_profile_index) {
                     card.innerHTML += `<p><strong>Reasoning:</strong> ${match.reasoning}</p>
                     `;
                 }

@@ -17,10 +17,10 @@ def custom_asdict(obj):
         return result
     elif isinstance(obj, Enum):
         return obj.value
-    elif isinstance(obj, list):
+    elif isinstance(obj, list) or isinstance(obj, tuple):
         return [custom_asdict(item) for item in obj]
-    elif isinstance(obj, tuple):
-        return [custom_asdict(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: custom_asdict(value) for key, value in obj.items()}
     elif callable(obj):
         return obj.__qualname__  # Save the function's qualname if it's a callable
     else:
@@ -58,6 +58,12 @@ def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult
 
     output_file_path = os.path.abspath(f'results/{author_result.author}.tournament.html')
     _write_and_display(html_content, output_file_path)
+
+
+def dump_author_result_to_json(author_result: AuthorResult):
+    output_file_path = os.path.abspath(f'results/{author_result.author}.json')
+    with open(output_file_path, 'w') as file:
+        json.dump(custom_asdict(author_result), file, indent=4)
 
 
 def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'):
@@ -105,12 +111,10 @@ if __name__ == '__main__':
         extraction_function='extraction_function',
         extraction_time=0.5,
     )
-    ranking_result = RankingResult(
-        profiles=(extracted_profile, extracted_profile), reasoning='Same profile', preferred_profile=0
-    )
+    ranking_result = RankingResult(profiles=(1, 1), reasoning='Same profile', preferred_profile_index=0)
     author_result = AuthorResult(
         TournamentNode(match=ranking_result, children=[]),
-        [ranking_result],
+        {1: extracted_profile},
         ['Paper on AI', 'Thesis on ML'],
         'John Doe',
     )

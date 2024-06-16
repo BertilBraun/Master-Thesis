@@ -77,6 +77,7 @@ Please exclude redundant information such as authors, publication date, and loca
     summaries = '\n\n\n'.join(f'Summary {i + 1}:{summary}' for i, summary in enumerate(llm.batch(prompts)))
 
     # Second Stage: Extraction of Competencies from Summaries
+    llm.debug_context_name += '_extraction'
 
     prompt = [
         SystemMessage(
@@ -148,12 +149,13 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
     profiles_str = '\n\n'.join(str(profile) for profile in profiles)
 
     # Second Stage: Combining Individual Profiles into a Comprehensive Profile
+    llm.debug_context_name += '_combination'
 
     prompt = [
         SystemMessage(
             content="""You are now tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
 ```
-Domain: [Consolidated Domain Description]
+Domain: [Short Consolidated Domain Description]
 Competencies:
 - [Integrated Competency 1]: [Consolidated description based on individual profiles]
 - [Integrated Competency 2]: [Consolidated description based on individual profiles]

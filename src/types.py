@@ -69,6 +69,7 @@ Competencies:
     @staticmethod
     def _parse_competencies(text: str) -> list[Competency]:
         # Returns the list of competencies after the first occurrence of 'Competencies:\n' while the competencies are not empty and the line matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
+        text = text.replace('\n\n', '\n').replace('**', '')
         assert 'Competencies:\n' in text, f'Competencies not found in text: {text}'
 
         text = text.split('Competencies:\n')[1]
@@ -193,8 +194,8 @@ class Ranking:
         return ''
 
     @staticmethod
-    def parse_preferred_profile_json(obj: dict) -> bool:
-        # Returns True if the preferred profile is 1, False if it is 2
+    def parse_preferred_profile_json(obj: dict) -> int:
+        # Returns the index of the preferred profile (0 if error)
 
         # fuzzy find the preferred_profile key in the json object
         # The json object should have the following structure:
@@ -202,18 +203,17 @@ class Ranking:
         #     "reasoning": "[Your Reasoning]",
         #     "preferred_profile": [1 or 2]
         # }
-
         for key in obj:
             if 'preferred' in key.lower():
                 number = obj[key]
                 if number < 1 or number > 2:
                     log(f'Invalid preferred profile format: {obj}.', level=LogLevel.WARNING)
-                    return True
+                    return 0
 
-                return number == 1
+                return number - 1
 
         log(f'Invalid preferred profile format: {obj}.', level=LogLevel.WARNING)
-        return True
+        return 0
 
     @staticmethod
     def parse_reasoning(text: str) -> str:
@@ -476,17 +476,17 @@ class ExtractedProfile:
 @dataclass(frozen=True)
 class RankingResult:
     # Represents a 2way ranking between two profiles
-    profiles: tuple[ExtractedProfile, ExtractedProfile]
-    preferred_profile: int  # (0 or 1) The index of the preferred profile in the profiles tuple
-    reasoning: str  # let the model generate the reasoning before returning the preferred profile
+    profiles: tuple[int, int]
+    preferred_profile_index: int  # (0 or 1) The index of the preferred profile in the profiles tuple
+    reasoning: str | None  # let the model generate the reasoning before returning the preferred profile
 
     @property
-    def winner(self) -> ExtractedProfile:
-        return self.profiles[self.preferred_profile]
+    def winner(self) -> int:
+        return self.profiles[self.preferred_profile_index]
 
     @property
-    def loser(self) -> ExtractedProfile:
-        return self.profiles[1 - self.preferred_profile]
+    def loser(self) -> int:
+        return self.profiles[1 - self.preferred_profile_index]
 
 
 @dataclass(frozen=True)
@@ -503,14 +503,17 @@ class TournamentNode:
 
     @property
     def all_loser_nodes(self) -> list[TournamentNode]:
-        if len(self.children) < 2:
+        if not self.children:
             return []
-        return self.children[1 - self.match.preferred_profile].all_nodes
+        if self.match.profiles[0] == self.match.profiles[1]:
+            # If the profiles are the same, return the children of the first child
+            return self.children[0].all_loser_nodes
+        return self.children[1 - self.match.preferred_profile_index].all_nodes
 
 
 @dataclass(frozen=True)
 class AuthorResult:
-    root: TournamentNode
-    preferences: list[RankingResult]
+    tournament: TournamentNode
+    profiles: dict[int, ExtractedProfile]
     titles: list[str]
     author: str

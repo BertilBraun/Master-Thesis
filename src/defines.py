@@ -18,3 +18,6 @@ os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
 # BASE_URL_* = None # When using the OpenAI API instead of the Local AI
 BASE_URL_LLM = LOCAL_AI_ML_PC
+
+
+JSONBIN_API_KEY = os.getenv('JSONBIN_API_KEY', '$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm')

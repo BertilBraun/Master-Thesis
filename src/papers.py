@@ -143,6 +143,8 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
         if len(full_texts) >= number_of_papers:
             break
 
+        if not paper['open_access']['oa_url']:  # type: ignore
+            continue
         full_text = load_paper_full_text(paper['open_access']['oa_url'])  # type: ignore
         if not full_text:
             continue

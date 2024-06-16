@@ -181,97 +181,24 @@
         }
 
         function submitData() {
-            let preferences = []; // every match -> {instances: [instance1, instance2], preferred_instance: 0/1}
-            let profiles = {}; // (extraction_function, model, number_of_examples) -> profile_id
-            let mapped_profiles = {}; // profile_id -> profile
-            let profile_id = 0;
-
-            function mapProfile(profile) {
-                const key = JSON.stringify([profile.extraction_function, profile.model, profile.number_of_examples]);
-                if (profiles[key] === undefined) {
-                    profile_id += 1;
-                    profiles[key] = profile_id;
-                    mapped_profiles[profile_id] = profile;
-                }
-                return profiles[key];
-            }
-
-            getNodes(root).forEach(node => {
-                const match = node.match;
-                const preferredProfile = mapProfile(match.profiles[match.evaluator_preference]);
-
-                if (match.profiles.length > 1)
-                    preferences.push({
-                        instances: match.profiles.map(mapProfile),
-                        preferred_instance: match.evaluator_preference
-                    });
-
-                // The winner profile is also preferred over all profiles in the looser bracket
-                // make sure the allLooserProfiles are unique
-                const allLoserProfiles = getNodesInLoserBracket(node)
-                    .flatMap(loserNode => loserNode.match.profiles)
-                    .map(mapProfile)
-                    .filter((profile, index, self) => index === self.findIndex(p => p === profile));
-
-                allLoserProfiles.forEach(profile => {
-                    preferences.push({
-                        instances: [preferredProfile, profile],
-                        preferred_instance: 0
-                    });
-                });
-
-                /* Python code to verify correctness of the preferences
-
-def verify_instances(data):
-    preferred_dict = {}
-    
-    for entry in data:
-        original_instances = entry['instances']
-        preferred_value = original_instances[entry['preferred_instance']]
-        
-        # Sort the instances to normalize the order
-        sorted_instances = sorted(original_instances)
-        
-        # Find the new index of the previously preferred value
-        new_preferred_index = sorted_instances.index(preferred_value)
-        
-        # Create a tuple of the sorted instances for consistent grouping
-        instances_tuple = tuple(sorted_instances)
-        
-        # Check if this group of instances has been encountered before
-        if instances_tuple in preferred_dict:
-            # If yes, verify the preferred instance index is the same
-            if preferred_dict[instances_tuple] != new_preferred_index:
-                return False, f"Inconsistency found in group {instances_tuple}"
-        else:
-            # If not, add to the dictionary
-            preferred_dict[instances_tuple] = new_preferred_index
-    
-    return True, "All instances are consistent"
-
-# Example usage:
-data = [
-    {"instances": [1, 15], "preferred_instance": 0},
-    {"instances": [15, 1], "preferred_instance": 1},
-    {"instances": [1, 16], "preferred_instance": 0},
-    {"instances": [1, 17], "preferred_instance": 0}
-]
-
-result, message = verify_instances(data)
-print(result, message)
-*/
+            const cleanupNode = (node) => ({
+                match: {
+                    profiles: node.match.profiles,
+                    preferred_profile_index: node.match.preferred_profile_index
+                },
+                children: node.children.map(child => cleanupNode(child))
             });
+
 
             const postData = {
                 "author": authorData.author,
                 "titles": authorData.titles,
-                "profiles": mapped_profiles,
-                "preferences": preferences,
+                "profiles": authorData.profiles,
+                "tournament": cleanupNode(root),
                 "feedback": document.getElementById('feedback').value
             };
 
             console.log(postData);
-            console.log(nodes)
 
             var pleaseWait = document.getElementById('pleaseWait');
             pleaseWait.style.display = 'block';
@@ -314,7 +241,7 @@ print(result, message)
         function getNodesInLoserBracket(node) {
             if (node.children.length < 2) return [];
 
-            const winnerIndex = node.match.evaluator_preference;
+            const winnerIndex = node.match.preferred_profile_index;
 
             return getNodes(node.children[1 - winnerIndex]);
         }
@@ -329,7 +256,7 @@ print(result, message)
                 return node
             }
 
-            root = parseTree(authorData.root);
+            root = parseTree(authorData.tournament);
 
 
             function bottomUpTraversal(root) {
@@ -366,6 +293,8 @@ print(result, message)
             nodes = bottomUpTraversal(root);
             // set index for each node
             nodes.forEach((node, index) => node.index = index);
+            // reset preferred profile index for all nodes
+            nodes.forEach(node => node.match.preferred_profile_index = -1);
 
             function getLeaves(node) {
                 if (node.children.length === 0) return [node];
@@ -409,6 +338,10 @@ print(result, message)
             canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
             const ctx = canvas.getContext('2d');
 
+            function isNodeSkipped(node) {
+                return node.match.reasoning.toLowerCase().includes('one profile left');
+            }
+
             // Function to draw nodes
             function drawNodes(node) {
                 node.children.forEach(child => {
@@ -418,32 +351,34 @@ print(result, message)
                     ctx.stroke();
                 });
 
-                ctx.beginPath();
-                ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
-                if (!node.is_ready) {
-                    ctx.fillStyle = '#fff';
-                } else {
-                    if (node.was_evaluated) {
-                        if (node.is_selected) {
-                            ctx.fillStyle = '#0d0';
-                        } else {
-                            ctx.fillStyle = '#0f0';
-                        }
+                if (!isNodeSkipped(node)) {
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
+                    if (!node.is_ready) {
+                        ctx.fillStyle = '#fff';
                     } else {
-                        if (node.is_selected) {
-                            ctx.fillStyle = '#aaa';
+                        if (node.was_evaluated) {
+                            if (node.is_selected) {
+                                ctx.fillStyle = '#0d0';
+                            } else {
+                                ctx.fillStyle = '#0f0';
+                            }
                         } else {
-                            ctx.fillStyle = '#ddd';
+                            if (node.is_selected) {
+                                ctx.fillStyle = '#aaa';
+                            } else {
+                                ctx.fillStyle = '#ddd';
+                            }
                         }
                     }
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
                 }
-                ctx.fill();
-                ctx.lineWidth = 1;
-                ctx.strokeStyle = '#000';
-                ctx.stroke();
-                ctx.textAlign = 'center';
-                ctx.fillStyle = '#000';
-                ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
 
                 node.children.forEach(drawNodes);
             }
@@ -465,7 +400,8 @@ print(result, message)
 
                 const match = node.match;
 
-                match.profiles.forEach((profile, idx) => {
+                match.profiles.forEach((profile_index, idx) => {
+                    const profile = authorData.profiles[profile_index];
                     const card = document.createElement('div');
                     card.className = 'card';
 
@@ -489,13 +425,13 @@ print(result, message)
                         </div>
                     `;
 
-                    if (match.evaluator_preference === idx) {
+                    if (match.preferred_profile_index === idx) {
                         card.classList.add('preferred');
                     }
 
                     profileDiv.onclick = () => {
                         node.was_evaluated = true;
-                        match.evaluator_preference = idx;
+                        match.preferred_profile_index = idx;
 
                         if (node === root) {
                             drawNodes(root);
@@ -516,7 +452,7 @@ print(result, message)
                                     node.is_ready = true;
                                     if (node.children.length === 0) return;
                                     node.match.profiles = [];
-                                    node.children.forEach(child => node.match.profiles.push(child.match.profiles[child.match.evaluator_preference]));
+                                    node.children.forEach(child => node.match.profiles.push(child.match.profiles[child.match.preferred_profile_index]));
                                 }
                             });
                         }
@@ -528,7 +464,7 @@ print(result, message)
                             if (nextNode) {
                                 if (nextNode.children.length === 1) {
                                     nextNode.was_evaluated = true;
-                                    nextNode.match.evaluator_preference = 0;
+                                    nextNode.match.preferred_profile_index = 0;
                                     setParentsReady();
                                     nextNode = nodes.find(node => !node.was_evaluated && node.is_ready);
                                 }
@@ -550,7 +486,7 @@ print(result, message)
                 const y = event.clientY - rect.top;
 
                 nodes.forEach(node => {
-                    node.is_selected = isPointInNode(x, y, node) && node.is_ready;
+                    node.is_selected = isPointInNode(x, y, node) && node.is_ready && !isNodeSkipped(node);
                     if (node.is_selected) {
                         showMatchDetails(node);
                     }

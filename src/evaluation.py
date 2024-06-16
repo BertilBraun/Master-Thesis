@@ -14,28 +14,32 @@ from src.language_model import OpenAILanguageModel
 from src.log import LogLevel, log
 
 
-def compare_profiles(
-    profile1: ExtractedProfile,
-    profile2: ExtractedProfile,
-    evaluator: Callable[[ExtractedProfile, ExtractedProfile], dict],
-) -> RankingResult:
+def compare_profiles(profile1: int, profile2: int, evaluator: Callable[[int, int], dict]) -> RankingResult:
     # Compare two profiles based using a llm model to determine the winner. Return the winner, loser, and reasoning.
 
     try:
         response = evaluator(profile1, profile2)
     except Exception as e:
         log(f'Error evaluating profiles: {e}', level=LogLevel.WARNING)
-        return RankingResult(profiles=(profile1, profile2), reasoning='Error evaluating profiles', preferred_profile=0)
+        return RankingResult(
+            profiles=(profile1, profile2),
+            reasoning='Error evaluating profiles',
+            preferred_profile_index=0,
+        )
 
     reasoning = Ranking.parse_reasoning_json(response)
-    is_profile_1_preferred = Ranking.parse_preferred_profile_json(response)
+    preferred_profile_index = Ranking.parse_preferred_profile_json(response)
 
     return RankingResult(
-        profiles=(profile1, profile2), reasoning=reasoning, preferred_profile=0 if is_profile_1_preferred else 1
+        profiles=(profile1, profile2),
+        reasoning=reasoning,
+        preferred_profile_index=preferred_profile_index,
     )
 
 
-def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[ExtractedProfile, ExtractedProfile], dict]:
+def get_prompt_for_tournament_ranking(
+    model: str, query: Query, all_profiles: dict[int, ExtractedProfile]
+) -> Callable[[int, int], dict]:
     llm = OpenAILanguageModel(model, debug_context_name='tournament_ranking')
 
     abstracts = '\n\n'.join(query.abstracts)
@@ -43,7 +47,9 @@ def get_prompt_for_tournament_ranking(model: str, query: Query) -> Callable[[Ext
     retriever = get_retriever_getter(max_number_to_retrieve=1)(Ranking)
     json_examples = get_ranking_messages_json(abstracts, retriever)
 
-    def prompt_for_tournament_ranking(profile1: ExtractedProfile, profile2: ExtractedProfile) -> dict:
+    def prompt_for_tournament_ranking(profile1_index: int, profile2_index: int) -> dict:
+        profile1 = all_profiles[profile1_index].profile
+        profile2 = all_profiles[profile2_index].profile
         prompt = [
             SystemMessage(
                 content="""You are a skilled evaluator tasked with evaluating the relevance of two competency profiles that were extracted by another system from provided scientific abstracts. Each profile is expected to reflect a specific domain of expertise and list 3 to 8 key competencies demonstrated by the author. Your task is to evaluate how well each profile reflects the competencies, themes, and expertise areas mentioned in the abstracts. Compare the two profiles and determine which one is more relevant to the abstracts, structuring your response as follows:
@@ -62,11 +68,11 @@ Abstracts:
 
 
 Profile 1:
-{profile1.profile}
+{profile1}
 
 
 Profile 2:
-{profile2.profile}
+{profile2}
 
 
 Your evaluation must follow this json format:
@@ -86,21 +92,23 @@ Be specific and detailed in your reasoning and provide the number of the preferr
 def tournament_ranking(
     model: str,
     query: Query,
-    extractions: list[ExtractedProfile],
-) -> tuple[TournamentNode, list[RankingResult]]:
+    extractions: dict[int, ExtractedProfile],
+    do_shuffle: bool = True,
+) -> TournamentNode:
     """This function runs a tournament ranking between a list of profiles to determine the rankings of the profiles.
     We run a tournament where profiles are compared in pairs, and the winner moves to the next round.
     The tournament continues until we have a single winner.
 
-    The function returns the root node of the tournament tree and a list of all pairwise preferences that were determined during the tournament.
+    The function returns the root node of the tournament tree.
     """
 
     assert len(extractions) > 1, 'Tournament ranking requires at least two profiles to compare.'
 
-    evaluator = get_prompt_for_tournament_ranking(model, query)
+    evaluator = get_prompt_for_tournament_ranking(model, query, extractions)
 
-    current_round = extractions.copy()
-    random.shuffle(current_round)
+    current_round = list(extractions.keys())
+    if do_shuffle:
+        random.shuffle(current_round)
 
     last_round_index = 0
     last_round_nodes: list[TournamentNode] = []
@@ -114,7 +122,7 @@ def tournament_ranking(
 
     # Run the tournament until we have one winner
     while len(current_round) > 1:
-        next_round: list[ExtractedProfile] = []
+        next_round: list[int] = []
         next_last_round_nodes: list[TournamentNode] = []
 
         # Pair profiles and determine winners for the next round
@@ -134,7 +142,7 @@ def tournament_ranking(
             node = TournamentNode(
                 match=RankingResult(
                     profiles=(current_round[-1], current_round[-1]),
-                    preferred_profile=0,
+                    preferred_profile_index=0,
                     reasoning='Only one profile left in the round.',
                 )
             )
@@ -145,30 +153,27 @@ def tournament_ranking(
         last_round_nodes = next_last_round_nodes
         last_round_index = 0
 
-    root = last_round_nodes[0]
+    return last_round_nodes[0]
 
+
+def get_all_preferences(root: TournamentNode) -> list[RankingResult]:
     preferences: list[RankingResult] = []
 
     for node in root.all_nodes:
         preferences.append(node.match)
 
         # The winner profile is also preferred over all profiles in the loser bracket (unique)
-        all_loser_profiles = [
+        loser_profiles = {
             loser_profile for loser_node in node.all_loser_nodes for loser_profile in loser_node.match.profiles
-        ]
-        # make sure we don't add the same profile twice (but profiles are not hashable)
-        all_loser_profiles_filtered: list[ExtractedProfile] = []
-        for loser_profile in all_loser_profiles:
-            if loser_profile not in all_loser_profiles_filtered:
-                all_loser_profiles_filtered.append(loser_profile)
+        }
 
-        for loser_profile in all_loser_profiles_filtered:
+        for loser_profile in loser_profiles:
             preferences.append(
                 RankingResult(
                     profiles=(node.match.winner, loser_profile),
                     reasoning='Automatically preferred over all profiles in the loser bracket.',
-                    preferred_profile=0,
+                    preferred_profile_index=0,
                 )
             )
 
-    return root, preferences
+    return preferences
