@@ -56,6 +56,12 @@
             "type": "shell",
             "command": "docker run -p 8080:8080 --name local-ai -ti localai/localai:latest-aio-cpu",
             "problemMatcher": []
+        },
+        {
+            "label": "Run Evaluation analysis",
+            "type": "shell",
+            "command": "python -m src.expert_evaluation_analysis",
+            "problemMatcher": []
         }
     ],
     "inputs": [

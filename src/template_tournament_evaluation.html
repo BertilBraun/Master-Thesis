@@ -115,6 +115,24 @@
             text-decoration: none;
             cursor: pointer;
         }
+
+        .plain-button {
+            background: none;
+            border: none;
+            color: grey;
+            font: inherit;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .plain-button:focus {
+            outline: none;
+        }
+
+        .plain-button:hover {
+            text-decoration: none;
+            color: black;
+        }
     </style>
 </head>
 
@@ -126,13 +144,17 @@
         <div class="modal-content">
             <h1 id="startModalHeading"></h1>
 
-            <p>As part of my Master's thesis, I'm looking at competence extraction and we want to evaluate the
+            <p>As part of my Master's thesis, we want to evaluate the
                 performance of different extraction systems based on expert evaluations. We performed automatic
-                competence extraction with different methods for your profile, which includes some of your papers listed
-                below:</p>
+                competence extraction with different methods to extract different profiles of your competencies, which
+                are based on these papers:</p>
             <ul id="titlesList"></ul>
-            <p>Please help us to evaluate these extractions by <strong>clicking on the profile</strong> which you think
-                best represents your competencies.</p>
+            <p>You'll be presented with two competency profiles. Please <strong>click on the profile</strong> which you
+                think best represents your competencies. You can click on the dropdown next to each competency for more
+                information, if needed.</p>
+
+            <p>The evaluation should only take about 5 minutes. Your feedback is invaluable and greatly appreciated.</p>
+
             <button class="button" onclick="startEvaluation()">Start Evaluation</button>
         </div>
     </div>
@@ -162,6 +184,7 @@
 
     <script>
         const authorData = "{{authorData}}"; // Replace with actual JSON data
+        const isDebug = false;
         const rankingResults = authorData.ranking_results;
 
         document.getElementById('startModalHeading').textContent = `Welcome ${authorData.author}!`;
@@ -410,12 +433,18 @@
                     <h2>Profile ${idx + 1}</h2>
                     <p><strong>Domain:</strong> ${profile.profile.domain}</p>
                     <ul>
-                        ${profile.profile.competencies.map(comp => `<li><strong>${comp.name}:</strong> ${comp.description}</li>`).join('')}
+                        ${profile.profile.competencies.map((comp, index) => `
+                            <li id="competency-${index}">
+                                <strong>${comp.name}</strong> <button onclick="event.stopPropagation();toggleVisibility('description-${idx}-${index}')" class="plain-button">&#9660;</button>
+                                <p id="description-${idx}-${index}" style="display:none;">${comp.description}</p>
+                            </li>
+                        `).join('')}
                     </ul>
                     `;
 
                     const moreInformation = document.createElement('div');
-                    moreInformation.innerHTML = `
+                    if (isDebug) {
+                        moreInformation.innerHTML = `
                         <button onclick="toggleVisibility('more_details${idx}')">More Details</button>
                         <div id="more_details${idx}" style="display: none">
                             <p><strong>Model:</strong> ${profile.model}</p>
@@ -424,6 +453,7 @@
                             <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
                         </div>
                     `;
+                    }
 
                     if (match.preferred_profile_index === idx) {
                         card.classList.add('preferred');

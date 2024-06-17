@@ -12,6 +12,7 @@ from openai import OpenAI
 from src.log import LogLevel, log, time_str
 from src.types import AIMessage, Profile, LanguageModel, Message
 from src.display import generate_html_file_for_chat
+from src.util import generate_hashcode
 
 
 class OpenAILanguageModel(LanguageModel):
@@ -97,7 +98,7 @@ class OpenAILanguageModel(LanguageModel):
         key = json.dumps(
             {
                 'model': self.model,
-                'messages': [message.to_dict() for message in prompt],
+                'messages': generate_hashcode([message.to_dict() for message in prompt]),
                 'stop': stop,
                 'temperature': temperature,
                 'response_format': response_format,

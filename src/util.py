@@ -1,4 +1,6 @@
 from contextlib import contextmanager
+import hashlib
+import json
 import os
 import re
 import time
@@ -50,6 +52,19 @@ def timeblock(message: str, level: LogLevel = LogLevel.INFO):
         yield timer  # Allow the block to access the timer
     finally:
         log(f'Timing {message} took: {timer.elapsed_time:.3f} seconds', level=level)
+
+
+def generate_hashcode(data) -> str:
+    # Serialisieren der Liste von Dictionaries in einen JSON-String
+    # sort_keys sorgt für konsistente Reihenfolge der Schlüssel
+    serialized_data = json.dumps(data, sort_keys=True, separators=(',', ':'))
+
+    # Erstellen eines Hash-Objekts mit MD5
+    hash_object = hashlib.md5()
+    hash_object.update(serialized_data.encode('utf-8'))  # Daten müssen als Bytes übergeben werden
+
+    # Rückgabe des Hashcodes als Hexadezimal-String
+    return hash_object.hexdigest()
 
 
 def sanitize_filename(filename: str) -> str:

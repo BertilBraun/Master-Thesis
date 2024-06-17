@@ -30,19 +30,12 @@ class EvaluationIdentifier:
 
 @dataclass(frozen=True)
 class EvaluationResult:
-    total_occurrences: int
-    total_time: float
-    num_times_preferred: int
-    total_preference_comparisons: int
-
-    @staticmethod
-    def empty() -> 'EvaluationResult':
-        return EvaluationResult(
-            total_occurrences=0,
-            total_time=0,
-            num_times_preferred=0,
-            total_preference_comparisons=0,
-        )
+    total_occurrences: int = 0
+    total_time: float = 0.0
+    num_times_preferred: int = 0
+    total_preference_comparisons: int = 0
+    num_times_directly_preferred: int = 0
+    total_direct_preference_comparisons: int = 0
 
     @property
     def average_time(self):
@@ -52,12 +45,19 @@ class EvaluationResult:
     def preference_rate(self):
         return self.num_times_preferred / self.total_preference_comparisons
 
+    @property
+    def direct_preference_rate(self):
+        return self.num_times_directly_preferred / self.total_direct_preference_comparisons
+
     def __add__(self, other: 'EvaluationResult') -> 'EvaluationResult':
         return EvaluationResult(
             total_occurrences=self.total_occurrences + other.total_occurrences,
             total_time=self.total_time + other.total_time,
             num_times_preferred=self.num_times_preferred + other.num_times_preferred,
             total_preference_comparisons=self.total_preference_comparisons + other.total_preference_comparisons,
+            num_times_directly_preferred=self.num_times_directly_preferred + other.num_times_directly_preferred,
+            total_direct_preference_comparisons=self.total_direct_preference_comparisons
+            + other.total_direct_preference_comparisons,
         )
 
 
@@ -66,23 +66,26 @@ def process_tournament(
 ) -> dict[EvaluationIdentifier, EvaluationResult]:
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
     for profile in profiles.values():
-        results[EvaluationIdentifier.from_profile(profile)] = EvaluationResult.empty()
+        results[EvaluationIdentifier.from_profile(profile)] = EvaluationResult()
 
     for profile in profiles.values():
         results[EvaluationIdentifier.from_profile(profile)] += EvaluationResult(
             total_occurrences=1,
             total_time=profile.extraction_time,
-            num_times_preferred=0,
-            total_preference_comparisons=0,
         )
 
     for preference in get_all_preferences(tournament):
         for i, profile in enumerate(preference.profiles):
             results[EvaluationIdentifier.from_profile(profiles[profile])] += EvaluationResult(
-                total_occurrences=0,
-                total_time=0,
                 num_times_preferred=1 if i == preference.preferred_profile_index else 0,
                 total_preference_comparisons=1,
+            )
+
+    for node in tournament.all_nodes:
+        for i, profile in enumerate(node.match.profiles):
+            results[EvaluationIdentifier.from_profile(profiles[profile])] += EvaluationResult(
+                num_times_directly_preferred=1 if i == node.match.preferred_profile_index else 0,
+                total_direct_preference_comparisons=1,
             )
 
     return results
@@ -172,7 +175,7 @@ if __name__ == '__main__':
         )
         print('Average Extraction Time:', evaluation_result.average_time)
         print('Preference Rate:', evaluation_result.preference_rate)
-        print('Total Time:', evaluation_result.total_time)
+        print('Direct Preference Rate:', evaluation_result.direct_preference_rate)
         print()
 
     total_number_of_evaluations = sum(result.total_preference_comparisons for result in results.values()) // 2
@@ -222,3 +225,4 @@ if __name__ == '__main__':
     print_preference_stats(lambda x: x.model, 'Model')
     print_preference_stats(lambda x: x.extraction_method, 'Method')
     print_preference_stats(lambda x: x.num_examples, 'Examples')
+    print_preference_stats(lambda x: (x.model, x.extraction_method), 'Model, Method')
