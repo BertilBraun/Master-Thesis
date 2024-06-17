@@ -147,7 +147,7 @@ if __name__ == '__main__':
     if sys.argv[1] == 'gen_combination':
         from src.generate_references import generate_combination_references
 
-        generate_combination_references(int(sys.argv[2]))
+        generate_combination_references(int(sys.argv[2]), REFERENCE_GENERATION_MODEL)
 
     if sys.argv[1] == 'gen_ranking':
         from src.generate_references import generate_ranking_references

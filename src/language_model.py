@@ -98,6 +98,7 @@ class OpenAILanguageModel(LanguageModel):
         key = json.dumps(
             {
                 'model': self.model,
+                'base_url': src.defines.BASE_URL_LLM,
                 'messages': generate_hashcode([message.to_dict() for message in prompt]),
                 'stop': stop,
                 'temperature': temperature,
@@ -136,29 +137,38 @@ class OpenAILanguageModel(LanguageModel):
         retries: int,
     ) -> tuple[bool, str | dict]:
         # Returns [success, result string or error message or json object]
-        while retries > 0:
-            success, result = self._invoke(prompt, stop, response_format, temperature)
+        if retries <= 0:
+            log(
+                f'Error: Maximum retries reached for model {self.model} with debug context {self.debug_context_name}! Is the backend down?',
+                level=LogLevel.WARNING,
+            )
+            return False, 'Error: Maximum retries reached'
 
-            try_str = '' if retries == src.defines.MAX_RETRIES else f' (try {src.defines.MAX_RETRIES-retries+1})'
-            generate_html_file_for_chat(
-                prompt + [AIMessage(content=result)],
-                f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
+        success, result = self._invoke(prompt, stop, response_format, temperature)
+
+        try_str = '' if retries == src.defines.MAX_RETRIES else f' (try {src.defines.MAX_RETRIES-retries+1})'
+        generate_html_file_for_chat(
+            prompt + [AIMessage(content=result)],
+            f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
+        )
+
+        if not success:
+            return self._invoke_with_retry(
+                prompt,
+                stop,
+                response_format,
+                temperature,
+                retries - 1,
             )
 
-            if not success:
-                retries -= 1
-                continue
-
-            if response_format == 'json_object':
-                # result = result from first { to last } inclusive
-                # result = result[result.find('{') : result.rfind('}') + 1]
-                result = JSONParser().parse(result)
-
-            return True, result
+        if response_format == 'json_object':
+            # result = result from first { to last } inclusive
+            # result = result[result.find('{') : result.rfind('}') + 1]
+            result = JSONParser().parse(result)
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
 
-        return False, result
+        return True, result
 
     def _invoke(
         self,
@@ -177,7 +187,8 @@ class OpenAILanguageModel(LanguageModel):
                 temperature=temperature,  # TODO play with this?
                 response_format={'type': response_format},
                 max_tokens=1024,
-                timeout=100,  # 100 seconds - should be enough for the model to respond (unless the backend is down)
+                # 100 seconds - should be enough for the model to respond (unless the backend is down)
+                timeout=100,
             )
         except Exception as e:
             log(

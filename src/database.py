@@ -179,7 +179,7 @@ def get_example_messages(content: str, retriever: Retriever[Example]) -> list[Me
         message
         for i, example in enumerate(examples)
         for message in [
-            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstract}'),
+            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstracts}'),
             AIExampleMessage(content=str(example.profile)),
         ]
     ]
@@ -192,7 +192,7 @@ def get_example_messages_json(content: str, retriever: Retriever[Example]) -> li
         message
         for i, example in enumerate(examples)
         for message in [
-            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstract}'),
+            HumanExampleMessage(content=f'Example {i + 1}:\n{example.abstracts}'),
             AIExampleMessage(content=example.profile.to_json()),
         ]
     ]
@@ -219,14 +219,22 @@ def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> li
         for i, evaluation in enumerate(evaluations)
         for message in [
             HumanExampleMessage(
-                content=f'Example {i + 1}:\n{evaluation.paper_text}\n\n\nProfile 1:\n{evaluation.profiles[0]}\n\n\nProfile 2:\n{evaluation.profiles[1]}'
+                content=f"""Example {i + 1}:
+{evaluation.paper_text}
+
+
+Profile 1:
+{evaluation.profiles[0]}
+
+
+Profile 2:
+{evaluation.profiles[1]}"""
             ),
             AIExampleMessage(
-                content='{\n    "reasoning": "'
-                + evaluation.reasoning
-                + '",\n    "preferred_profile": '
-                + str(evaluation.preferred_profile + 1)
-                + '\n}'
+                content=f"""{{
+    "reasoning": "{evaluation.reasoning}",
+    "preferred_profile": {evaluation.preferred_profile + 1}
+}}"""
             ),
         ]
     ]
@@ -292,7 +300,7 @@ if __name__ == '__main__':
     def bear_example():
         id1 = add_element_to_database(
             Example(
-                abstract='harrison worked at kensho',
+                abstracts='harrison worked at kensho',
                 profile=Profile(
                     domain='Finance',
                     competencies=[
@@ -306,7 +314,7 @@ if __name__ == '__main__':
 
         id2 = add_element_to_database(
             Example(
-                abstract='bears like to eat honey',
+                abstracts='bears like to eat honey',
                 profile=Profile(
                     domain='Nature',
                     competencies=[

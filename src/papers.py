@@ -12,16 +12,16 @@ KIT_INSTITUTION_ID = 'i102335020'
 
 @timeit('Get Author by Name')
 @cache_to_file('author_cache.cache', Author)
-def get_author_by_name(name: str) -> Author | None:
+def get_author_by_name(name: str, KIT_only: bool = True) -> Author | None:
     # Get the OpenAlex author by the author's display name
-    author = (
-        Authors()
-        .filter(affiliations={'institution': {'lineage': KIT_INSTITUTION_ID}})
-        .search_filter(display_name=name)
-        .get()
-    )
+    request = Authors().search_filter(display_name=name)
+    if KIT_only:
+        request = request.filter(affiliations={'institution': {'lineage': KIT_INSTITUTION_ID}})
+    author = request.get()
 
     if not author:
+        if KIT_only:
+            return get_author_by_name(name, KIT_only=False)
         return None
 
     return Author(
@@ -119,21 +119,15 @@ def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None
 
 @timeit('Get Papers by Author')
 @cache_to_file('papers_cache.cache', Query)
-def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
+def get_papers_by_author(name: str, number_of_papers: int = 5, load_full_text: bool = True) -> Query:
     # Get the top number_of_papers most cited papers by the author with the given name
     author = get_author_by_name(name)
     assert author, f'Author {name} not found'
 
-    papers = (
-        Works()
-        .filter(author={'id': author.id})
-        .filter(has_abstract=True)
-        .filter(has_fulltext=True)
-        .filter(open_access={'is_oa': True})
-        .filter(fulltext_origin='pdf')
-        .sort(cited_by_count='desc')
-        .get(per_page=number_of_papers * 2)
-    )
+    works = Works().filter(language='en').filter(author={'id': author.id}).filter(has_abstract=True)
+    if load_full_text:
+        works = works.filter(has_fulltext=True).filter(open_access={'is_oa': True}).filter(fulltext_origin='pdf')
+    papers = works.sort(cited_by_count='desc').get(per_page=number_of_papers * 2)
 
     full_texts: list[str] = []
     abstracts: list[str] = []
@@ -143,13 +137,16 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
         if len(full_texts) >= number_of_papers:
             break
 
-        if not paper['open_access']['oa_url']:  # type: ignore
-            continue
-        full_text = load_paper_full_text(paper['open_access']['oa_url'])  # type: ignore
-        if not full_text:
-            continue
+        if load_full_text:
+            if not paper['open_access']['oa_url']:  # type: ignore
+                continue
+            full_text = load_paper_full_text(paper['open_access']['oa_url'])  # type: ignore
+            if not full_text:
+                continue
 
-        full_texts.append(full_text)
+            full_texts.append(full_text)
+        else:
+            full_texts.append(paper['abstract'])  # type: ignore
         abstracts.append(paper['abstract'])  # type: ignore
         titles.append(paper['title'])  # type: ignore
 
@@ -161,37 +158,25 @@ def get_papers_by_author(name: str, number_of_papers: int = 5) -> Query:
     )
 
 
-@timeit('Get Random Papers')
-def get_random_papers(number_of_papers: int) -> list[Query]:
-    # Fetch a list of random papers with full text and abstracts. For each paper, the full text (same as abstract) and abstract are stored in a Query object. Therefore each query object represents a single paper.
+@timeit('Get Random English Authors Abstracts')
+def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> list[Query]:
+    queries: list[Query] = []
 
-    papers = (
-        Works()
-        .filter(has_abstract=True)
-        .filter(primary_location={'source': {'host_institution_lineage': KIT_INSTITUTION_ID}})
-        .sample(number_of_papers * 2)  # Fetch more papers to be able to filter out papers with short abstracts locally
-        .get(per_page=number_of_papers * 2)
-    )
+    for author in Authors().sample(number_of_authors * 2).get(per_page=number_of_authors * 2):
+        author_name = author['display_name']  # type: ignore
+        query = get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False)
 
-    authors = []
-    for paper in papers:
-        for author in paper['authorships']:  # type: ignore
-            if author['author_position'] == 'first':
-                authors.append(author['author']['display_name'])
-                break
+        if len(query.abstracts) < number_of_papers_per_author:
+            continue
 
-    assert len(authors) == len(papers)
+        queries.append(query)
 
-    return [
-        Query(
-            abstracts=[paper['abstract']],  # type: ignore
-            full_texts=[paper['abstract']],  # type: ignore
-            titles=[paper['title']],  # type: ignore
-            author=author,
-        )
-        for paper, author in zip(papers, authors)
-        if len(paper['abstract']) > 150  # type: ignore
-    ][0:number_of_papers]
+        if len(queries) == number_of_authors:
+            break
+
+    if len(queries) < number_of_authors:
+        queries += get_random_english_authors_abstracts(number_of_authors - len(queries), number_of_papers_per_author)
+    return queries
 
 
 @timeit('Get Authors of KIT')

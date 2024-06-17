@@ -122,27 +122,29 @@ Competencies:
 
 @dataclass(frozen=True)
 class Example:
-    abstract: str
+    abstracts: str
     profile: Profile
 
     def __str__(self) -> str:
-        return f"""Abstract:
-{self.abstract}
+        return f"""Abstracts:
+{self.abstracts}
+
+
 
 {self.profile}
 """
 
     @staticmethod
-    def _parse_abstract(text: str) -> str:
+    def _parse_abstracts(text: str) -> str:
         # Return the text between the first occurrence of 'Abstract:' and the next '\n\n'
-        assert 'Abstract:' in text, f'Abstract not found in text: {text}'
-        return text.split('Abstract:')[1].split('\n\n')[0]
+        assert 'Abstracts:' in text, f'Abstracts not found in text: {text}'
+        return text.split('Abstracts:')[1].split('\n\n\n\n')[0]
 
     @staticmethod
     def parse(text: str) -> Example:
         # NOTE: Throws AssertionError if the text does not contain a valid abstract and profile
         return Example(
-            abstract=Example._parse_abstract(text),
+            abstracts=Example._parse_abstracts(text),
             profile=Profile.parse(text),
         )
 
@@ -304,6 +306,15 @@ class Query:
         titles = ', '.join(f'"""{text}"""' for text in self.titles)
         return (
             f'Query(full_texts=[{full_texts}], abstracts=[{abstracts}], titles=[{titles}], author="""{self.author}""")'
+        )
+
+    def __add__(self, other: Query) -> Query:
+        assert self.author == other.author, 'Authors must be the same to combine queries'
+        return Query(
+            full_texts=self.full_texts + other.full_texts,
+            abstracts=self.abstracts + other.abstracts,
+            titles=self.titles + other.titles,
+            author=self.author,
         )
 
 
