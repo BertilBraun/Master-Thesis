@@ -19,7 +19,7 @@ def extract_from_abstracts_custom(query: Query, retriever: RetrieverGetter, llm:
     # We are putting all Papers in one Prompt but only looking at the abstracts
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
-    abstracts = '\n\n'.join(query.abstracts)
+    abstracts = '\n\n'.join(f'Abstract {i + 1}:\n{abstract}' for i, abstract in enumerate(query.abstracts))
 
     prompt = [
         SystemMessage(
@@ -31,7 +31,9 @@ Competencies:
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
 ...
 ```
-Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
+The domain description should be a brief label, summarizing the overall area of expertise. The competencies should be specific skills or knowledge areas demonstrated in the abstracts.
+Extract 3 to at most 8 competencies from the abstracts, providing concise descriptions for each.
+Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
         *get_example_messages(abstracts, retriever(Example)),
         HumanMessage(
@@ -89,7 +91,7 @@ Competencies:
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
 ...
 ```
-Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each.  Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
@@ -119,7 +121,7 @@ Competencies:
 - [Competency Name]: [Detailed explanation of how Competency 2 is demonstrated in the text]
 ...
 ```
-List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
+The domain should succinctly summarize the general area of research. The competencies should be specific skills or knowledge areas demonstrated in the document. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
             *get_example_messages(full_text, retriever(Example)),
             HumanMessage(
@@ -128,7 +130,7 @@ List all pertinent competencies, clearly detailing how each is evidenced in the 
 {trim_text_to_token_length(full_text, 6000)}
 
 
-The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document.  This is the format:
+The domain should succinctly summarize the general area of research. The competencies should be specific skills or knowledge areas demonstrated in the document. This is the format:
 ```
 Domain: [Short Domain Description]
 Competencies:
@@ -153,7 +155,7 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
 
     prompt = [
         SystemMessage(
-            content="""You are now tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
+            content="""You are tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
 ```
 Domain: [Short Consolidated Domain Description]
 Competencies:
@@ -161,11 +163,11 @@ Competencies:
 - [Integrated Competency 2]: [Consolidated description based on individual profiles]
 ...
 ```
-Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all texts. The domain should succinctly summarize the general area of research over all profiles and competencies involved. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research over all profiles and competencies involved. Combine the competencies into 3 to at most 8 competencies to reflect overarching skills and expertise demonstrated across all profiles. Ensure your analysis is neutral and precise, based solely on the content of the profiles provided. Consider the entire set of profiles as one cohesive source for a comprehensive competency overview."""
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}'
+            content=f'Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}'
         ),
     ]
 

@@ -32,7 +32,9 @@ def extract_from_abstracts_json(query: Query, retriever: RetrieverGetter, llm: L
         ...
     }
 }
-Extract 3 to 8 competencies for each abstract, providing a clear and concise description for each. The domain description should be a brief label, summarizing the overall area of expertise. Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
+The domain description should be a brief label, summarizing the overall area of expertise. The competencies should be specific skills or knowledge areas demonstrated in the abstracts.
+Extract 3 to at most 8 competencies from the abstracts, providing concise descriptions for each.
+Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
         *get_example_messages_json(abstracts, retriever(Example)),
         HumanMessage(
@@ -95,7 +97,7 @@ Now generate a comprehensive summary of this paper that includes the title, back
         ...
     }
 }
-Identify and list 3 to 8 competencies, providing concise descriptions for each. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each.  Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages_json(summaries, retriever(Example)),
         HumanMessage(
@@ -124,7 +126,7 @@ def extract_from_full_texts_json(query: Query, retriever: RetrieverGetter, llm: 
         ...
     }
 }
-List all pertinent competencies, clearly detailing how each is evidenced in the document. The domain should succinctly summarize the general area of research. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
+The domain should succinctly summarize the general area of research. The competencies should be specific skills or knowledge areas demonstrated in the document. Ensure your analysis is neutral and precise, based solely on the content of the paper provided."""
             ),
             *get_example_messages_json(full_text, retriever(Example)),
             HumanMessage(
@@ -132,8 +134,7 @@ List all pertinent competencies, clearly detailing how each is evidenced in the 
                 
 {trim_text_to_token_length(full_text, 6000)}
 
-
-The domain should succinctly summarize the general area of research of the paper. Then list all pertinent competencies, clearly detailing how each is evidenced in the document. This is the json output format:
+The domain should succinctly summarize the general area of research. The competencies should be specific skills or knowledge areas demonstrated in the document. This is the json output format:
 {{
     "domain": "[Short Domain Description]",
     "competencies": {{
@@ -168,11 +169,11 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
         ...
     }
 }
-Combine the competencies into 3 to 8 competencies to reflect overarching skills and expertise demonstrated across all profiles. The domain should succinctly summarize the general area of research over all profiles and competencies involved. Ensure your analysis is neutral and precise, based solely on the content of the profiles provided. Consider the entire set of profiles as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research over all profiles and competencies involved. Combine the competencies into 3 to at most 8 competencies to reflect overarching skills and expertise demonstrated across all profiles. Ensure your analysis is neutral and precise, based solely on the content of the profiles provided. Consider the entire set of profiles as one cohesive source for a comprehensive competency overview."""
         ),
         *get_combination_messages_json(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize the following {len(profiles)} individual profiles into one comprehensive profile of 3 to 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}\n\nOutput the profile as a json object.'
+            content=f'Please synthesize the following {len(profiles)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}\n\nOutput the profile as a json object.'
         ),
     ]
 

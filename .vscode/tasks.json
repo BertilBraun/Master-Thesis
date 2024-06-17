@@ -4,21 +4,9 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Start Main",
-            "type": "shell",
-            "command": "python -m src",
-            "problemMatcher": []
-        },
-        {
             "label": "Query Example",
             "type": "shell",
             "command": "python -m src author \"${input:author}\"",
-            "problemMatcher": []
-        },
-        {
-            "label": "Add initial References",
-            "type": "shell",
-            "command": "python -m src add references",
             "problemMatcher": []
         },
         {
@@ -31,12 +19,6 @@
             "label": "Generate Combination References",
             "type": "shell",
             "command": "python -m src gen_combination ${input:number}",
-            "problemMatcher": []
-        },
-        {
-            "label": "Generate Evaluation References",
-            "type": "shell",
-            "command": "python -m src gen_evaluation ${input:number}",
             "problemMatcher": []
         },
         {

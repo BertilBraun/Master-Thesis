@@ -54,7 +54,7 @@ MODELS = [
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
-EXAMPLES = [2, 0]  # [2, 1, 0]
+EXAMPLES = [2, 1, 0]  # [2, 1, 0] # TODO how many are actually needed
 
 EXTRACTORS = [
     extract_from_abstracts_custom,
@@ -123,6 +123,11 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
     try:
         return instance.extract(query, retriever_getter, llm)
     except Exception as e:
+        # print traceback to console and log to file
+        import traceback
+
+        traceback.print_exc()
+
         log(f'Error processing {instance=}', e, level=LogLevel.WARNING)
         log(f'Error processing {instance=}', e, log_file_name='logs/extraction_errors.log')
 

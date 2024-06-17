@@ -23,17 +23,16 @@ def __write_reference(element: DatabaseTypes, file_name: str) -> None:
     add_element_to_database(element, is_reference=True)
 
     log(element, use_pprint=True, log_file_name=file_name)
-    log('\n\n\n\n\n', log_file_name=file_name)
 
 
 def generate_example_references(
     number_of_references_to_generate: int,
     reference_generation_model: str,
 ):
-    from src.initial_references import add_initial_example_references
     from src.__main__ import run_query_for_instance
 
-    add_initial_example_references()
+    # from src.initial_references import add_initial_example_references
+    # add_initial_example_references()
 
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
     # TODO src.openai_defines.BASE_URL_LLM = None
@@ -63,9 +62,8 @@ def generate_combination_references(
     number_of_references_to_generate: int,
     reference_generation_model: str,
 ):
-    from src.initial_references import add_initial_combination_references
-
-    add_initial_combination_references()
+    # from src.initial_references import add_initial_combination_references
+    # add_initial_combination_references()
 
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models
     # TODO src.openai_defines.BASE_URL_LLM = None
@@ -93,8 +91,9 @@ def generate_ranking_references(
     evaluation_model: str,
     other_reference_generation_model: str,
 ):
-    # from src.initial_references import add_initial_ranking_references
     from src.__main__ import run_query_for_instance
+
+    # from src.initial_references import add_initial_ranking_references
     # add_initial_ranking_references()
 
     # Use the actual OpenAI API not the LocalAI for generating as best results are expected from the largest models

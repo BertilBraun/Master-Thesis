@@ -17,7 +17,9 @@ def timeit(message: str, level: LogLevel = LogLevel.INFO):
         def wrapper(*args, **kwargs):
             start = time.time()
             res = func(*args, **kwargs)
-            log(f'{func.__name__} - {message}: {round(time.time() - start, 3)} seconds', level=level)
+            # log function name(params) - message: time in seconds (rounded to 3 decimal places)
+            params = ', '.join([str(arg) for arg in args] + [f'{k}={v}' for k, v in kwargs.items()])
+            log(f'{func.__name__}({params}) - {message}: {time.time() - start:.3f} seconds', level=level)
             return res
 
         return wrapper

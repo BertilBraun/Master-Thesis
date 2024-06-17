@@ -12,23 +12,28 @@ KIT_INSTITUTION_ID = 'i102335020'
 
 @timeit('Get Author by Name')
 @cache_to_file('author_cache.cache', Author)
-def get_author_by_name(name: str, KIT_only: bool = True) -> Author | None:
+def get_author_by_name(name: str, KIT_only: bool) -> Author | None:
     # Get the OpenAlex author by the author's display name
     request = Authors().search_filter(display_name=name)
-    if KIT_only:
-        request = request.filter(affiliations={'institution': {'lineage': KIT_INSTITUTION_ID}})
-    author = request.get()
+    authors = request.get(per_page=10)
 
-    if not author:
-        if KIT_only:
-            return get_author_by_name(name, KIT_only=False)
+    if not authors:
         return None
 
-    return Author(
-        name=author[0]['display_name'],  # type: ignore
-        id=author[0]['id'],  # type: ignore
-        count=author[0]['works_count'],  # type: ignore
-    )
+    for author in authors:
+        # Check if the author is from KIT if KIT_only is True
+        if KIT_only:
+            if not any(
+                affiliation['institution']['id'] == KIT_INSTITUTION_ID
+                for affiliation in author['affiliations']  # type: ignore
+            ):
+                continue
+
+        return Author(
+            name=author['display_name'],  # type: ignore
+            id=author['id'],  # type: ignore
+            count=author['works_count'],  # type: ignore
+        )
 
 
 def verify_is_text(text: str, threshold: float = 0.50) -> str | None:
@@ -119,9 +124,11 @@ def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None
 
 @timeit('Get Papers by Author')
 @cache_to_file('papers_cache.cache', Query)
-def get_papers_by_author(name: str, number_of_papers: int = 5, load_full_text: bool = True) -> Query:
+def get_papers_by_author(
+    name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
+) -> Query:
     # Get the top number_of_papers most cited papers by the author with the given name
-    author = get_author_by_name(name)
+    author = get_author_by_name(name, KIT_only)
     assert author, f'Author {name} not found'
 
     works = Works().filter(language='en').filter(author={'id': author.id}).filter(has_abstract=True)
@@ -162,11 +169,18 @@ def get_papers_by_author(name: str, number_of_papers: int = 5, load_full_text: b
 def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> list[Query]:
     queries: list[Query] = []
 
-    for author in Authors().sample(number_of_authors * 2).get(per_page=number_of_authors * 2):
+    for author in (
+        Authors()
+        .filter(affiliations={'institution': {'country_code': 'US'}})
+        .filter(works_count=f'>{number_of_papers_per_author}')
+        .sample(number_of_authors * 2)
+        .get(per_page=number_of_authors * 2)
+    ):
         author_name = author['display_name']  # type: ignore
-        query = get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False)
+        query = get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
 
         if len(query.abstracts) < number_of_papers_per_author:
+            log(f'Author {author_name} has less than {number_of_papers_per_author} papers', level=LogLevel.WARNING)
             continue
 
         queries.append(query)
@@ -202,8 +216,8 @@ def get_authors_of_kit(count: int = 100) -> list[Author]:
 if __name__ == '__main__':
     log(get_authors_of_kit(), use_pprint=True)
 
-    log(get_author_by_name('Peter Sanders'), use_pprint=True)
-    log(get_author_by_name('Stiefelhagen'), use_pprint=True)  # Fuzzy matching
+    log(get_author_by_name('Peter Sanders', KIT_only=True), use_pprint=True)
+    log(get_author_by_name('Stiefelhagen', KIT_only=True), use_pprint=True)  # Fuzzy matching
 
     papers_by_author = get_papers_by_author('Peter Sanders')
     log('We got', len(papers_by_author.full_texts), 'papers by Peter Sanders')

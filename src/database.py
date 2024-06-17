@@ -112,7 +112,7 @@ def _greedy_filter(
             if len(final_documents) == number_of_documents:
                 break
 
-    while len(final_documents) < number_of_documents:
+    while len(final_documents) < number_of_documents and not_added_documents:
         final_documents.append(not_added_documents.pop(0))
 
     return final_documents
