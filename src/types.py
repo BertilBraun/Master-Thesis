@@ -528,3 +528,49 @@ class AuthorResult:
     profiles: dict[int, ExtractedProfile]
     titles: list[str]
     author: str
+
+    @staticmethod
+    def from_json(data: dict) -> AuthorResult:
+        tournament, profiles = parse_tournament_and_profiles_from_json(data)
+        return AuthorResult(
+            tournament=tournament,
+            profiles=profiles,
+            titles=data['titles'],
+            author=data['author'],
+        )
+
+
+def parse_tournament_and_profiles_from_json(data: dict) -> tuple[TournamentNode, dict[int, ExtractedProfile]]:
+    # convert tournament dictionary to TournamentNode
+    def process_node(node_data: dict) -> TournamentNode:
+        node = TournamentNode(
+            match=RankingResult(
+                profiles=node_data['match']['profiles'],
+                preferred_profile_index=node_data['match']['preferred_profile_index'],
+                reasoning=node_data['match'].get('reasoning', None),
+            )
+        )
+        for child_data in node_data['children']:
+            node.children.append(process_node(child_data))
+        return node
+
+    tournament = process_node(data['tournament'])
+
+    # convert profiles dictionary to dict[int, ExtractedProfile]
+    profiles = {}
+    for key, profile_data in data['profiles'].items():
+        profiles[int(key)] = ExtractedProfile(
+            profile=Profile(
+                domain=profile_data['profile']['domain'],
+                competencies=[
+                    Competency(competency['name'], competency['description'])
+                    for competency in profile_data['profile']['competencies']
+                ],
+            ),
+            model=profile_data['model'],
+            number_of_examples=profile_data['number_of_examples'],
+            extraction_function=profile_data['extraction_function'],
+            extraction_time=profile_data['extraction_time'],
+        )
+
+    return tournament, profiles

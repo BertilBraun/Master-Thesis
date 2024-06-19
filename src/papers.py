@@ -1,4 +1,5 @@
 import os
+from typing import Generator
 
 from pypdf import PdfReader
 from pyalex import Works, Authors
@@ -159,8 +160,8 @@ def get_papers_by_author(
 
 
 @timeit('Get Random English Authors Abstracts')
-def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> list[Query]:
-    queries: list[Query] = []
+def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> Generator[Query]:
+    number_generated = 0
 
     for author in (
         Authors()
@@ -176,14 +177,16 @@ def get_random_english_authors_abstracts(number_of_authors: int, number_of_paper
             log(f'Author {author_name} has less than {number_of_papers_per_author} papers', level=LogLevel.WARNING)
             continue
 
-        queries.append(query)
+        yield query
+        number_generated += 1
 
-        if len(queries) == number_of_authors:
+        if number_generated == number_of_authors:
             break
 
-    if len(queries) < number_of_authors:
-        queries += get_random_english_authors_abstracts(number_of_authors - len(queries), number_of_papers_per_author)
-    return queries
+    if number_generated < number_of_authors:
+        yield from get_random_english_authors_abstracts(
+            number_of_authors - number_generated, number_of_papers_per_author
+        )
 
 
 @timeit('Get Authors of KIT')

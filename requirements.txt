@@ -10,3 +10,4 @@ datasets
 transformers
 trl
 partialjson
+peft

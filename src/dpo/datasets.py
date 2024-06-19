@@ -2,8 +2,7 @@ import src.defines
 from src.dpo.dpo_database import DPODatabase, EvaluationType
 from src.dpo.jsonbin import JsonBin
 from src.evaluation import get_all_preferences
-from src.expert_evaluation_analysis import parse_tournament_and_profiles_from_json
-from src.types import AuthorResult, ExtractedProfile, TournamentNode
+from src.types import AuthorResult
 from src.papers import get_paper_by_title
 from src.log import log
 
@@ -39,12 +38,9 @@ def add_to_dataset_from_expert_evaluation(db: DPODatabase) -> None:
 
         bin_data = jsonbin.bin(bin_id)
 
-        author: str = bin_data['author']
-        titles: list[str] = bin_data['titles']
+        evaluation = AuthorResult.from_json(bin_data)
 
-        tournament, profiles = parse_tournament_and_profiles_from_json(bin_data)
-
-        _add_entry_to_dataset(db, titles, tournament, profiles, EvaluationType.EXPERT, author, bin_id)
+        _add_entry_to_dataset(db, evaluation, EvaluationType.EXPERT, bin_id)
 
 
 def add_to_dataset_from_automatic_evaluation(db: DPODatabase, evaluation: AuthorResult) -> None:
@@ -54,35 +50,27 @@ def add_to_dataset_from_automatic_evaluation(db: DPODatabase, evaluation: Author
         print('Automatic evaluation by', evaluation.author, 'already exists in the database')
         return
 
-    _add_entry_to_dataset(
-        db,
-        evaluation.titles,
-        evaluation.tournament,
-        evaluation.profiles,
-        EvaluationType.AUTOMATIC,
-        evaluation.author,
-    )
+    _add_entry_to_dataset(db, evaluation, EvaluationType.AUTOMATIC)
 
 
 def _add_entry_to_dataset(
     db: DPODatabase,
-    titles: list[str],
-    tournament: TournamentNode,
-    profiles: dict[int, ExtractedProfile],
+    author_result: AuthorResult,
     evaluation_type: EvaluationType,
-    author: str,
     external_id: str | None = None,
 ) -> None:
-    papers = [get_paper_by_title(title) for title in titles]
+    papers = [get_paper_by_title(title) for title in author_result.titles]
     abstracts = [paper.abstracts[0] for paper in papers if paper]
 
     prompt = dpo_prompt(abstracts)
 
-    for preference in get_all_preferences(tournament):
-        preferred_profile = profiles[preference.winner].profile
-        other_profile = profiles[preference.loser].profile
+    for preference in get_all_preferences(author_result.tournament):
+        preferred_profile = author_result.profiles[preference.winner].profile
+        other_profile = author_result.profiles[preference.loser].profile
 
-        db.add_entry(prompt, str(preferred_profile), str(other_profile), evaluation_type, author, external_id)
+        db.add_entry(
+            prompt, str(preferred_profile), str(other_profile), evaluation_type, author_result.author, external_id
+        )
 
 
 if __name__ == '__main__':

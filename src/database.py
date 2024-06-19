@@ -192,6 +192,10 @@ def get_sample_from_database(type: Type[DatabaseTypes], number_of_samples: int) 
 def get_example_messages(content: str, retriever: Retriever[Example]) -> list[Message]:
     examples = retriever.invoke(content)
 
+    return format_example_messages(examples)
+
+
+def format_example_messages(examples: list[Example]) -> list[Message]:
     return [
         message
         for i, example in enumerate(examples)

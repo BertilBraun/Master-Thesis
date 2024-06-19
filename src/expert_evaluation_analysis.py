@@ -4,7 +4,7 @@ import os
 from typing import Any, Callable
 
 from src.evaluation import get_all_preferences
-from src.types import Competency, ExtractedProfile, Profile, RankingResult, TournamentNode
+from src.types import AuthorResult, ExtractedProfile
 
 
 @dataclass(frozen=True)
@@ -61,29 +61,27 @@ class EvaluationResult:
         )
 
 
-def process_tournament(
-    tournament: TournamentNode, profiles: dict[int, ExtractedProfile]
-) -> dict[EvaluationIdentifier, EvaluationResult]:
+def process_tournament(author_result: AuthorResult) -> dict[EvaluationIdentifier, EvaluationResult]:
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
-    for profile in profiles.values():
+    for profile in author_result.profiles.values():
         results[EvaluationIdentifier.from_profile(profile)] = EvaluationResult()
 
-    for profile in profiles.values():
+    for profile in author_result.profiles.values():
         results[EvaluationIdentifier.from_profile(profile)] += EvaluationResult(
             total_occurrences=1,
             total_time=profile.extraction_time,
         )
 
-    for preference in get_all_preferences(tournament):
+    for preference in get_all_preferences(author_result.tournament):
         for i, profile in enumerate(preference.profiles):
-            results[EvaluationIdentifier.from_profile(profiles[profile])] += EvaluationResult(
+            results[EvaluationIdentifier.from_profile(author_result.profiles[profile])] += EvaluationResult(
                 num_times_preferred=1 if i == preference.preferred_profile_index else 0,
                 total_preference_comparisons=1,
             )
 
-    for node in tournament.all_nodes:
+    for node in author_result.tournament.all_nodes:
         for i, profile in enumerate(node.match.profiles):
-            results[EvaluationIdentifier.from_profile(profiles[profile])] += EvaluationResult(
+            results[EvaluationIdentifier.from_profile(author_result.profiles[profile])] += EvaluationResult(
                 num_times_directly_preferred=1 if i == node.match.preferred_profile_index else 0,
                 total_direct_preference_comparisons=1,
             )
@@ -94,42 +92,6 @@ def process_tournament(
 def load_json(file_path: str) -> dict:
     with open(file_path, 'r') as f:
         return json.load(f)
-
-
-def parse_tournament_and_profiles_from_json(data: dict) -> tuple[TournamentNode, dict[int, ExtractedProfile]]:
-    # convert tournament dictionary to TournamentNode
-    def process_node(node_data: dict) -> TournamentNode:
-        node = TournamentNode(
-            match=RankingResult(
-                profiles=node_data['match']['profiles'],
-                preferred_profile_index=node_data['match']['preferred_profile_index'],
-                reasoning=node_data['match'].get('reasoning', None),
-            )
-        )
-        for child_data in node_data['children']:
-            node.children.append(process_node(child_data))
-        return node
-
-    tournament = process_node(data['tournament'])
-
-    # convert profiles dictionary to dict[int, ExtractedProfile]
-    profiles = {}
-    for key, profile_data in data['profiles'].items():
-        profiles[int(key)] = ExtractedProfile(
-            profile=Profile(
-                domain=profile_data['profile']['domain'],
-                competencies=[
-                    Competency(competency['name'], competency['description'])
-                    for competency in profile_data['profile']['competencies']
-                ],
-            ),
-            model=profile_data['model'],
-            number_of_examples=profile_data['number_of_examples'],
-            extraction_function=profile_data['extraction_function'],
-            extraction_time=profile_data['extraction_time'],
-        )
-
-    return tournament, profiles
 
 
 def get_all_json_files(directory: str) -> list[str]:
@@ -162,8 +124,8 @@ if __name__ == '__main__':
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
 
     for data in get_all_jsons():
-        tournament, profiles = parse_tournament_and_profiles_from_json(data)
-        for evaluation_identifier, evaluation_result in process_tournament(tournament, profiles).items():
+        author_result = AuthorResult.from_json(data)
+        for evaluation_identifier, evaluation_result in process_tournament(author_result).items():
             if evaluation_identifier in results:
                 results[evaluation_identifier] += evaluation_result
             else:
