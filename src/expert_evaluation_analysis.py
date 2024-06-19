@@ -96,7 +96,7 @@ def load_json(file_path: str) -> dict:
         return json.load(f)
 
 
-def process_json(data: dict) -> tuple[TournamentNode, dict[int, ExtractedProfile]]:
+def parse_tournament_and_profiles_from_json(data: dict) -> tuple[TournamentNode, dict[int, ExtractedProfile]]:
     # convert tournament dictionary to TournamentNode
     def process_node(node_data: dict) -> TournamentNode:
         node = TournamentNode(
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
 
     for data in get_all_jsons():
-        tournament, profiles = process_json(data)
+        tournament, profiles = parse_tournament_and_profiles_from_json(data)
         for evaluation_identifier, evaluation_result in process_tournament(tournament, profiles).items():
             if evaluation_identifier in results:
                 results[evaluation_identifier] += evaluation_result

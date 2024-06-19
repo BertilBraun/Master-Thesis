@@ -1,7 +1,6 @@
 import sqlite3
 
 from enum import Enum
-from typing import Dict, List
 
 
 class EvaluationType(Enum):
@@ -49,7 +48,7 @@ class DPODatabase:
         )
         self.conn.commit()
 
-    def get_entries_by_type(self, eval_type: EvaluationType) -> Dict[str, List[str]]:
+    def get_entries_by_type(self, eval_type: EvaluationType) -> dict[str, list[str]]:
         self.cursor.execute(
             'SELECT prompt, chosen, rejected FROM preferences WHERE evaluation_type=?',
             (eval_type.value,),

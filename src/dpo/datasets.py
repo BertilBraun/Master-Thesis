@@ -1,13 +1,15 @@
 import src.defines
 from src.dpo.dpo_database import DPODatabase, EvaluationType
 from src.dpo.jsonbin import JsonBin
-from src.types import AuthorResult, Profile, Competency
+from src.evaluation import get_all_preferences
+from src.expert_evaluation_analysis import parse_tournament_and_profiles_from_json
+from src.types import AuthorResult, ExtractedProfile, TournamentNode
 from src.papers import get_paper_by_title
 from src.log import log
 
 
 def dpo_prompt(abstracts: list[str]) -> str:
-    abstracts_str = '\n\n'.join(abstract.strip() for abstract in abstracts)
+    abstracts_str = '\n\n\n'.join(f'Abstract {i + 1}:\n{abstract.strip()}' for i, abstract in enumerate(abstracts))
 
     return f"""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For these abstracts, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
 ```
@@ -39,40 +41,10 @@ def add_to_dataset_from_expert_evaluation(db: DPODatabase) -> None:
 
         author: str = bin_data['author']
         titles: list[str] = bin_data['titles']
-        print('Processing bin', bin_id, 'by', author, 'with titles', titles)
 
-        papers = [get_paper_by_title(title) for title in titles]
-        abstracts = [paper.abstracts[0] for paper in papers if paper]
+        tournament, profiles = parse_tournament_and_profiles_from_json(bin_data)
 
-        prompt = dpo_prompt(abstracts)
-
-        profile_mapping = {
-            int(key): Profile(
-                domain=value['profile']['domain'],
-                competencies=[
-                    Competency(name=comp['name'], description=comp['description'])
-                    for comp in value['profile']['competencies']
-                ],
-            )
-            for key, value in bin_data['profiles'].items()
-        }
-
-        for preference in bin_data['preferences']:
-            instances: list[int] = preference['instances']
-            preferred_instance_index: int = preference['preferred_instance']
-
-            if (
-                len(instances) != 2
-                or preferred_instance_index not in [0, 1]
-                or any(instance not in profile_mapping for instance in instances)
-            ):
-                print('Invalid preference:', preference)
-                continue
-
-            preferred_profile = profile_mapping[instances[preferred_instance_index]]
-            other_profile = profile_mapping[instances[1 - preferred_instance_index]]
-
-            db.add_entry(prompt, str(preferred_profile), str(other_profile), EvaluationType.EXPERT, author, bin_id)
+        _add_entry_to_dataset(db, titles, tournament, profiles, EvaluationType.EXPERT, author, bin_id)
 
 
 def add_to_dataset_from_automatic_evaluation(db: DPODatabase, evaluation: AuthorResult) -> None:
@@ -82,16 +54,35 @@ def add_to_dataset_from_automatic_evaluation(db: DPODatabase, evaluation: Author
         print('Automatic evaluation by', evaluation.author, 'already exists in the database')
         return
 
-    papers = [get_paper_by_title(title) for title in evaluation.titles]
+    _add_entry_to_dataset(
+        db,
+        evaluation.titles,
+        evaluation.tournament,
+        evaluation.profiles,
+        EvaluationType.AUTOMATIC,
+        evaluation.author,
+    )
+
+
+def _add_entry_to_dataset(
+    db: DPODatabase,
+    titles: list[str],
+    tournament: TournamentNode,
+    profiles: dict[int, ExtractedProfile],
+    evaluation_type: EvaluationType,
+    author: str,
+    external_id: str | None = None,
+) -> None:
+    papers = [get_paper_by_title(title) for title in titles]
     abstracts = [paper.abstracts[0] for paper in papers if paper]
 
     prompt = dpo_prompt(abstracts)
 
-    for preference in evaluation.preferences:
-        preferred_profile = preference.winner.profile
-        other_profile = preference.loser.profile
+    for preference in get_all_preferences(tournament):
+        preferred_profile = profiles[preference.winner].profile
+        other_profile = profiles[preference.loser].profile
 
-        db.add_entry(prompt, str(preferred_profile), str(other_profile), EvaluationType.AUTOMATIC, evaluation.author)
+        db.add_entry(prompt, str(preferred_profile), str(other_profile), evaluation_type, author, external_id)
 
 
 if __name__ == '__main__':

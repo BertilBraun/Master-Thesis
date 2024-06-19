@@ -54,7 +54,7 @@ MODELS = [
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
-EXAMPLES = [2, 1, 0]  # [2, 1, 0] # TODO how many are actually needed
+EXAMPLES = [1, 0]  # [2, 1, 0] # TODO how many are actually needed
 
 EXTRACTORS = [
     extract_from_abstracts_custom,
@@ -72,7 +72,7 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
     log(f'Processing Author: {name=} {number_of_papers=}')
     profiles: dict[int, ExtractedProfile] = {}
 
-    query = get_papers_by_author(name, number_of_papers=number_of_papers)
+    query = get_papers_by_author(name, number_of_papers=number_of_papers, KIT_only=True)
 
     extracted_profile_log = f'logs/extracted_profiles/{name}_{datetime_str()}.log'
 

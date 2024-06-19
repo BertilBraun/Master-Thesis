@@ -1,3 +1,4 @@
+from collections import Counter
 import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import os
@@ -88,8 +89,16 @@ def _cosine_similarity(a: Embedding, b: Embedding) -> float:
     return dot_product / (len_a * len_b)
 
 
+def _text_similarity(a: str, b: str) -> float:
+    # count the words in a that are in b including the number of times they appear -> all words of a are in b -> 1
+    c = Counter(a.split())
+    d = Counter(b.split())
+    return sum((c & d).values()) / sum(c.values())
+
+
 # TODO adjust the threshold
 def _greedy_filter(
+    query: str,
     documents: list[Document],
     embeddings: list[Embedding],
     number_of_documents: int,
@@ -100,6 +109,13 @@ def _greedy_filter(
     not_added_documents: list[str] = []
 
     for document, embedding in zip(documents, embeddings):
+        if _text_similarity(query, document) > 0.95:
+            # Never add the query itself
+            log(
+                f'Found query in document - this most likely means the query was already added to the database: {document}',
+                level=LogLevel.WARNING,
+            )
+            continue
         for selected in added_embeddings:
             if _cosine_similarity(embedding, selected) > threshold:
                 not_added_documents.append(document)
@@ -151,13 +167,14 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
                 [
                     self.return_type.parse(doc)
                     for doc in _greedy_filter(
+                        query,
                         similar_docs,
                         similar_embeddings,
                         number_of_documents=max_number_to_retrieve,
                         threshold=0.8,
                     )
                 ]
-                for similar_docs, similar_embeddings in zip(res['documents'], res['embeddings'])
+                for query, similar_docs, similar_embeddings in zip(queries, res['documents'], res['embeddings'])
             ]
 
     def get_retriever(return_type: Type[DatabaseTypes]) -> Retriever[DatabaseTypes]:

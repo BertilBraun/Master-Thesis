@@ -15,25 +15,18 @@ KIT_INSTITUTION_ID = 'i102335020'
 def get_author_by_name(name: str, KIT_only: bool) -> Author | None:
     # Get the OpenAlex author by the author's display name
     request = Authors().search_filter(display_name=name)
-    authors = request.get(per_page=10)
+    if KIT_only:
+        request = request.filter(affiliations={'institution': {'id': KIT_INSTITUTION_ID}})
+    authors = request.get()
 
     if not authors:
         return None
 
-    for author in authors:
-        # Check if the author is from KIT if KIT_only is True
-        if KIT_only:
-            if not any(
-                affiliation['institution']['id'] == KIT_INSTITUTION_ID
-                for affiliation in author['affiliations']  # type: ignore
-            ):
-                continue
-
-        return Author(
-            name=author['display_name'],  # type: ignore
-            id=author['id'],  # type: ignore
-            count=author['works_count'],  # type: ignore
-        )
+    return Author(
+        name=authors[0]['display_name'],  # type: ignore
+        id=authors[0]['id'],  # type: ignore
+        count=authors[0]['works_count'],  # type: ignore
+    )
 
 
 def verify_is_text(text: str, threshold: float = 0.50) -> str | None:
