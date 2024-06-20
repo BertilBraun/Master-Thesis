@@ -339,6 +339,14 @@ if __name__ == '__main__':
     print(f'len(train_dataset): {len(train_dataset)} -> removed {old_len_train - len(train_dataset)}')
     print(f'len(test_dataset): {len(test_dataset)} -> removed {old_len_test - len(test_dataset)}')
 
+    # print sample from the dataset
+    print('Sample from the dataset:')
+    print('-' * 80)
+    print(train_dataset[0])
+    print('-' * 80)
+    print(train_dataset[1])
+    print('-' * 80)
+
     with progress_status('Loading model'):
         model = get_model()
 
