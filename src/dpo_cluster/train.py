@@ -21,6 +21,29 @@
 # Otherwise the script is then responsible to write the new model to the 'current-finetuned-model' file so that it can be used in the next iteration
 
 
+"""
+Lots of references:
+
+https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md
+https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py
+https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py
+
+
+https://huggingface.co/blog/rlhf
+https://huggingface.co/blog/dpo-trl
+https://huggingface.co/blog/pref-tuning
+https://huggingface.co/docs/trl/en/dpo_trainer
+https://huggingface.co/docs/peft/quicktour
+https://huggingface.co/docs/peft/main/en/conceptual_guides/lora
+
+
+https://gitlab.kit.edu/kit/aifb/BIS/templates/projects/llmfinetuningstarterkit/-/blob/main/supervised_finetuning/finetuning.ipynb?ref_type=heads
+
+
+https://github.com/huggingface/alignment-handbook - Parameters for multiple different model trainings
+"""
+
+
 import multiprocessing
 import partialjson
 from torch import bfloat16, float16, cuda
@@ -32,8 +55,7 @@ from transformers import (
     PreTrainedTokenizerFast,
     BitsAndBytesConfig,
 )
-from peft.auto import AutoPeftModelForCausalLM
-from peft.tuners.lora import LoraConfig
+from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
 
 from src.dpo_cluster.defines import *
@@ -138,14 +160,14 @@ def get_trainer(model) -> DPOTrainer:
     )
 
     args = DPOConfig(
-        output_dir=OUTPUT_DIR,  # directory to save and repository id
+        output_dir=TRAINING_OUTPUT_DIR,  # directory to save and repository id
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
-        per_device_train_batch_size=12,  # batch size per device during training
-        per_device_eval_batch_size=4,  # batch size for evaluation
-        gradient_accumulation_steps=1,  # number of steps before performing a backward/update pass
+        per_device_train_batch_size=4,  # batch size per device during training
+        per_device_eval_batch_size=8,  # batch size for evaluation
+        gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
-        learning_rate=5e-5,  # 10x higher LR than QLoRA paper
+        learning_rate=2e-5,  # 4x higher LR than QLoRA paper
         max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
@@ -156,6 +178,7 @@ def get_trainer(model) -> DPOTrainer:
         eval_steps=700,  # when to evaluate
         bf16=True,  # use bfloat16 precision
         tf32=True,  # use tf32 precision
+        group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
         report_to=['tensorboard'],  # report metrics to tensorboard
     )
@@ -198,7 +221,7 @@ def get_model():
 def merge_and_save_model():
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
-        OUTPUT_DIR,
+        TRAINING_OUTPUT_DIR,
         torch_dtype=float16,
         low_cpu_mem_usage=True,
     )
@@ -210,7 +233,7 @@ def merge_and_save_model():
 def evaluate_is_profile1_preferred(model, tokenizer, profile1: Profile, profile2: Profile, abstracts: list[str]) -> int:
     profiles = [profile1, profile2]
 
-    examples = get_retriever_getter(max_number_to_retrieve=1)(Ranking).invoke('\n\n'.join(abstracts))
+    examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke('\n\n'.join(abstracts))
 
     def evaluator(profile_index1: int, profile_index2: int) -> EvaluationResult:
         prompt_messages = prompt_for_ranking(profiles[profile_index1], profiles[profile_index2], examples, abstracts)
@@ -240,7 +263,7 @@ def evaluate_is_profile1_preferred(model, tokenizer, profile1: Profile, profile2
 def evaluate_model() -> bool:
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
-        OUTPUT_DIR,
+        TRAINING_OUTPUT_DIR,
         torch_dtype=float16,
         low_cpu_mem_usage=True,
     )

@@ -12,6 +12,7 @@ from src.evaluation import get_all_preferences, prompt_for_ranking, run_tourname
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import EvaluationResult, Example, Profile, Ranking
 from src.dpo_cluster.defines import *
+from util import json_dumper
 
 # While we have not generated enough samples
 # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
@@ -95,39 +96,46 @@ async def process_samples_to_generate(index: int):
     tokenizer = get_tokenizer()
     model = get_model(device=f'cuda:{index}')
 
-    while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
-        sample_to_generate = samples_to_generate.get()
+    with json_dumper(f'samples_to_generate_{START_DATETIME}_{index}.json') as dumper:
+        while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
+            try:
+                sample_to_generate = samples_to_generate.get()
 
-        prompt_messages = prompt_for_extract_from_abstracts_custom(
-            sample_to_generate.abstracts, sample_to_generate.examples
-        )
+                prompt_messages = prompt_for_extract_from_abstracts_custom(
+                    sample_to_generate.abstracts, sample_to_generate.examples
+                )
 
-        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+                prompt = prompt_messages_to_str(tokenizer, prompt_messages)
 
-        responses = generate(
-            tokenizer,
-            model,
-            prompt,
-            num_return_sequences=TOP_K_TO_SAMPLE,
-            num_beams=TOP_K_TO_SAMPLE,
-            do_sample=True,
-            temperature=TEMPERATURE,
-            max_new_tokens=650,
-        )
+                responses = generate(
+                    tokenizer,
+                    model,
+                    prompt,
+                    num_return_sequences=TOP_K_TO_SAMPLE,
+                    num_beams=TOP_K_TO_SAMPLE,
+                    do_sample=True,
+                    temperature=TEMPERATURE,
+                    max_new_tokens=650,
+                )
 
-        profiles = [Profile.parse(response) for response in responses]
+                profiles = [Profile.parse(response) for response in responses]
 
-        samples_to_evaluate.put(
-            SampleToEvaluate(
-                sample_to_generate.author,
-                prompt,
-                sample_to_generate.abstracts,
-                profiles,
-            )
-        )
+                sample = SampleToEvaluate(
+                    sample_to_generate.author,
+                    prompt,
+                    sample_to_generate.abstracts,
+                    profiles,
+                )
+                samples_to_evaluate.put(sample)
+                dumper(sample)
 
-        while samples_to_evaluate.qsize() > 50:
-            await sleep(1)
+                while samples_to_evaluate.qsize() > 50:
+                    await sleep(1)
+            except Exception as e:
+                import traceback
+
+                traceback.print_exc()
+                print('Error occurred during generation:', e)
 
 
 async def process_samples_to_evaluate(index: int):
@@ -146,51 +154,58 @@ async def process_samples_to_evaluate(index: int):
     db = DPODatabase(f'dpo_{START_DATETIME}_{index}.db')
 
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
-        sample_to_evaluate = samples_to_evaluate.get()
+        try:
+            sample_to_evaluate = samples_to_evaluate.get()
 
-        examples = get_retriever_getter(max_number_to_retrieve=1)(Ranking).invoke(
-            '\n\n'.join(sample_to_evaluate.abstracts)
-        )
-
-        def evaluator(profile_index1: int, profile_index2: int) -> EvaluationResult:
-            profile1 = sample_to_evaluate.profiles[profile_index1]
-            profile2 = sample_to_evaluate.profiles[profile_index2]
-
-            prompt_messages = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
-            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
-
-            response = generate(
-                tokenizer,
-                model,
-                prompt,
-                num_return_sequences=1,
-                num_beams=1,
-                do_sample=False,
-                max_new_tokens=350,
-            )[0]
-
-            return partialjson.JSONParser().parse(response)
-
-        tournament = run_tournament_ranking(
-            list(range(len(sample_to_evaluate.profiles))),
-            evaluator,
-            do_shuffle=True,
-        )
-
-        for preference in get_all_preferences(tournament):
-            preferred_profile = sample_to_evaluate.profiles[preference.winner]
-            other_profile = sample_to_evaluate.profiles[preference.loser]
-
-            db.add_entry(
-                sample_to_evaluate.prompt,
-                str(preferred_profile),
-                str(other_profile),
-                EvaluationType.AUTOMATIC,
-                sample_to_evaluate.author,
+            examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
+                '\n\n'.join(sample_to_evaluate.abstracts)
             )
 
-            # once we have generated a preference, we increase the counter and check if we have generated enough preferences
-            total_number_preferences_generated = next(number_preferences_generated)
+            def evaluator(profile_index1: int, profile_index2: int) -> EvaluationResult:
+                profile1 = sample_to_evaluate.profiles[profile_index1]
+                profile2 = sample_to_evaluate.profiles[profile_index2]
+
+                prompt_messages = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
+                prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+
+                response = generate(
+                    tokenizer,
+                    model,
+                    prompt,
+                    num_return_sequences=1,
+                    num_beams=1,
+                    do_sample=False,
+                    max_new_tokens=350,
+                )[0]
+
+                return partialjson.JSONParser().parse(response)
+
+            tournament = run_tournament_ranking(
+                list(range(len(sample_to_evaluate.profiles))),
+                evaluator,
+                do_shuffle=True,
+            )
+
+            for preference in get_all_preferences(tournament):
+                preferred_profile = sample_to_evaluate.profiles[preference.winner]
+                other_profile = sample_to_evaluate.profiles[preference.loser]
+
+                db.add_entry(
+                    sample_to_evaluate.prompt,
+                    str(preferred_profile),
+                    str(other_profile),
+                    EvaluationType.AUTOMATIC,
+                    sample_to_evaluate.author,
+                )
+
+                # once we have generated a preference, we increase the counter and check if we have generated enough preferences
+                total_number_preferences_generated = next(number_preferences_generated)
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            print('Error occurred during evaluation:', e)
 
 
 async def main():

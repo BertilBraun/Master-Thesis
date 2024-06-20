@@ -4,6 +4,7 @@ import json
 import os
 import re
 import time
+from typing import Any, Callable, Generator
 import requests
 
 from enum import Enum
@@ -182,10 +183,33 @@ def custom_asdict(obj):
         return obj
 
 
-def dump_json(obj, file_name: str) -> None:
+def dump_json(obj: Any, file_name: str) -> None:
     write_to_file(file_name, json.dumps(custom_asdict(obj), indent=4))
 
 
-def load_json(file_name: str):
+def load_json(file_name: str) -> Any:
     with open(file_name, 'r') as f:
         return json.load(f)
+
+
+@contextmanager
+def json_dumper(file_name: str) -> Generator[Callable[[Any], None]]:
+    # with json_dumper('data.json') as dumper:
+    #    for i in range(10):
+    #        dumper.dump({'a': i})
+
+    with open(file_name, 'w') as f:
+        f.write('[')
+        first = True
+
+        def write(obj: Any) -> None:
+            nonlocal first
+            if not first:
+                f.write(',')
+            f.write(json.dumps(custom_asdict(obj), indent=4))
+            first = False
+
+        try:
+            yield write
+        finally:
+            f.write(']')

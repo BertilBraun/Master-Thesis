@@ -11,26 +11,47 @@ from src.types import Message
 from src.log import datetime_str
 
 
+"""
+how many samples to we generate with each extraction of TOP_K_TO_SAMPLE?
+ - 4 papers per sample
+ - TOP_K_TO_SAMPLE extracted profiles
+ - TOP_K_TO_SAMPLE profiles in a tournament
+ - TOP_K_TO_SAMPLE - 1 comparisons in a tournament
+ - TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
+ - TOP_K_TO_SAMPLE = 8 -> 12 usable preferences and 7 comparisons
+=> higher TOP_K_TO_SAMPLE means more usable preferences with comparativly less comparisons
+   but limited by the number of good profiles we can extract with such a high TEMPERATURE
+
+TODO are the TOP_K_TO_SAMPLE samples different enough?
+
+TODO how long does extracting NUM_SAMPLES_TO_GENERATE samples take? Measure it!
+Theoretically:
+ - NUM_SAMPLES_TO_GENERATE samples / 32 preferences = 63 tournaments
+ - 63 tournaments * 15 comparisons = 945 comparisons
+ - 945 comparisons * 30 seconds / NUM_THREADS_EVALUATE = 1.6 hours
+ - 63 extractions * 30 seconds * TOP_K_TO_SAMPLE / NUM_THREADS_GENERATE = 2.8 hours
+TODO how do generating and evaluating compare in time? Do we need more threads for one or the other?
+
+How much would 10k training samples cost?
+  - Approximately 3.0k Tokens in a one-shot prompt
+  - ~300 tokens for the response
+  - 1M tokens input = 5$
+  - 1M tokens output = 15$
+  - 945 comparisons * 3.0k tokens = 2.8M tokens => 2.8M tokens * 5$/1M tokens = 14$ for input
+  - 945 comparisons * 300 tokens = 283.5k tokens => 283.5k tokens * 15$/1M tokens = 4.25$ for output
+  - ~19$ per 2000 Samples
+  - Can be cut to 14$ with 1x batching 
+    - 19$ * 3/4 = ~14$ 
+    - since half of the comparisons are in the first round and these would be batched with half the price
+    - 1 day waiting
+  - Can be cut to 12$ with 2x batching 
+    - 19$ * 5/8 = ~12$
+    - batching the first round and then also the second round
+    - 2 days waiting
+
+"""
+
 NUM_SAMPLES_TO_GENERATE = 2000  # TODO less? more?
-
-# how many samples to we generate with each extraction of TOP_K_TO_SAMPLE?
-#  - 4 papers per sample
-#  - TOP_K_TO_SAMPLE extracted profiles
-#  - TOP_K_TO_SAMPLE profiles in a tournament
-#  - TOP_K_TO_SAMPLE - 1 comparisons in a tournament
-#  - TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
-#  - TOP_K_TO_SAMPLE = 8 -> 12 usable preferences and 7 comparisons
-# => higher TOP_K_TO_SAMPLE means more usable preferences with comparativly less comparisons
-#    but limited by the number of good profiles we can extract with such a high TEMPERATURE
-
-# TODO how long does extracting NUM_SAMPLES_TO_GENERATE samples take?
-#  - NUM_SAMPLES_TO_GENERATE samples / 32 preferences = 63 tournaments
-#  - 63 tournaments * 15 comparisons = 945 comparisons
-#  - 945 comparisons * 30 seconds / NUM_THREADS_EVALUATE = 1.6 hours
-#  - 63 extractions * 30 seconds * TOP_K_TO_SAMPLE / NUM_THREADS_GENERATE = 2.8 hours
-# TODO how do generating and evaluating compare in time? Do we need more threads for one or the other?
-
-# TODO are the TOP_K_TO_SAMPLE samples different enough?
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 16
@@ -43,6 +64,7 @@ NUM_THREADS_EVALUATE = 5
 
 TEST_PERCENTAGE = 0.05
 OUTPUT_DIR = 'dpo_output'
+TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 
 BASE_MODEL_ID = 'gpt2'  # TODO tbd
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
