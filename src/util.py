@@ -6,6 +6,9 @@ import re
 import time
 import requests
 
+from enum import Enum
+from dataclasses import is_dataclass
+
 from functools import wraps
 
 from src.log import LogLevel, log
@@ -143,8 +146,7 @@ def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
             result = func(*args, **kwargs)
             cache[key] = result
 
-            with open(file_name, 'w') as f:
-                f.write(str(cache))
+            write_to_file(file_name, str(cache))
 
             return result
 
@@ -154,6 +156,36 @@ def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
 
 
 def write_to_file(file_name: str, content: str) -> None:
-    os.makedirs(os.path.dirname(file_name), exist_ok=True)
+    dir_name = os.path.dirname(file_name)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     with open(file_name, 'w') as f:
         f.write(content)
+
+
+def custom_asdict(obj):
+    if is_dataclass(obj):
+        result = {}
+        for field_name, field_type in obj.__dataclass_fields__.items():
+            value = getattr(obj, field_name)
+            result[field_name] = custom_asdict(value)
+        return result
+    elif isinstance(obj, Enum):
+        return obj.value
+    elif isinstance(obj, list) or isinstance(obj, tuple):
+        return [custom_asdict(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {key: custom_asdict(value) for key, value in obj.items()}
+    elif callable(obj):
+        return obj.__qualname__  # Save the function's qualname if it's a callable
+    else:
+        return obj
+
+
+def dump_json(obj, file_name: str) -> None:
+    write_to_file(file_name, json.dumps(custom_asdict(obj), indent=4))
+
+
+def load_json(file_name: str):
+    with open(file_name, 'r') as f:
+        return json.load(f)

@@ -1,54 +1,17 @@
 import itertools
-from asyncio import run, sleep, gather
+import partialjson
 from queue import Queue
-
-import torch
-from peft.auto import AutoPeftModelForCausalLM
-from transformers import AutoTokenizer, PreTrainedTokenizer
-
+from asyncio import run, sleep, gather
 from dataclasses import dataclass
 
-from src.log import datetime_str
+
 from src.dpo.dpo_database import DPODatabase, EvaluationType
-from src.evaluation import get_all_preferences
-from src.database import format_example_messages, get_retriever_getter
+from src.database import get_retriever_getter
 from src.papers import get_random_english_authors_abstracts
-from src.types import Example, HumanMessage, Message, Profile, SystemMessage, TournamentNode
-
-
-NUM_SAMPLES_TO_GENERATE = 2000  # TODO less?
-
-# how many samples to we generate with each extraction of TOP_K_TO_SAMPLE?
-#      - 4 papers per sample
-#      - TOP_K_TO_SAMPLE extracted profiles
-#      - TOP_K_TO_SAMPLE profiles in a tournament
-#      - TOP_K_TO_SAMPLE - 1 comparisons in a tournament
-#      - TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
-#      - TOP_K_TO_SAMPLE = 8 -> 12 usable preferences and 7 comparisons
-# => higher TOP_K_TO_SAMPLE means more usable preferences with comparativly less comparisons
-#    but limited by the number of good profiles we can extract with such a high TEMPERATURE
-
-# TODO how long does extracting NUM_SAMPLES_TO_GENERATE samples take?
-#      - NUM_SAMPLES_TO_GENERATE samples / 32 preferences = 63 tournaments
-#      - 63 tournaments * 15 comparisons = 945 comparisons
-#      - 945 comparisons * 30 seconds / NUM_THREADS_EVALUATE = 1.6 hours
-#      - 63 extractions * 30 seconds * TOP_K_TO_SAMPLE / NUM_THREADS_GENERATE = 2.8 hours
-# TODO how do generating and evaluating compare in time? Do we need more threads for one or the other?
-
-# TODO are the TOP_K_TO_SAMPLE samples different enough?
-
-PAPERS_PER_SAMPLE = 4
-TOP_K_TO_SAMPLE = 16
-TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
-NUM_EXAMPLES = 1  # TODO or 0?
-
-NUM_THREADS_GENERATE = 3
-NUM_THREADS_EVALUATE = 5
-
-
-MODEL_NAME = 'current-finetuned-model'
-
-START_DATETIME = datetime_str()
+from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
+from src.extraction_custom import prompt_for_extract_from_abstracts_custom
+from src.types import EvaluationResult, Example, Profile, Ranking
+from src.dpo_cluster.defines import *
 
 # While we have not generated enough samples
 # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
@@ -73,6 +36,9 @@ START_DATETIME = datetime_str()
 # The evaluation will be written to the threadlocal database with all the preferences
 
 
+START_DATETIME = get_new_datetime_str()
+
+
 @dataclass(frozen=True)
 class SampleToGenerate:
     author: str
@@ -84,19 +50,8 @@ class SampleToGenerate:
 class SampleToEvaluate:
     author: str
     prompt: str
+    abstracts: list[str]
     profiles: list[Profile]
-
-
-def load_tokenizer(model_name=MODEL_NAME) -> PreTrainedTokenizer:
-    return AutoTokenizer.from_pretrained(model_name)  # type: ignore
-
-
-def load_model(model_name=MODEL_NAME, device='cuda') -> AutoPeftModelForCausalLM:
-    model = AutoPeftModelForCausalLM.from_pretrained(model_name, torch_dtype=torch.float16)
-    model = model.to(device)
-    model = model.eval()
-
-    return model
 
 
 samples_to_generate = Queue[SampleToGenerate]()
@@ -104,34 +59,6 @@ samples_to_evaluate = Queue[SampleToEvaluate]()
 
 number_preferences_generated = itertools.count()
 total_number_preferences_generated = 0
-
-
-def generate_prompt(abstracts: list[str], examples: list[Example]) -> list[Message]:
-    str_abstracts = '\n\n\n'.join(f'Abstract {i + 1}:\n{abstract}' for i, abstract in enumerate(abstracts))
-
-    return [
-        SystemMessage(
-            content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
-```
-Domain: [Short Domain Description]
-Competencies:
-- [Competency Name]: [Brief description of how Competency 1 is demonstrated across the abstracts]
-- [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
-...
-```
-The domain description should be a brief label, summarizing the overall area of expertise. The competencies should be specific skills or knowledge areas demonstrated in the abstracts.
-Extract 3 to at most 8 competencies from the abstracts, providing concise descriptions for each.
-Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
-        ),
-        *format_example_messages(examples),
-        HumanMessage(
-            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{str_abstracts}'
-        ),
-    ]
-
-
-def prompt_messages_to_str(tokenizer: PreTrainedTokenizer, messages: list[Message]) -> str:
-    return tokenizer.apply_chat_template(conversation=[message.to_dict() for message in messages])  # type: ignore
 
 
 async def populate_samples_to_generate():
@@ -165,53 +92,90 @@ async def process_samples_to_generate(index: int):
     # - top_k: TOP_K_TO_SAMPLE # Generate the top k (different) extracted profiles
     # The generated samples will be added to a list of samples to evaluate
 
-    tokenizer = load_tokenizer()
-    model = load_model(device=f'cuda:{index}')
+    tokenizer = get_tokenizer()
+    model = get_model(device=f'cuda:{index}')
 
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
         sample_to_generate = samples_to_generate.get()
 
-        prompt_messages = generate_prompt(sample_to_generate.abstracts, sample_to_generate.examples)
+        prompt_messages = prompt_for_extract_from_abstracts_custom(
+            sample_to_generate.abstracts, sample_to_generate.examples
+        )
 
         prompt = prompt_messages_to_str(tokenizer, prompt_messages)
 
-        inputs = tokenizer(prompt, return_tensors='pt', padding=True, truncation=True)
-        outputs = model.generate(
-            **inputs,
+        responses = generate(
+            tokenizer,
+            model,
+            prompt,
             num_return_sequences=TOP_K_TO_SAMPLE,
             num_beams=TOP_K_TO_SAMPLE,
             do_sample=True,
             temperature=TEMPERATURE,
             max_new_tokens=650,
         )
-        responses = tokenizer.batch_decode(outputs, skip_special_tokens=True)
 
         profiles = [Profile.parse(response) for response in responses]
 
-        samples_to_evaluate.put(SampleToEvaluate(sample_to_generate.author, prompt, profiles))
+        samples_to_evaluate.put(
+            SampleToEvaluate(
+                sample_to_generate.author,
+                prompt,
+                sample_to_generate.abstracts,
+                profiles,
+            )
+        )
 
         while samples_to_evaluate.qsize() > 50:
             await sleep(1)
 
 
-async def populate_samples_to_evaluate(index: int):
+async def process_samples_to_evaluate(index: int):
     global total_number_preferences_generated
     # Each thread will on startup create a threadlocal database (threadid + timestamp) to store the evaluation samples
     # Each thread will fetch one element from the samples to evaluate list
     # Then will call a tournament evaluation on the samples with the largest possible LLM
     # The evaluation will be written to the threadlocal database with all the preferences
 
-    tokenizer = load_tokenizer()
-    model = load_model(device=f'cuda:{index}')
+    tokenizer = get_tokenizer()
+    model = get_model(device=f'cuda:{index}')
+    # TODO some large model with low precision
+    # TODO proper tokenizer for the model
+    # TODO how much would that cost with GPT-4?
 
     db = DPODatabase(f'dpo_{START_DATETIME}_{index}.db')
 
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
         sample_to_evaluate = samples_to_evaluate.get()
 
-        # TODO run tournament evaluation on the samples with the largest possible LLM
+        examples = get_retriever_getter(max_number_to_retrieve=1)(Ranking).invoke(
+            '\n\n'.join(sample_to_evaluate.abstracts)
+        )
 
-        tournament: TournamentNode = None  # type: ignore
+        def evaluator(profile_index1: int, profile_index2: int) -> EvaluationResult:
+            profile1 = sample_to_evaluate.profiles[profile_index1]
+            profile2 = sample_to_evaluate.profiles[profile_index2]
+
+            prompt_messages = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
+            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+
+            response = generate(
+                tokenizer,
+                model,
+                prompt,
+                num_return_sequences=1,
+                num_beams=1,
+                do_sample=False,
+                max_new_tokens=350,
+            )[0]
+
+            return partialjson.JSONParser().parse(response)
+
+        tournament = run_tournament_ranking(
+            list(range(len(sample_to_evaluate.profiles))),
+            evaluator,
+            do_shuffle=True,
+        )
 
         for preference in get_all_preferences(tournament):
             preferred_profile = sample_to_evaluate.profiles[preference.winner]
@@ -237,14 +201,12 @@ async def main():
     futures = [populate_samples_to_generate()]
 
     for i in range(NUM_THREADS_GENERATE):
-        futures.append(process_samples_to_generate(i))
+        futures.append(process_samples_to_generate(i + NUM_THREADS_EVALUATE))
 
     for i in range(NUM_THREADS_EVALUATE):
-        futures.append(populate_samples_to_evaluate(i + NUM_THREADS_GENERATE))
+        futures.append(process_samples_to_evaluate(i))
 
     await gather(*futures)
-
-    print(START_DATETIME)
 
 
 if __name__ == '__main__':

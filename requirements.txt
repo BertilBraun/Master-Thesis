@@ -11,3 +11,8 @@ transformers
 trl
 partialjson
 peft
+evaluate
+wandb
+bitsandbytes
+accelerate
+flash-attn=2.4.2

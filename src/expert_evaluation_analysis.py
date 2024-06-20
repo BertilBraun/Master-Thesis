@@ -1,10 +1,10 @@
-from dataclasses import dataclass
-import json
 import os
+from dataclasses import dataclass
 from typing import Any, Callable
 
 from src.evaluation import get_all_preferences
 from src.types import AuthorResult, ExtractedProfile
+from src.util import load_json
 
 
 @dataclass(frozen=True)
@@ -87,11 +87,6 @@ def process_tournament(author_result: AuthorResult) -> dict[EvaluationIdentifier
             )
 
     return results
-
-
-def load_json(file_path: str) -> dict:
-    with open(file_path, 'r') as f:
-        return json.load(f)
 
 
 def get_all_json_files(directory: str) -> list[str]:

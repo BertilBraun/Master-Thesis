@@ -232,12 +232,10 @@ def get_summary_messages(content: str, retriever: Retriever[Summary]) -> list[Me
     ]
 
 
-def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> list[Message]:
-    evaluations = retriever.invoke(content)
-
+def format_ranking_messages(rankings: list[Ranking]) -> list[Message]:
     return [
         message
-        for i, evaluation in enumerate(evaluations)
+        for i, evaluation in enumerate(rankings)
         for message in [
             HumanExampleMessage(
                 content=f"""Example {i + 1}:
@@ -259,6 +257,11 @@ Profile 2:
             ),
         ]
     ]
+
+
+def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> list[Message]:
+    evaluations = retriever.invoke(content)
+    return format_ranking_messages(evaluations)
 
 
 def get_combination_messages(content: str, retriever: Retriever[Combination]) -> list[Message]:

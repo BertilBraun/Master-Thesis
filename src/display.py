@@ -1,30 +1,9 @@
 import os
 import json
 
-from enum import Enum
-from dataclasses import is_dataclass
-
 from src.log import date_str
 from src.types import AuthorResult, Message
-
-
-def custom_asdict(obj):
-    if is_dataclass(obj):
-        result = {}
-        for field_name, field_type in obj.__dataclass_fields__.items():
-            value = getattr(obj, field_name)
-            result[field_name] = custom_asdict(value)
-        return result
-    elif isinstance(obj, Enum):
-        return obj.value
-    elif isinstance(obj, list) or isinstance(obj, tuple):
-        return [custom_asdict(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {key: custom_asdict(value) for key, value in obj.items()}
-    elif callable(obj):
-        return obj.__qualname__  # Save the function's qualname if it's a callable
-    else:
-        return obj
+from src.util import custom_asdict
 
 
 def generate_html_file_for_extraction_result(author_result: AuthorResult):

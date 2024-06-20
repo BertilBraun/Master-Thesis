@@ -2,6 +2,7 @@ from src.language_model import trim_text_to_token_length
 from src.types import (
     Combination,
     Example,
+    Message,
     Profile,
     Query,
     LanguageModel,
@@ -10,18 +11,16 @@ from src.types import (
     HumanMessage,
 )
 from src.database import (
+    format_example_messages,
     get_combination_messages,
     get_example_messages,
 )
 
 
-def extract_from_abstracts_custom(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
-    # We are putting all Papers in one Prompt but only looking at the abstracts
-    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
+def prompt_for_extract_from_abstracts_custom(abstracts: list[str], examples: list[Example]) -> list[Message]:
+    str_abstracts = '\n\n\n'.join(f'Abstract {i + 1}:\n{abstract}' for i, abstract in enumerate(abstracts))
 
-    abstracts = '\n\n'.join(f'Abstract {i + 1}:\n{abstract}' for i, abstract in enumerate(query.abstracts))
-
-    prompt = [
+    return [
         SystemMessage(
             content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
 ```
@@ -35,11 +34,19 @@ The domain description should be a brief label, summarizing the overall area of 
 Extract 3 to at most 8 competencies from the abstracts, providing concise descriptions for each.
 Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
-        *get_example_messages(abstracts, retriever(Example)),
+        *format_example_messages(examples),
         HumanMessage(
-            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{abstracts}'
+            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{str_abstracts}'
         ),
     ]
+
+
+def extract_from_abstracts_custom(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:
+    # We are putting all Papers in one Prompt but only looking at the abstracts
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
+
+    examples = retriever(Example).invoke('\n\n'.join(query.abstracts))
+    prompt = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
 
     return llm.invoke_profile_custom(prompt)
 

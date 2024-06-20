@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from typing import Callable, Generic, Literal, Protocol, Type, TypeVar, overload
+from typing import Callable, Generic, Literal, Protocol, Type, TypeVar, TypedDict, overload
 from dataclasses import dataclass, field
 
 from openai.types.chat import ChatCompletionMessageParam
@@ -168,6 +168,17 @@ class Summary:
         return Summary(full_text=full_text, summary=summary)
 
 
+class EvaluationResult(TypedDict):
+    reasoning: str
+    preferred_profile: int
+
+
+class Preference(TypedDict):
+    prompt: str
+    chosen: str
+    rejected: str
+
+
 @dataclass(frozen=True)
 class Ranking:
     # Represents a 2way ranking between two profiles
@@ -180,7 +191,7 @@ class Ranking:
         return f"""Paper Text:\n\n{self.paper_text}\n\n\nProfile 1: {self.profiles[0]}\n\n\nProfile 2: {self.profiles[1]}\n\n\nReasoning: {self.reasoning}\n\nPreferred Profile: {self.preferred_profile + 1}"""
 
     @staticmethod
-    def parse_reasoning_json(obj: dict) -> str:
+    def parse_reasoning_json(obj: EvaluationResult) -> str:
         # fuzzy find the reasoning key in the json object
         # The json object should have the following structure:
         # {
@@ -196,7 +207,7 @@ class Ranking:
         return ''
 
     @staticmethod
-    def parse_preferred_profile_json(obj: dict) -> int:
+    def parse_preferred_profile_json(obj: EvaluationResult) -> int:
         # Returns the index of the preferred profile (0 if error)
 
         # fuzzy find the preferred_profile key in the json object
