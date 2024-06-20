@@ -133,8 +133,8 @@ def find_p95_length(train_dataset: Dataset) -> tuple[int, int]:
     from numpy import percentile
 
     prompt_length = int(percentile([len_of_input(x) for x in train_dataset['prompt']], 95))
-    max_seq_length_chosen = int(percentile([len_of_input(x['prompt'] + x['chosen']) for x in train_dataset], 95))
-    max_seq_length_rejected = int(percentile([len_of_input(x['prompt'] + x['rejected']) for x in train_dataset], 95))
+    max_seq_length_chosen = int(percentile([len_of_input(x['prompt'] + x['chosen']) for x in train_dataset], 95))  # type: ignore
+    max_seq_length_rejected = int(percentile([len_of_input(x['prompt'] + x['rejected']) for x in train_dataset], 95))  # type: ignore
     max_seq_length = max(max_seq_length_chosen, max_seq_length_rejected)
 
     # Up the lengths to next multiple of 2, why 2? Don't know
