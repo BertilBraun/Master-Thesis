@@ -11,6 +11,9 @@
 
 import os
 import sys
+
+import huggingface_hub
+
 from src.database import get_retriever_getter
 from src.papers import get_random_english_authors_abstracts
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
@@ -25,6 +28,8 @@ if __name__ == '__main__':
         # TODO check if this actually works
         print(f'{CURRENT_MODEL_PATH} already exists. Exiting...')
         sys.exit(1)
+
+    huggingface_hub.login()
 
     model = get_model(BASE_MODEL_ID)
 
