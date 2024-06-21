@@ -174,17 +174,32 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
-    inputs = tokenizer(prompt, return_tensors='pt', padding=True, truncation=True)
+    inputs = tokenizer(
+        prompt,
+        return_tensors='pt',
+        padding=True,  # TODO remove?
+        truncation=True,  # TODO remove?
+        add_generation_prompt=True,
+    ).to(model.device)
 
-    outputs: list[int] = model.generate(
+    terminators = [
+        tokenizer.eos_token_id,
+        tokenizer.convert_tokens_to_ids('<|eot_id|>'),
+    ]  # TODO specifically for Meta-Llama3-8B-Instruct
+
+    outputs: list[list[int]] = model.generate(
         **inputs,  # type: ignore
         num_return_sequences=num_return_sequences,
         num_beams=num_beams,
         do_sample=do_sample,
         max_new_tokens=max_new_tokens,
+        eos_token_id=terminators,
         temperature=temperature,
+        top_p=0.9,  # TODO remove?
     )
 
     # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
+
+    outputs = [output[inputs.shape[-1] :] for output in outputs]
 
     return tokenizer.batch_decode(outputs, skip_special_tokens=skip_special_tokens)
