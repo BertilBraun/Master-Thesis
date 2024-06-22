@@ -45,6 +45,7 @@ https://github.com/huggingface/alignment-handbook - Parameters for multiple diff
 
 
 import multiprocessing
+import sys
 import partialjson
 from torch import bfloat16, float16, cuda
 
@@ -286,11 +287,11 @@ def evaluate_model() -> bool:
 
         samples_for_fine_tuning_improvement_evaluation.append(sample.with_new_profile(response))
 
-    number_of_wins_current_model = 0
-
     # TODO unload the model from the GPU
     # TODO other evaluation model -> should be a large strong model
     # TODO proper tokenizer for the evaluation model
+
+    number_of_wins_current_model = 0
 
     for sample in samples_for_fine_tuning_improvement_evaluation:
         if evaluate_is_profile1_preferred(
@@ -312,11 +313,8 @@ def evaluate_model() -> bool:
         SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE,
     )
 
-    if number_of_wins_current_model < len(samples_for_fine_tuning_improvement_evaluation) * 0.5:
-        print('The current model is preferred less than the last model. Should keep the last model.')
-        return False
-
-    return True
+    # Return whether the current model is preferred more than the last model
+    return number_of_wins_current_model > len(samples_for_fine_tuning_improvement_evaluation) * 0.5
 
 
 if __name__ == '__main__':
@@ -363,5 +361,8 @@ if __name__ == '__main__':
     del trainer
     cuda.empty_cache()
 
-    if evaluate_model():
-        merge_and_save_model()
+    if not evaluate_model():
+        print('The current model is preferred less than the last model. Should keep the last model.')
+        sys.exit(1)  # exit with non-zero exit code to stop the iteration
+
+    merge_and_save_model()

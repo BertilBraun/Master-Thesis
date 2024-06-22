@@ -76,14 +76,17 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 )
 
 # TODO test parameters - comment out for production
+# ---------------------------------------
 
-NUM_SAMPLES_TO_GENERATE = 20  # TODO less? more?
+NUM_SAMPLES_TO_GENERATE = 32
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 8
 
 NUM_THREADS_GENERATE = 1
 NUM_THREADS_EVALUATE = 1
+
+# ---------------------------------------
 
 
 TEST_PERCENTAGE = 1 / NUM_SAMPLES_TO_GENERATE  # only one test sample
