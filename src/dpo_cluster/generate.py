@@ -250,7 +250,7 @@ async def main():
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
 
-    db = DPODatabase(f'dpo_{START_DATETIME}.db')
+    db = DPODatabase(f'dpo_{START_DATETIME}_{0}.db')
 
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
         sample_to_evaluate = samples_to_evaluate.get()
