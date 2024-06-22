@@ -1,5 +1,6 @@
 import itertools
 import partialjson
+from torch import cuda
 from queue import Queue
 from asyncio import run, sleep, gather
 from dataclasses import dataclass
@@ -108,6 +109,7 @@ async def process_samples_to_generate(index: int):
                     model,
                     sample_to_generate,
                 )
+
                 samples_to_evaluate.put(sample)
                 dumper(sample)
 
@@ -148,17 +150,13 @@ def process_sample_to_generate_into_sample_to_evaluate(
 
 
 async def process_samples_to_evaluate(index: int):
-    global total_number_preferences_generated
     # Each thread will on startup create a threadlocal database (threadid + timestamp) to store the evaluation samples
     # Each thread will fetch one element from the samples to evaluate list
     # Then will call a tournament evaluation on the samples with the largest possible LLM
     # The evaluation will be written to the threadlocal database with all the preferences
 
-    tokenizer = get_tokenizer()
-    model = get_model(device=f'cuda:{index}')
-    # TODO some large model with low precision
-    # TODO proper tokenizer for the model
-    # TODO how much would that cost with GPT-4?
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
 
     db = DPODatabase(f'dpo_{START_DATETIME}_{index}.db')
 
@@ -244,6 +242,13 @@ async def main():
 
             samples_to_evaluate.put(sample)
             dumper(sample)
+
+    del tokenizer
+    del model
+    cuda.empty_cache()
+
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
 
     db = DPODatabase(f'dpo_{START_DATETIME}.db')
 

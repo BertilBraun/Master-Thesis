@@ -66,6 +66,7 @@ TEST_PERCENTAGE = 0.05
 OUTPUT_DIR = 'dpo_output'
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
@@ -152,10 +153,18 @@ def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | Pr
     return tokenizer
 
 
-def get_model(name_or_path: str = CURRENT_MODEL_PATH, device='cuda') -> PreTrainedModel:
-    # TODO allow to load in lower precision
-    model = AutoModelForCausalLM.from_pretrained(name_or_path, torch_dtype=float16)
-    model = model.to(device)
+def get_model(
+    name_or_path: str = CURRENT_MODEL_PATH,
+    device='cuda',
+    load_in_4bit: bool = False,
+) -> PreTrainedModel:
+    model = AutoModelForCausalLM.from_pretrained(
+        name_or_path,
+        torch_dtype=float16 if load_in_4bit else None,
+        device_map=device,
+        load_in_4bit=load_in_4bit,
+        trust_remote_code=True,
+    )
     model = model.eval()
 
     return model
