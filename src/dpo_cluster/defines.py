@@ -1,4 +1,4 @@
-from torch import float16
+from torch import Tensor, float16
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -143,13 +143,14 @@ class SampleForFineTuningImprovementEvaluation:
 def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
     tokenizer = AutoTokenizer.from_pretrained(name_or_path)
 
-    if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token_id is None:
+        tokenizer.pad_token_id = tokenizer.eos_token_id
     if tokenizer.chat_template is None:
         tokenizer.chat_template = "{% for message in messages %}{{message['role'] + ': ' + message['content'] + '\n\n'}}{% endfor %}{{ eos_token }}"
 
     tokenizer.padding_side = 'left'  # to prevent errors with FA
     tokenizer.truncation_side = 'left'  # to prevent cutting off last generation
+
     return tokenizer
 
 
@@ -190,7 +191,6 @@ def generate(
         prompt,
         return_tensors='pt',
         padding=True,  # TODO remove?
-        truncation=True,  # TODO remove?
     ).to(model.device)
 
     terminators = [
@@ -198,7 +198,7 @@ def generate(
         tokenizer.convert_tokens_to_ids('<|eot_id|>'),
     ]  # TODO specifically for Meta-Llama3-8B-Instruct
 
-    outputs: list[list[int]] = model.generate(
+    outputs: Tensor = model.generate(
         **inputs,  # type: ignore
         num_return_sequences=num_return_sequences,
         num_beams=num_beams,
@@ -209,8 +209,8 @@ def generate(
         top_p=0.9,  # TODO remove?
     )
 
+    input_length = inputs.input_ids.shape[1]
+
     # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
 
-    outputs = [output[inputs.shape[-1] :] for output in outputs]
-
-    return tokenizer.batch_decode(outputs, skip_special_tokens=skip_special_tokens)
+    return tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
