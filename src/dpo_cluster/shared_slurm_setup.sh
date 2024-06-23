@@ -23,3 +23,5 @@ check_and_extend_workspace MA 15
 
 source ~/.bashrc
 # Export paths that are shared between different scripts
+
+export OMP_NUM_THREADS=8
