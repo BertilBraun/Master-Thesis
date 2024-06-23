@@ -1,39 +1,37 @@
-# Download the project
-# git clone https://github.com/BertilBraun/Master-Thesis.git ~/Master-Thesis
-
 if [ ! -d ~/Master-Thesis ]; then
     # exit if the project is not downloaded
-    echo "The project is not downloaded. Please download the project first and place it in the home directory."
+    echo "The project is not downloaded. Please download the project first and place it in the home directory. 'git clone https://github.com/BertilBraun/Master-Thesis.git ~/Master-Thesis'"
     exit 1
-fi
-
-
-# If miniconda is not installed, download and install it
-if [ ! -d ~/miniconda3 ]; then
-    echo "Downloading and installing Miniconda."
-    mkdir -p ~/miniconda3
-    wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda3/miniconda.sh
-    bash ~/miniconda3/miniconda.sh -b -u -p ~/miniconda3
-    rm -rf ~/miniconda3/miniconda.sh
-    
-    # Initialize conda in your bash shell
-    ~/miniconda3/bin/conda init bash
-    source ~/.bashrc
-else
-    echo "Miniconda is already installed."
 fi
 
 cd ~/Master-Thesis
 
-# Create the conda environment if it does not exist
-if [ ! -d ~/miniconda3/envs/MA ]; then
-    echo "Creating conda environment MA."
-    conda env create -f src/dpo_cluster/environment.yml
-else
-    echo "Conda environment MA already exists."
+# Add the following to the end ot the .bashrc file
+echo "cd ~/Master-Thesis" >> ~/.bashrc
+echo "module purge" >> ~/.bashrc
+echo "module load compiler/gnu/13.3" >> ~/.bashrc
+echo "module load devel/python/3.12.3_gnu_13.3" >> ~/.bashrc
+echo "module load devel/cuda/12.2" >> ~/.bashrc
+echo "source .venv/bin/activate" >> ~/.bashrc
+
+module purge
+module load compiler/gnu/13.3
+module load devel/python/3.12.3_gnu_13.3
+module load devel/cuda/12.2
+
+if ! ninja --version; then
+    echo "Please install ninja. Visit https://pypi.org/project/flash-attn/ for more information."
+    exit 1
 fi
 
-conda activate MA
+python -m venv .venv
+source .venv/bin/activate
+
+pip install --upgrade pip
+pip install -r requirements.txt
+
+pip install flash-attn --no-build-isolation
+
 
 # Create the workspace if it cannot be found with the ws_find command
 if [ "$(ws_find MA)" == "" ]; then

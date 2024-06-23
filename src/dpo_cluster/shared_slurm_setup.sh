@@ -16,10 +16,10 @@ check_and_extend_workspace() {
     fi
 }
 
+
+
 # Check and extend workspaces
 check_and_extend_workspace MA 15
 
-cd ~/Master-Thesis
-source ~/miniconda3/bin/activate MA
-
+source ~/.bashrc
 # Export paths that are shared between different scripts
