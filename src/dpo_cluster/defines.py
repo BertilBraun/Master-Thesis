@@ -191,7 +191,6 @@ def generate(
         return_tensors='pt',
         padding=True,  # TODO remove?
         truncation=True,  # TODO remove?
-        add_generation_prompt=True,
     ).to(model.device)
 
     terminators = [
