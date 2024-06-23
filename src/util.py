@@ -193,7 +193,7 @@ def load_json(file_name: str) -> Any:
 
 
 @contextmanager
-def json_dumper(file_name: str) -> Generator[Callable[[Any], None]]:
+def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
     # with json_dumper('data.json') as dumper:
     #    for i in range(10):
     #        dumper.dump({'a': i})

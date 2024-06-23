@@ -160,7 +160,9 @@ def get_papers_by_author(
 
 
 @timeit('Get Random English Authors Abstracts')
-def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> Generator[Query]:
+def get_random_english_authors_abstracts(
+    number_of_authors: int, number_of_papers_per_author: int
+) -> Generator[Query, None, None]:
     number_generated = 0
 
     for author in (
