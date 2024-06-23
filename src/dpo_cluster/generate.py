@@ -6,7 +6,7 @@ from asyncio import run, sleep, gather
 from dataclasses import dataclass
 
 
-from src.log import LogLevel, log
+from src.log import log
 from src.dpo.dpo_database import DPODatabase, EvaluationType
 from src.database import get_retriever_getter
 from src.papers import get_random_english_authors_abstracts
@@ -14,7 +14,7 @@ from src.evaluation import get_all_preferences, prompt_for_ranking, run_tourname
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import EvaluationResult, Example, Profile, Ranking
 from src.dpo_cluster.defines import *
-from src.util import json_dumper, log_all_exceptions
+from src.util import dump_json, json_dumper, log_all_exceptions
 
 # While we have not generated enough samples
 # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
@@ -72,6 +72,7 @@ async def populate_samples_to_generate():
     # Add a tuple of (author, abstracts, examples) to the samples to generate list
 
     for query in get_random_english_authors_abstracts(NUM_SAMPLES_TO_GENERATE // TOP_K_TO_SAMPLE, PAPERS_PER_SAMPLE):
+        log(f'Processing query: {query.author}')
         abstracts = '\n\n'.join(query.abstracts)
 
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
@@ -79,8 +80,8 @@ async def populate_samples_to_generate():
         samples_to_generate.put(SampleToGenerate(query.author, query.abstracts, examples))
 
         while samples_to_generate.qsize() > 50 and total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
-            await sleep(1)
-            log(f'Waiting for samples to generate: {samples_to_generate.qsize()}', level=LogLevel.DEBUG)
+            await sleep(10)
+            log(f'Waiting for samples to generate: {samples_to_generate.qsize()}')
 
         if total_number_preferences_generated >= NUM_SAMPLES_TO_GENERATE:
             break
@@ -103,6 +104,7 @@ async def process_samples_to_generate(index: int):
         while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
             with log_all_exceptions('generate'):
                 sample_to_generate = samples_to_generate.get()
+                log(f'Generating sample for {sample_to_generate.author}')
 
                 sample = process_sample_to_generate_into_sample_to_evaluate(
                     tokenizer,
@@ -115,6 +117,7 @@ async def process_samples_to_generate(index: int):
 
                 while samples_to_evaluate.qsize() > 50:
                     await sleep(1)
+                    log(f'Waiting for samples to evaluate: {samples_to_evaluate.qsize()}')
 
 
 def process_sample_to_generate_into_sample_to_evaluate(
@@ -141,6 +144,14 @@ def process_sample_to_generate_into_sample_to_evaluate(
 
     profiles = [Profile.parse(response) for response in responses]
 
+    dump_json(
+        {
+            'prompt': prompt_messages,
+            'profiles': [str(profile) for profile in profiles],
+        },
+        f'sample_to_evaluate_{sample_to_generate.author}_{START_DATETIME}.json',
+    )
+
     return SampleToEvaluate(
         sample_to_generate.author,
         prompt,
@@ -163,6 +174,7 @@ async def process_samples_to_evaluate(index: int):
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
         with log_all_exceptions('evaluate'):
             sample_to_evaluate = samples_to_evaluate.get()
+            log(f'Evaluating sample for {sample_to_evaluate.author}')
 
             process_sample_to_evaluate(tokenizer, model, db, sample_to_evaluate)
 
@@ -195,6 +207,14 @@ def process_sample_to_evaluate(
             do_sample=False,
             max_new_tokens=350,
         )[0]
+
+        dump_json(
+            {
+                'prompt': prompt_messages,
+                'response': response,
+            },
+            f'evaluation_{profile1}_{profile2}_{START_DATETIME}.json',
+        )
 
         return partialjson.JSONParser().parse(response)
 

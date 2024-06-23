@@ -211,7 +211,7 @@ def generate(
         do_sample=do_sample,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
-        temperature=temperature,
+        temperature=temperature if do_sample else None,
         top_p=0.9,  # TODO remove?
     )
 
