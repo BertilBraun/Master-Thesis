@@ -1,3 +1,4 @@
+import os
 from torch import Tensor, float16
 from transformers import (
     AutoModelForCausalLM,
@@ -9,6 +10,7 @@ from transformers import (
 from dataclasses import dataclass
 from src.types import Message
 from src.log import datetime_str
+from src.util import write_to_file
 
 
 """
@@ -105,13 +107,15 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 def get_new_datetime_str() -> str:
     start_datetime = datetime_str()
-    with open('dpo_output/start_datetime.txt', 'w') as f:
-        f.write(start_datetime)
+    write_to_file('{OUTPUT_DIR}/start_datetime.txt', start_datetime)
     return start_datetime
 
 
 def get_previous_datetime_str() -> str:
-    with open('dpo_output/start_datetime.txt', 'r') as f:
+    assert os.path.exists(
+        '{OUTPUT_DIR}/start_datetime.txt'
+    ), 'Run get_new_datetime_str() first to create the start_datetime.txt file.'
+    with open('{OUTPUT_DIR}/start_datetime.txt', 'r') as f:
         return f.read()
 
 
