@@ -136,7 +136,6 @@ def process_sample_to_generate_into_sample_to_evaluate(
         model,
         prompt,
         num_return_sequences=TOP_K_TO_SAMPLE,
-        num_beams=TOP_K_TO_SAMPLE,
         do_sample=True,
         temperature=TEMPERATURE,
         max_new_tokens=650,
@@ -203,7 +202,6 @@ def process_sample_to_evaluate(
             model,
             prompt,
             num_return_sequences=1,
-            num_beams=1,
             do_sample=False,
             max_new_tokens=350,
         )[0]
@@ -213,7 +211,7 @@ def process_sample_to_evaluate(
                 'prompt': prompt_messages,
                 'response': response,
             },
-            f'evaluation_{profile1}_{profile2}_{START_DATETIME}.json',
+            f'evaluation_{profile_index1}_{profile_index2}_{START_DATETIME}.json',
         )
 
         return partialjson.JSONParser().parse(response)

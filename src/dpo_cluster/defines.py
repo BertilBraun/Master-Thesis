@@ -57,7 +57,7 @@ NUM_SAMPLES_TO_GENERATE = 2000  # TODO less? more?
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 16
-TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
+TEMPERATURE = 1.2  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
 NUM_THREADS_GENERATE = 3
@@ -187,7 +187,6 @@ def generate(
     prompt: str,
     /,
     num_return_sequences: int = 1,
-    num_beams: int = 1,
     do_sample: bool = False,
     max_new_tokens: int = 300,
     temperature: float = 0.2,
@@ -207,12 +206,11 @@ def generate(
     outputs: Tensor = model.generate(
         **inputs,  # type: ignore
         num_return_sequences=num_return_sequences,
-        num_beams=num_beams,
         do_sample=do_sample,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
         temperature=temperature if do_sample else None,
-        top_p=0.9,  # TODO remove?
+        top_p=0.8,
     )
 
     input_length = inputs.input_ids.shape[1]

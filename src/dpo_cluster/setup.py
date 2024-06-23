@@ -55,7 +55,6 @@ if __name__ == '__main__':
             model,
             prompt,
             num_return_sequences=1,
-            num_beams=1,
             do_sample=True,
             temperature=0.2,
             max_new_tokens=650,

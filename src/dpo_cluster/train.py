@@ -245,7 +245,6 @@ def evaluate_is_profile1_preferred(model, tokenizer, profile1: Profile, profile2
             model,
             prompt,
             num_return_sequences=1,
-            num_beams=1,
             do_sample=False,
             max_new_tokens=350,
         )[0]
@@ -279,7 +278,6 @@ def evaluate_model() -> bool:
             model,
             sample.prompt,
             num_return_sequences=1,
-            num_beams=1,
             do_sample=True,
             temperature=0.2,
             max_new_tokens=650,
