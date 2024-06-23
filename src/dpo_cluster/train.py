@@ -318,7 +318,7 @@ def evaluate_model() -> bool:
 if __name__ == '__main__':
     # Load all the database datasets into one Dataset
     with progress_status('Loading datasets'):
-        dbs = [DPODatabase(f'dpo_{START_DATETIME}_{i}.db') for i in range(NUM_THREADS_EVALUATE)]
+        dbs = [DPODatabase(f'{OUTPUT_DIR}/dpo_{START_DATETIME}_{i}.db') for i in range(NUM_THREADS_EVALUATE)]
         train_dataset, test_dataset = load_dataset(dbs, tokenizer)
 
     # lets find the p95 length of the prompt

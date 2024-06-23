@@ -14,7 +14,7 @@ from src.evaluation import get_all_preferences, prompt_for_ranking, run_tourname
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import EvaluationResult, Example, Profile, Ranking
 from src.dpo_cluster.defines import *
-from src.util import dump_json, json_dumper, log_all_exceptions
+from src.util import dump_json, json_dumper, log_all_exceptions, timeblock
 
 # While we have not generated enough samples
 # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
@@ -100,7 +100,7 @@ async def process_samples_to_generate(index: int):
     tokenizer = get_tokenizer()
     model = get_model(device=f'cuda:{index}')
 
-    with json_dumper(f'samples_to_generate_{START_DATETIME}_{index}.json') as dumper:
+    with json_dumper(f'{OUTPUT_DIR}/samples_to_generate_{START_DATETIME}_{index}.json') as dumper:
         while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
             with log_all_exceptions('generate'):
                 sample_to_generate = samples_to_generate.get()
@@ -168,7 +168,7 @@ async def process_samples_to_evaluate(index: int):
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
 
-    db = DPODatabase(f'dpo_{START_DATETIME}_{index}.db')
+    db = DPODatabase(f'{OUTPUT_DIR}/dpo_{START_DATETIME}_{index}.db')
 
     while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
         with log_all_exceptions('evaluate'):
@@ -245,38 +245,42 @@ async def main():
 
     await populate_samples_to_generate()
 
-    tokenizer = get_tokenizer()
-    model = get_model()
+    with timeblock('Loading tokenizer and model'):
+        tokenizer = get_tokenizer()
+        model = get_model()
 
-    with json_dumper(f'samples_to_generate_{START_DATETIME}.json') as dumper:
-        while not samples_to_generate.empty():
-            sample_to_generate = samples_to_generate.get()
+    with timeblock('Generating samples'):
+        with json_dumper(f'{OUTPUT_DIR}/samples_to_generate_{START_DATETIME}.json') as dumper:
+            while not samples_to_generate.empty():
+                sample_to_generate = samples_to_generate.get()
 
-            sample = process_sample_to_generate_into_sample_to_evaluate(
-                tokenizer,
-                model,
-                sample_to_generate,
-            )
+                sample = process_sample_to_generate_into_sample_to_evaluate(
+                    tokenizer,
+                    model,
+                    sample_to_generate,
+                )
 
-            samples_to_evaluate.put(sample)
-            dumper(sample)
+                samples_to_evaluate.put(sample)
+                dumper(sample)
 
     del tokenizer
     del model
     cuda.empty_cache()
 
-    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-    model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
+    with timeblock('Loading large model and tokenizer'):
+        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+        model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
 
-    db = DPODatabase(f'dpo_{START_DATETIME}_{0}.db')
+    with timeblock('Evaluating samples'):
+        db = DPODatabase(f'{OUTPUT_DIR}/dpo_{START_DATETIME}_{0}.db')
 
-    while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
-        sample_to_evaluate = samples_to_evaluate.get()
+        while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
+            sample_to_evaluate = samples_to_evaluate.get()
 
-        process_sample_to_evaluate(tokenizer, model, db, sample_to_evaluate)
+            process_sample_to_evaluate(tokenizer, model, db, sample_to_evaluate)
 
     log('Finished generating and evaluating samples')
-    return
+    exit(1)
 
     futures = [populate_samples_to_generate()]
 

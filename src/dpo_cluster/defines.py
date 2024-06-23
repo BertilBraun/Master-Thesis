@@ -107,15 +107,15 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 def get_new_datetime_str() -> str:
     start_datetime = datetime_str()
-    write_to_file('{OUTPUT_DIR}/start_datetime.txt', start_datetime)
+    write_to_file(f'{OUTPUT_DIR}/start_datetime.txt', start_datetime)
     return start_datetime
 
 
 def get_previous_datetime_str() -> str:
     assert os.path.exists(
-        '{OUTPUT_DIR}/start_datetime.txt'
+        f'{OUTPUT_DIR}/start_datetime.txt'
     ), 'Run get_new_datetime_str() first to create the start_datetime.txt file.'
-    with open('{OUTPUT_DIR}/start_datetime.txt', 'r') as f:
+    with open(f'{OUTPUT_DIR}/start_datetime.txt', 'r') as f:
         return f.read()
 
 
@@ -181,6 +181,25 @@ def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerF
     return tokenizer.apply_chat_template(conversation=[message.to_dict() for message in messages], tokenize=False)  # type: ignore
 
 
+def clean_output(output: str, tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast) -> str:
+    output = output.strip()
+    output = output.replace(tokenizer.eos_token, '')
+
+    output = output.strip()
+    if output.startswith('assistant'):
+        output = output[len('assistant') :]
+
+    output = output.strip()
+    if output.startswith(':'):
+        output = output[1:]
+
+    output = output.strip()
+    if not output.startswith('{'):
+        output = '{' + output
+
+    return output
+
+
 def generate(
     tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
     model: PreTrainedModel,
@@ -217,4 +236,6 @@ def generate(
 
     # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
 
-    return tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+    output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+
+    return [clean_output(output_str, tokenizer) for output_str in output_strs]
