@@ -148,7 +148,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
             'prompt': prompt_messages,
             'profiles': [str(profile) for profile in profiles],
         },
-        f'sample_to_evaluate_{sample_to_generate.author}_{START_DATETIME}.json',
+        f'{OUTPUT_DIR}/sample_to_evaluate_{sample_to_generate.author}_{START_DATETIME}.json',
     )
 
     return SampleToEvaluate(
@@ -211,7 +211,7 @@ def process_sample_to_evaluate(
                 'prompt': prompt_messages,
                 'response': response,
             },
-            f'evaluation_{profile_index1}_{profile_index2}_{START_DATETIME}.json',
+            f'{OUTPUT_DIR}/evaluation_{profile_index1}_{profile_index2}_{START_DATETIME}.json',
         )
 
         return partialjson.JSONParser().parse(response)
