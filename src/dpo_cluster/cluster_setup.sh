@@ -13,6 +13,7 @@ echo "module load compiler/gnu/13.3" >> ~/.bashrc
 echo "module load devel/python/3.12.3_gnu_13.3" >> ~/.bashrc
 echo "module load devel/cuda/12.2" >> ~/.bashrc
 echo "source .venv/bin/activate" >> ~/.bashrc
+echo "export OMP_NUM_THREADS=8" >> ~/.bashrc
 
 module purge
 module load compiler/gnu/13.3
