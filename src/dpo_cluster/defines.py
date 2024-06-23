@@ -158,12 +158,14 @@ def get_model(
     name_or_path: str = CURRENT_MODEL_PATH,
     device='cuda',
     load_in_4bit: bool = False,
+    load_in_8bit: bool = False,
 ) -> PreTrainedModel:
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
-        torch_dtype=float16 if load_in_4bit else None,
+        torch_dtype=float16 if not load_in_4bit and not load_in_8bit else None,
         device_map=device,
         load_in_4bit=load_in_4bit,
+        load_in_8bit=load_in_8bit,
         trust_remote_code=True,
     )
     model = model.eval()
