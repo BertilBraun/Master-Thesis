@@ -96,18 +96,18 @@ def process_sample_to_evaluate(
                 'prompt': prompt_messages,
                 'response': response,
             },
-            f'{OUTPUT_DIR}/evaluation_{profile_index1}_{profile_index2}_{START_DATETIME}.json',
+            f'{OUTPUT_DIR}/evaluation_{START_DATETIME}_{profile_index1}_{profile_index2}.json',
         )
 
         try:
             return partialjson.JSONParser().parse(response)
         except Exception as e:
-            log(f'Error parsing response: {response}')
-            log(e)
+            log(f'Error parsing response: {response} - {e}')
             # last number [1|2] is the preferred profile
             last_one = response.rfind('1')
             last_two = response.rfind('2')
-            return {'reasoning': response, 'preferred_profile': max(last_one, last_two)}
+            preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
+            return {'reasoning': response, 'preferred_profile': preferred_profile}
 
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
