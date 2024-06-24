@@ -109,6 +109,7 @@ python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-multipart==0.0.9
 pytz==2024.1
+pysqlite3-binary==0.5.3
 PyYAML==6.0.1
 regex==2024.5.15
 requests==2.32.3

@@ -231,10 +231,11 @@ def generate(
         num_return_sequences=num_return_sequences,
         num_beams=num_return_sequences,
         num_beam_groups=num_return_sequences,
-        do_sample=do_sample,
+        do_sample=do_sample if num_return_sequences == 1 else False,
+        diversity_penalty=temperature if num_return_sequences > 1 else 0.0,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
-        temperature=temperature if do_sample else None,
+        temperature=temperature if do_sample and num_return_sequences == 1 else None,
         top_p=0.8,
     )
 

@@ -137,7 +137,6 @@ def process_sample_to_generate_into_sample_to_evaluate(
         model,
         prompt,
         num_return_sequences=TOP_K_TO_SAMPLE,
-        do_sample=True,
         temperature=TEMPERATURE,
         max_new_tokens=650,
     )
