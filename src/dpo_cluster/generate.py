@@ -1,3 +1,4 @@
+import GPUtil
 import itertools
 import partialjson
 from torch import cuda
@@ -238,10 +239,30 @@ def process_sample_to_evaluate(
         total_number_preferences_generated = next(number_preferences_generated)
 
 
+async def log_gpu_stats():
+    log_file = f'{OUTPUT_DIR}/gpu_stats_{START_DATETIME}.txt'
+
+    log(f"Using {os.environ['OMP_NUM_THREADS']} OMP_NUM_THREADS", log_file_name=log_file)
+
+    while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
+        for gpu in GPUtil.getGPUs():
+            log(f'GPU ID: {gpu.id}, Name: {gpu.name}', log_file_name=log_file)
+            log(f'Belastung: {gpu.load * 100}%', log_file_name=log_file)
+            log(f'Freier Speicher: {gpu.memoryFree} MB', log_file_name=log_file)
+            log(f'Verwendeter Speicher: {gpu.memoryUsed} MB', log_file_name=log_file)
+            log(f'Gesamtspeicher: {gpu.memoryTotal} MB', log_file_name=log_file)
+            log(f'Temperatur: {gpu.temperature} C', log_file_name=log_file)
+            log('-' * 40, log_file_name=log_file)
+
+        await sleep(0.5)
+
+
 async def main():
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
+
+    gpu_stats_future = log_gpu_stats()
 
     await populate_samples_to_generate()
 
@@ -280,6 +301,8 @@ async def main():
             process_sample_to_evaluate(tokenizer, model, db, sample_to_evaluate)
 
     log('Finished generating and evaluating samples')
+    # cancel the gpu stats future coroutine
+    await gpu_stats_future
     exit(1)
 
     futures = [populate_samples_to_generate()]

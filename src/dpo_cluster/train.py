@@ -24,6 +24,21 @@
 """
 Lots of references:
 
+LLM generation:
+https://huggingface.co/docs/transformers/en/llm_tutorial
+
+LLM.generate() parameters:
+https://huggingface.co/docs/transformers/v4.41.3/en/main_classes/text_generation#transformers.GenerationConfig
+
+
+Memory Usage:
+https://huggingface.co/spaces/hf-accelerate/model-memory-usage
+Example model: https://huggingface.co/instruction-pretrain/finance-Llama3-8B
+Training is for Adam, though idk. we would use LoRA, which should reduce the gradient and backward pass memory usage by a lot
+
+
+LLM fine-tuning:
+
 https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md
 https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py
 https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py

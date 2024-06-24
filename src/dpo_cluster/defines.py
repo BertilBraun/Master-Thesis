@@ -1,5 +1,5 @@
 import os
-from torch import Tensor, float16
+from torch import Tensor, float16, compile
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -171,10 +171,14 @@ def get_model(
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
         trust_remote_code=True,
+        attn_implementation='flash_attention_2',
     )
     model = model.eval()
+    model.generation_config.cache_implementation = 'static'
 
-    return model
+    compiled_model = compile(model, mode='reduce-overhead', fullgraph=True)
+
+    return compiled_model  # type: ignore
 
 
 def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast, messages: list[Message]) -> str:
@@ -225,6 +229,8 @@ def generate(
     outputs: Tensor = model.generate(
         **inputs,  # type: ignore
         num_return_sequences=num_return_sequences,
+        num_beams=num_return_sequences,
+        num_beam_groups=num_return_sequences,
         do_sample=do_sample,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
