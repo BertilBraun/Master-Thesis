@@ -28,10 +28,12 @@ done_loading_samples_to_evaluate = False
 
 async def load_samples_to_generate() -> None:
     global done_loading_samples_to_evaluate
+    log(f'Loading samples to evaluate from {START_DATETIME}')
 
     # load samples to generate from the json files into the samples_to_evaluate queue
     for i in range(NUM_THREADS_GENERATE):
         file = get_profile_output_file_path(START_DATETIME, i)
+        log(f'Loading samples to evaluate from {file}')
         for sample in load_json(file):
             samples_to_evaluate.put(SampleToEvaluate.from_json(sample))
 
@@ -43,6 +45,7 @@ async def process_samples_to_evaluate(index: int) -> None:
     # Each thread will fetch one element from the samples to evaluate list
     # Then will call a tournament evaluation on the samples with the largest possible LLM
     # The evaluation will be written to the threadlocal database with all the preferences
+    log(f'Starting evaluation thread {index}')
 
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(

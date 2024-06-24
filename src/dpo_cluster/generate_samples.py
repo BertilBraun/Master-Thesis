@@ -55,6 +55,7 @@ async def populate_samples_to_generate() -> None:
     # Fetch the best matching NUM_EXAMPLES examples in the RAG dataset
     # Add a tuple of (author, abstracts, examples) to the samples to generate list
     global done_populating_authors
+    log(f'Populating samples to generate from {START_DATETIME}')
 
     for query in get_random_english_authors_abstracts(NUM_AUTHORS_TO_PROCESS, PAPERS_PER_SAMPLE):
         log(f'Processing query: {query.author}')
@@ -80,6 +81,7 @@ async def process_samples_to_generate(index: int) -> None:
     # - temperature: TEMPERATURE
     # - top_k: TOP_K_TO_SAMPLE # Generate the top k (different) extracted profiles
     # The generated samples will be added to a list of samples to evaluate
+    log(f'Starting generation thread {index}')
 
     tokenizer = get_tokenizer()
     model = get_model(device=f'cuda:{index}')

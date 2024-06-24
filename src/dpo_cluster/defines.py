@@ -221,17 +221,20 @@ def generate(
         tokenizer.convert_tokens_to_ids('<|eot_id|>'),
     ]  # TODO specifically for Meta-Llama3-8B-Instruct
 
+    do_sample = do_sample and num_return_sequences == 1
+
     outputs: Tensor = model.generate(
         **inputs,  # type: ignore
         num_return_sequences=num_return_sequences,
         num_beams=num_return_sequences,
         num_beam_groups=num_return_sequences,
-        do_sample=do_sample if num_return_sequences == 1 else False,
+        do_sample=do_sample,
         diversity_penalty=temperature if num_return_sequences > 1 else 0.0,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
-        temperature=temperature if do_sample and num_return_sequences == 1 else None,
-        top_p=0.8,
+        pad_token_id=tokenizer.pad_token_id,
+        temperature=temperature if do_sample else None,
+        top_p=0.8 if do_sample else None,
     )
 
     input_length = inputs.input_ids.shape[1]
