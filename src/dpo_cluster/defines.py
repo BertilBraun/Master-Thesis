@@ -174,7 +174,7 @@ def get_model(
         attn_implementation='flash_attention_2',
     )
     model = model.eval()
-    model.generation_config.cache_implementation = 'static'
+    model.generation_config.cache_implementation = 'sdpa'
 
     compiled_model = compile(model, mode='reduce-overhead', fullgraph=True)
 
