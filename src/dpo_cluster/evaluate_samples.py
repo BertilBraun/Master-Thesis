@@ -50,7 +50,7 @@ async def process_samples_to_evaluate(index: int) -> None:
     model = get_model(
         EVALUATION_MODEL_ID,
         load_in_8bit=True,
-        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+        use_flash_attention=USE_FLASH_ATTENTION,
     )
 
     with json_dumper(get_preference_output_file_path(START_DATETIME, index)) as dumper:

@@ -156,9 +156,12 @@ def get_trainer(model) -> DPOTrainer:
         eval_steps=700,  # when to evaluate
         bf16=True,  # use bfloat16 precision
         tf32=False,  # use tf32 precision
-        group_by_length=True,  # group samples by length for faster training
+        # Currently crashes training group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
         report_to=['tensorboard'],  # report metrics to tensorboard
+        max_length=max_seq_length,
+        max_prompt_length=prompt_length,
+        remove_unused_columns=False,
     )
 
     return DPOTrainer(
@@ -169,8 +172,6 @@ def get_trainer(model) -> DPOTrainer:
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         tokenizer=tokenizer,
-        max_length=max_seq_length,
-        max_prompt_length=prompt_length,
         beta=0.1,  # The beta factor in DPO loss. Higher beta means less divergence
         loss_type='sigmoid',  # The loss type for DPO.
     )
@@ -190,7 +191,7 @@ def get_model():
         CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
-        attn_implementation='flash_attention_2',
+        attn_implementation='flash_attention_2' if USE_FLASH_ATTENTION else None,
         torch_dtype=bfloat16,
         quantization_config=bnb_config,
     )
