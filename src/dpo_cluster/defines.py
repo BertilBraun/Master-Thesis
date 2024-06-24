@@ -171,7 +171,7 @@ def get_model(
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
         trust_remote_code=True,
-        attn_implementation='flash_attention_2',
+        # attn_implementation='flash_attention_2',
     )
     model = model.eval()
     model.generation_config.cache_implementation = 'sdpa'
