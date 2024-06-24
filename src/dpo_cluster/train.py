@@ -24,6 +24,11 @@
 """
 Lots of references:
 
+Nodes on the BWUniCluster:
+https://wiki.bwhpc.de/e/BwUniCluster2.0/Hardware_and_Architecture
+https://wiki.bwhpc.de/e/BwUniCluster2.0/Batch_Queues
+
+
 LLM generation:
 https://huggingface.co/docs/transformers/en/llm_tutorial
 

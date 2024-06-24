@@ -1,5 +1,6 @@
+import gc
 import os
-from torch import Tensor, float16, compile
+from torch import Tensor, float16, compile, cuda
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -68,6 +69,7 @@ TEST_PERCENTAGE = 0.05
 OUTPUT_DIR = 'dpo_output'
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'  # TODO
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
@@ -236,5 +238,8 @@ def generate(
     # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
 
     output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+
+    gc.collect()
+    cuda.empty_cache()
 
     return [clean_output(output_str, tokenizer) for output_str in output_strs]

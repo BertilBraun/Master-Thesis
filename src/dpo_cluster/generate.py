@@ -309,11 +309,14 @@ async def main():
 
     del tokenizer
     del model
+    import gc
+
+    gc.collect()
     cuda.empty_cache()
 
     with timeblock('Loading large model and tokenizer'):
         tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-        model = get_model(EVALUATION_MODEL_ID, load_in_4bit=True)
+        model = get_model(EVALUATION_MODEL_ID, load_in_8bit=True)
 
     with timeblock('Evaluating samples'):
         db = DPODatabase(f'{OUTPUT_DIR}/dpo_{START_DATETIME}_{0}.db')
