@@ -193,15 +193,7 @@ def clean_output(output: str, tokenizer: PreTrainedTokenizer | PreTrainedTokeniz
     if output.startswith('assistant'):
         output = output[len('assistant') :]
 
-    output = output.strip()
-    if output.startswith(':'):
-        output = output[1:]
-
-    output = output.strip()
-    if not output.startswith('{'):
-        output = '{' + output
-
-    return output
+    return output.strip()
 
 
 def generate(

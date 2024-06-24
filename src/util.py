@@ -207,6 +207,7 @@ def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
             if not first:
                 f.write(',')
             f.write(json.dumps(custom_asdict(obj), indent=4))
+            f.flush()
             first = False
 
         try:

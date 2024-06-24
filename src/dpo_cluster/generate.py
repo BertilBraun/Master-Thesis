@@ -1,4 +1,3 @@
-import GPUtil
 import itertools
 import partialjson
 from torch import cuda
@@ -214,7 +213,15 @@ def process_sample_to_evaluate(
             f'{OUTPUT_DIR}/evaluation_{profile_index1}_{profile_index2}_{START_DATETIME}.json',
         )
 
-        return partialjson.JSONParser().parse(response)
+        try:
+            return partialjson.JSONParser().parse(response)
+        except Exception as e:
+            log(f'Error parsing response: {response}')
+            log(e)
+            # last number [1|2] is the preferred profile
+            last_one = response.rfind('1')
+            last_two = response.rfind('2')
+            return {'reasoning': response, 'preferred_profile': max(last_one, last_two)}
 
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
@@ -238,30 +245,47 @@ def process_sample_to_evaluate(
         total_number_preferences_generated = next(number_preferences_generated)
 
 
-async def log_gpu_stats():
-    log_file = f'{OUTPUT_DIR}/gpu_stats_{START_DATETIME}.txt'
+"""
+import GPUtil
+from time import sleep
 
-    log(f"Using {os.environ['OMP_NUM_THREADS']} OMP_NUM_THREADS", log_file_name=log_file)
+average_usage = 0
+average_memory_free = 0
+average_memory_used = 0
+average_memory_total = 0
+average_temperature = 0
+total_num_samples = 0
 
-    while total_number_preferences_generated < NUM_SAMPLES_TO_GENERATE:
-        for gpu in GPUtil.getGPUs():
-            log(f'GPU ID: {gpu.id}, Name: {gpu.name}', log_file_name=log_file)
-            log(f'Belastung: {gpu.load * 100}%', log_file_name=log_file)
-            log(f'Freier Speicher: {gpu.memoryFree} MB', log_file_name=log_file)
-            log(f'Verwendeter Speicher: {gpu.memoryUsed} MB', log_file_name=log_file)
-            log(f'Gesamtspeicher: {gpu.memoryTotal} MB', log_file_name=log_file)
-            log(f'Temperatur: {gpu.temperature} C', log_file_name=log_file)
-            log('-' * 40, log_file_name=log_file)
+while True:
+    for gpu in GPUtil.getGPUs():
+        print(f'GPU ID: {gpu.id}, Name: {gpu.name}')
+        print(f'Belastung: {gpu.load * 100:.1f}%')
+        print(f'Freier Speicher: {gpu.memoryFree:.2f} MB')
+        print(f'Verwendeter Speicher: {gpu.memoryUsed:.2f} MB')
+        print(f'Gesamtspeicher: {gpu.memoryTotal:.2f} MB')
+        print(f'Temperatur: {gpu.temperature:.2f} C')
+        print('-' * 40)
+        average_usage += gpu.load * 100
+        average_memory_free += gpu.memoryFree
+        average_memory_used += gpu.memoryUsed
+        average_memory_total += gpu.memoryTotal
+        average_temperature += gpu.temperature
+        total_num_samples += 1
+    print(f'Average usage: {average_usage / total_num_samples:.1f}%')
+    print(f'Average memory free: {average_memory_free / total_num_samples:.2f} MB')
+    print(f'Average memory used: {average_memory_used / total_num_samples:.2f} MB')
+    print(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB')
+    print(f'Average temperature: {average_temperature / total_num_samples:.2f} C')
+    print('-' * 40)
 
-        await sleep(0.5)
+    sleep(1)
+"""
 
 
 async def main():
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
-
-    gpu_stats_future = log_gpu_stats()
 
     await populate_samples_to_generate()
 
@@ -300,8 +324,6 @@ async def main():
             process_sample_to_evaluate(tokenizer, model, db, sample_to_evaluate)
 
     log('Finished generating and evaluating samples')
-    # cancel the gpu stats future coroutine
-    await gpu_stats_future
     exit(1)
 
     futures = [populate_samples_to_generate()]
