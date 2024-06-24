@@ -9,50 +9,9 @@ from transformers import (
     PreTrainedModel,
 )
 from dataclasses import dataclass
-from src.types import Message
+from src.types import Example, Message, Profile
 from src.log import datetime_str
 from src.util import write_to_file
-
-
-"""
-how many samples to we generate with each extraction of TOP_K_TO_SAMPLE?
- - 4 papers per sample
- - TOP_K_TO_SAMPLE extracted profiles
- - TOP_K_TO_SAMPLE profiles in a tournament
- - TOP_K_TO_SAMPLE - 1 comparisons in a tournament
- - TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
- - TOP_K_TO_SAMPLE = 8 -> 12 usable preferences and 7 comparisons
-=> higher TOP_K_TO_SAMPLE means more usable preferences with comparativly less comparisons
-   but limited by the number of good profiles we can extract with such a high TEMPERATURE
-
-TODO are the TOP_K_TO_SAMPLE samples different enough?
-
-TODO how long does extracting NUM_SAMPLES_TO_GENERATE samples take? Measure it!
-Theoretically:
- - NUM_SAMPLES_TO_GENERATE samples / 32 preferences = 63 tournaments
- - 63 tournaments * 15 comparisons = 945 comparisons
- - 945 comparisons * 30 seconds / NUM_THREADS_EVALUATE = 1.6 hours
- - 63 extractions * 30 seconds * TOP_K_TO_SAMPLE / NUM_THREADS_GENERATE = 2.8 hours
-TODO how do generating and evaluating compare in time? Do we need more threads for one or the other?
-
-How much would 10k training samples cost?
-  - Approximately 3.0k Tokens in a one-shot prompt
-  - ~300 tokens for the response
-  - 1M tokens input = 5$
-  - 1M tokens output = 15$
-  - 945 comparisons * 3.0k tokens = 2.8M tokens => 2.8M tokens * 5$/1M tokens = 14$ for input
-  - 945 comparisons * 300 tokens = 283.5k tokens => 283.5k tokens * 15$/1M tokens = 4.25$ for output
-  - ~19$ per 2000 Samples
-  - Can be cut to 14$ with 1x batching 
-    - 19$ * 3/4 = ~14$ 
-    - since half of the comparisons are in the first round and these would be batched with half the price
-    - 1 day waiting
-  - Can be cut to 12$ with 2x batching 
-    - 19$ * 5/8 = ~12$
-    - batching the first round and then also the second round
-    - 2 days waiting
-
-"""
 
 NUM_SAMPLES_TO_GENERATE = 2000  # TODO less? more?
 
@@ -69,10 +28,11 @@ TEST_PERCENTAGE = 0.05
 OUTPUT_DIR = 'dpo_output'
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'  # TODO
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
+
+USE_FLASH_ATTENTION_FOR_EVALUATION = True
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 3
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
@@ -82,6 +42,9 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 # TODO test parameters - comment out for production
 # ---------------------------------------
+
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
+USE_FLASH_ATTENTION_FOR_EVALUATION = False
 
 NUM_SAMPLES_TO_GENERATE = 32
 
@@ -121,6 +84,14 @@ def get_previous_datetime_str() -> str:
         return f.read()
 
 
+def get_profile_output_file_path(start_datetime: str, index: int) -> str:
+    return f'{OUTPUT_DIR}/samples_to_evaluate_{start_datetime}_{index}.json'
+
+
+def get_preference_output_file_path(start_datetime: str, index: int) -> str:
+    return f'{OUTPUT_DIR}/preferences_{start_datetime}_{index}.json'
+
+
 @dataclass(frozen=True)
 class SampleForFineTuningImprovementEvaluation:
     prompt: str
@@ -130,12 +101,7 @@ class SampleForFineTuningImprovementEvaluation:
 
     @staticmethod
     def from_json(data: dict) -> 'SampleForFineTuningImprovementEvaluation':
-        return SampleForFineTuningImprovementEvaluation(
-            prompt=data['prompt'],
-            abstracts=data['abstracts'],
-            best_profile_from_original_model=data['best_profile_from_original_model'],
-            best_profile_from_last_model=data['best_profile_from_last_model'],
-        )
+        return SampleForFineTuningImprovementEvaluation(**data)
 
     def with_new_profile(self, best_profile_from_last_model: str) -> 'SampleForFineTuningImprovementEvaluation':
         return SampleForFineTuningImprovementEvaluation(
@@ -144,6 +110,40 @@ class SampleForFineTuningImprovementEvaluation:
             best_profile_from_original_model=self.best_profile_from_original_model,
             best_profile_from_last_model=best_profile_from_last_model,
         )
+
+
+@dataclass(frozen=True)
+class SampleToGenerate:
+    author: str
+    abstracts: list[str]
+    examples: list[Example]
+
+    @staticmethod
+    def from_json(data: dict) -> 'SampleToGenerate':
+        return SampleToGenerate(**data)
+
+
+@dataclass(frozen=True)
+class SampleToEvaluate:
+    author: str
+    prompt: str
+    abstracts: list[str]
+    profiles: list[Profile]
+
+    @staticmethod
+    def from_json(data: dict) -> 'SampleToEvaluate':
+        return SampleToEvaluate(**data)
+
+
+@dataclass(frozen=True)
+class PreferenceSample:
+    prompt: str
+    chosen: str
+    rejected: str
+
+    @staticmethod
+    def from_json(data: dict) -> 'PreferenceSample':
+        return PreferenceSample(**data)
 
 
 def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
@@ -165,6 +165,7 @@ def get_model(
     device='cuda',
     load_in_4bit: bool = False,
     load_in_8bit: bool = False,
+    use_flash_attention: bool = False,
 ) -> PreTrainedModel:
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
@@ -173,7 +174,7 @@ def get_model(
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
         trust_remote_code=True,
-        # attn_implementation='flash_attention_2',
+        attn_implementation='flash_attention_2' if use_flash_attention else None,
     )
     model = model.eval()
     model.generation_config.cache_implementation = 'sdpa'

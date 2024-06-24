@@ -25,7 +25,6 @@ from src.util import dump_json
 if __name__ == '__main__':
     # if MODEL_NAME model exists, exit with non-zero exit code
     if os.path.exists(CURRENT_MODEL_PATH):
-        # TODO check if this actually works
         print(f'{CURRENT_MODEL_PATH} already exists. Exiting...')
         sys.exit(1)
 

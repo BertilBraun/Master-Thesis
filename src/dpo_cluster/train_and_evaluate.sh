@@ -14,7 +14,7 @@
 
 source shared_slurm_setup.sh
 
-python -m src.dpo_cluster.train
+python -m src.dpo_cluster.train_and_evaluate
 
 # if the train script is successful, then the next step is to generate again
 if [ $? -eq 0 ]; then

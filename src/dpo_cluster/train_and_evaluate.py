@@ -21,49 +21,6 @@
 # Otherwise the script is then responsible to write the new model to the 'current-finetuned-model' file so that it can be used in the next iteration
 
 
-"""
-Lots of references:
-
-Nodes on the BWUniCluster:
-https://wiki.bwhpc.de/e/BwUniCluster2.0/Hardware_and_Architecture
-https://wiki.bwhpc.de/e/BwUniCluster2.0/Batch_Queues
-
-
-LLM generation:
-https://huggingface.co/docs/transformers/en/llm_tutorial
-
-LLM.generate() parameters:
-https://huggingface.co/docs/transformers/v4.41.3/en/main_classes/text_generation#transformers.GenerationConfig
-
-
-Memory Usage:
-https://huggingface.co/spaces/hf-accelerate/model-memory-usage
-Example model: https://huggingface.co/instruction-pretrain/finance-Llama3-8B
-Training is for Adam, though idk. we would use LoRA, which should reduce the gradient and backward pass memory usage by a lot
-
-
-LLM fine-tuning:
-
-https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md
-https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py
-https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py
-
-
-https://huggingface.co/blog/rlhf
-https://huggingface.co/blog/dpo-trl
-https://huggingface.co/blog/pref-tuning
-https://huggingface.co/docs/trl/en/dpo_trainer
-https://huggingface.co/docs/peft/quicktour
-https://huggingface.co/docs/peft/main/en/conceptual_guides/lora
-
-
-https://gitlab.kit.edu/kit/aifb/BIS/templates/projects/llmfinetuningstarterkit/-/blob/main/supervised_finetuning/finetuning.ipynb?ref_type=heads
-
-
-https://github.com/huggingface/alignment-handbook - Parameters for multiple different model trainings
-"""
-
-
 import multiprocessing
 import sys
 import partialjson
@@ -80,7 +37,6 @@ from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
 
 from src.dpo_cluster.defines import *
-from src.dpo.dpo_database import DPODatabase, EvaluationType
 from src.util import dump_json, load_json
 from src.log import progress_status
 from src.database import get_retriever_getter
@@ -92,7 +48,7 @@ START_DATETIME = get_previous_datetime_str()
 
 
 def load_dataset(
-    dbs: list[DPODatabase],
+    json_file_paths: list[str],
     tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
     test_percentage: float = TEST_PERCENTAGE,
 ) -> tuple[Dataset, Dataset]:
@@ -110,12 +66,12 @@ def load_dataset(
     chosens: list[str] = []
     rejecteds: list[str] = []
 
-    for db in dbs:
-        ds = db.get_entries_by_type(EvaluationType.AUTOMATIC)
-
-        prompts.extend(ds['prompt'])
-        chosens.extend(ds['chosen'])
-        rejecteds.extend(ds['rejected'])
+    for file in json_file_paths:
+        for element in load_json(file):
+            sample = PreferenceSample.from_json(element)
+            prompts.append(sample.prompt)
+            chosens.append(sample.chosen)
+            rejecteds.append(sample.rejected)
 
     ds = Dataset.from_dict({'prompt': prompts, 'chosen': chosens, 'rejected': rejecteds})
 
@@ -198,7 +154,7 @@ def get_trainer(model) -> DPOTrainer:
         evaluation_strategy='steps',  # evaluate every 1000 steps
         eval_steps=700,  # when to evaluate
         bf16=True,  # use bfloat16 precision
-        tf32=True,  # use tf32 precision
+        tf32=False,  # use tf32 precision
         group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
         report_to=['tensorboard'],  # report metrics to tensorboard
@@ -338,8 +294,8 @@ def evaluate_model() -> bool:
 if __name__ == '__main__':
     # Load all the database datasets into one Dataset
     with progress_status('Loading datasets'):
-        dbs = [DPODatabase(f'{OUTPUT_DIR}/dpo_{START_DATETIME}_{i}.db') for i in range(NUM_THREADS_EVALUATE)]
-        train_dataset, test_dataset = load_dataset(dbs, tokenizer)
+        files = [get_preference_output_file_path(START_DATETIME, i) for i in range(NUM_THREADS_EVALUATE)]
+        train_dataset, test_dataset = load_dataset(files, tokenizer)
 
     # lets find the p95 length of the prompt
     with progress_status('Finding p95 lengths'):

@@ -19,5 +19,5 @@ python -m src.dpo_cluster.setup
 # if the setup script is successful, then the next step is to generate
 if [ $? -eq 0 ]; then
     cd src/dpo_cluster
-    sbatch generate.sh
+    sbatch generate_samples.sh
 fi
