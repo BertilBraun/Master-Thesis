@@ -57,7 +57,7 @@ NUM_SAMPLES_TO_GENERATE = 2000  # TODO less? more?
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 16
-TEMPERATURE = 1.2  # Prefer more diverse samples so that all TOP_K are different
+TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
 NUM_THREADS_GENERATE = 3

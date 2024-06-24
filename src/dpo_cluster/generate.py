@@ -278,7 +278,7 @@ while True:
     print(f'Average temperature: {average_temperature / total_num_samples:.2f} C')
     print('-' * 40)
 
-    sleep(1)
+    sleep(2)
 """
 
 
