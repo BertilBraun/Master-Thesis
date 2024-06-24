@@ -44,7 +44,8 @@ from src.evaluation import prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Profile, Ranking
 
 
-START_DATETIME = get_previous_datetime_str()
+if __name__ == '__main__':
+    START_DATETIME = get_previous_datetime_str()
 
 
 def load_dataset(

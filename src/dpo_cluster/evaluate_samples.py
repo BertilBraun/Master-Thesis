@@ -7,7 +7,6 @@ from src.log import log
 from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Ranking
-from src.dpo_cluster.generate_samples import SampleToEvaluate, get_profile_output_file_path
 from src.dpo_cluster.defines import *
 from src.util import dump_json, json_dumper, load_json, log_all_exceptions, timeblock
 
@@ -17,8 +16,8 @@ from src.util import dump_json, json_dumper, load_json, log_all_exceptions, time
 # Then will call a tournament evaluation on the samples with the largest possible LLM
 # The evaluation will be written to the threadlocal database with all the preferences
 
-
-START_DATETIME = get_previous_datetime_str()
+if __name__ == '__main__':
+    START_DATETIME = get_previous_datetime_str()
 
 
 samples_to_evaluate = Queue[SampleToEvaluate]()

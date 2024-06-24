@@ -28,7 +28,8 @@ from src.util import dump_json, json_dumper, log_all_exceptions, timeblock
 # The generated samples will be added to a list of samples to evaluate
 
 
-START_DATETIME = get_new_datetime_str()
+if __name__ == '__main__':
+    START_DATETIME = get_new_datetime_str()
 
 
 samples_to_generate = Queue[SampleToGenerate]()
