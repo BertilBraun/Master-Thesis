@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=train                   # job name
-#SBATCH --partition=gpu_4                  # mby GPU queue for the resource allocation.
+#SBATCH --partition=gpu_4_a100             # mby GPU queue for the resource allocation.
 #SBATCH --time=08:00:00                    # wall-clock time limit
 #SBATCH --mem=100000                       # memory per node
 #SBATCH --nodes=1                          # number of nodes to be used
@@ -19,5 +19,5 @@ python -m src.dpo_cluster.train_and_evaluate
 # if the train script is successful, then the next step is to generate again
 if [ $? -eq 0 ]; then
     cd src/dpo_cluster
-    sbatch generate.sh
+    # TODO reactivate sbatch generate.sh
 fi
