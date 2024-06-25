@@ -29,5 +29,6 @@ while True:
     print(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB')
     print(f'Average temperature: {average_temperature / total_num_samples:.2f} C')
     print('-' * 40)
+    print('=' * 40)
 
     sleep(2)

@@ -75,43 +75,64 @@ def process_sample_to_evaluate(
         '\n\n'.join(sample_to_evaluate.abstracts)
     )
 
-    def evaluator(profile_index1: int, profile_index2: int) -> EvaluationResult:
-        profile1 = sample_to_evaluate.profiles[profile_index1]
-        profile2 = sample_to_evaluate.profiles[profile_index2]
+    def round_evaluator(matches: list[tuple[int, int]]) -> list[EvaluationResult]:
+        prompts: list[str] = []
 
-        prompt_messages = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
-        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+        for profile1_index, profile2_index in matches:
+            profile1 = sample_to_evaluate.profiles[profile1_index]
+            profile2 = sample_to_evaluate.profiles[profile2_index]
 
-        response = generate(
-            tokenizer,
-            model,
-            prompt,
-            num_return_sequences=1,
-            do_sample=False,
-            max_new_tokens=350,
-        )[0]
+            prompt_messages = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
+            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
 
+            prompts.append(prompt)
+
+        # group by EVALUATION_BATCH_SIZE
+        batched_prompts = [
+            prompts[i : i + EVALUATION_BATCH_SIZE] for i in range(0, len(prompts), EVALUATION_BATCH_SIZE)
+        ]
+
+        # Call batch_generate with the prompts
+        responses: list[str] = []
+        for batch in batched_prompts:
+            responses += batched_generate(
+                tokenizer,
+                model,
+                batch,
+                do_sample=False,
+                max_new_tokens=350,
+            )
+
+        # Log the responses to a file
         dump_json(
-            {
-                'prompt': prompt_messages,
-                'response': response,
-            },
-            f'{OUTPUT_DIR}/evaluation_{START_DATETIME}_{profile_index1}_{profile_index2}.json',
+            [
+                {
+                    'prompt': prompt,
+                    'response': response,
+                }
+                for prompt, response in zip(prompts, responses)
+            ],
+            f'{OUTPUT_DIR}/evaluation_{START_DATETIME}_{sample_to_evaluate.author}_round({len(matches)}).json',
         )
 
-        try:
-            return partialjson.JSONParser().parse(response)
-        except Exception as e:
-            log(f'Error parsing response: {response} - {e}')
-            # last number [1|2] is the preferred profile
-            last_one = response.rfind('1')
-            last_two = response.rfind('2')
-            preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
-            return {'reasoning': response, 'preferred_profile': preferred_profile}
+        # Parse the responses and return the results
+        evaluation_results: list[EvaluationResult] = []
+        for response in responses:
+            try:
+                evaluation_results.append(partialjson.JSONParser().parse(response))
+            except Exception as e:
+                log(f'Error parsing response: {response} - {e}')
+                # last number [1|2] is the preferred profile
+                last_one = response.rfind('1')
+                last_two = response.rfind('2')
+                preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
+                evaluation_results.append({'reasoning': response, 'preferred_profile': preferred_profile})
+
+        return evaluation_results
 
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
-        evaluator,
+        round_evaluator,
         do_shuffle=True,
     )
 

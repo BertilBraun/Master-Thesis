@@ -20,8 +20,10 @@ TOP_K_TO_SAMPLE = 16
 TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
-NUM_THREADS_GENERATE = 3
-NUM_THREADS_EVALUATE = 5
+NUM_THREADS_GENERATE = 8
+NUM_THREADS_EVALUATE = 4
+
+EVALUATION_BATCH_SIZE = 8
 
 
 TEST_PERCENTAGE = 0.05
@@ -45,6 +47,8 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
 USE_FLASH_ATTENTION = False
+
+EVALUATION_BATCH_SIZE = 2
 
 NUM_SAMPLES_TO_GENERATE = 32
 
@@ -210,11 +214,7 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
-    inputs = tokenizer(
-        prompt,
-        return_tensors='pt',
-        padding=True,  # TODO remove?
-    ).to(model.device)
+    inputs = tokenizer(prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [
         tokenizer.eos_token_id,
@@ -230,6 +230,45 @@ def generate(
         num_beam_groups=num_return_sequences,
         do_sample=do_sample,
         diversity_penalty=temperature if num_return_sequences > 1 else 0.0,
+        max_new_tokens=max_new_tokens,
+        eos_token_id=terminators,
+        pad_token_id=tokenizer.pad_token_id,
+        temperature=temperature if do_sample else None,
+        top_p=0.8 if do_sample else None,
+    )
+
+    input_length = inputs.input_ids.shape[1]
+
+    # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
+
+    output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+
+    gc.collect()
+    cuda.empty_cache()
+
+    return [clean_output(output_str, tokenizer) for output_str in output_strs]
+
+
+def batched_generate(
+    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
+    model: PreTrainedModel,
+    prompts: list[str],
+    /,
+    do_sample: bool = True,
+    max_new_tokens: int = 300,
+    temperature: float = 0.2,
+    skip_special_tokens: bool = True,
+) -> list[str]:
+    inputs = tokenizer(prompts, return_tensors='pt', padding=True).to(model.device)
+
+    terminators = [
+        tokenizer.eos_token_id,
+        tokenizer.convert_tokens_to_ids('<|eot_id|>'),
+    ]  # TODO specifically for Meta-Llama3-8B-Instruct
+
+    outputs: Tensor = model.generate(
+        **inputs,  # type: ignore
+        do_sample=do_sample,
         max_new_tokens=max_new_tokens,
         eos_token_id=terminators,
         pad_token_id=tokenizer.pad_token_id,

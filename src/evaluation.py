@@ -14,7 +14,6 @@ from src.types import (
     TournamentNode,
 )
 from src.language_model import OpenAILanguageModel
-from src.log import LogLevel, log
 
 
 # EvaluatorResult is a dictionary with the keys "reasoning" and "preferred_profile"
@@ -22,21 +21,10 @@ from src.log import LogLevel, log
 # "preferred_profile" is an integer (1 or 2) indicating which profile is preferred
 
 
-def compare_profiles(profile1: int, profile2: int, evaluator: Callable[[int, int], EvaluationResult]) -> RankingResult:
+def compare_profiles(profile1: int, profile2: int, evaluation: EvaluationResult) -> RankingResult:
     # Compare two profiles based using a llm model to determine the winner. Return the winner, loser, and reasoning.
-
-    try:
-        response = evaluator(profile1, profile2)
-    except Exception as e:
-        log(f'Error evaluating profiles: {e}', level=LogLevel.WARNING)
-        return RankingResult(
-            profiles=(profile1, profile2),
-            reasoning='Error evaluating profiles',
-            preferred_profile_index=0,
-        )
-
-    reasoning = Ranking.parse_reasoning_json(response)
-    preferred_profile_index = Ranking.parse_preferred_profile_json(response)
+    reasoning = Ranking.parse_reasoning_json(evaluation)
+    preferred_profile_index = Ranking.parse_preferred_profile_json(evaluation)
 
     return RankingResult(
         profiles=(profile1, profile2),
@@ -104,12 +92,21 @@ def tournament_ranking(
 
         return llm.invoke(prompt, response_format='json_object', stop=['\n\n\n\n'])  # type: ignore
 
-    return run_tournament_ranking(list(extractions.keys()), evaluator, do_shuffle=do_shuffle)
+    return run_tournament_ranking(list(extractions.keys()), default_round_evaluator(evaluator), do_shuffle=do_shuffle)
+
+
+def default_round_evaluator(
+    evaluator: Callable[[int, int], EvaluationResult],
+) -> Callable[[list[tuple[int, int]]], list[EvaluationResult]]:
+    def eval(matches: list[tuple[int, int]]) -> list[EvaluationResult]:
+        return [evaluator(profile1, profile2) for profile1, profile2 in matches]
+
+    return eval
 
 
 def run_tournament_ranking(
     all_extractions: list[int],
-    evaluator: Callable[[int, int], EvaluationResult],
+    round_evaluator: Callable[[list[tuple[int, int]]], list[EvaluationResult]],
     do_shuffle: bool = True,
 ) -> TournamentNode:
     """This function runs a tournament ranking between a list of profiles to determine the rankings of the profiles.
@@ -142,8 +139,10 @@ def run_tournament_ranking(
         next_last_round_nodes: list[TournamentNode] = []
 
         # Pair profiles and determine winners for the next round
-        for i in range(0, len(current_round) - 1, 2):
-            ranking_result = compare_profiles(current_round[i], current_round[i + 1], evaluator)
+        matches = [(current_round[i], current_round[i + 1]) for i in range(0, len(current_round) - 1, 2)]
+        evaluations = round_evaluator(matches)
+        for (profile1, profile2), evaluation in zip(matches, evaluations):
+            ranking_result = compare_profiles(profile1, profile2, evaluation)
 
             node = TournamentNode(match=ranking_result)
             add_child(node)

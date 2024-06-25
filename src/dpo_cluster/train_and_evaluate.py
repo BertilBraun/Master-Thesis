@@ -40,7 +40,7 @@ from src.dpo_cluster.defines import *
 from src.util import dump_json, load_json
 from src.log import progress_status
 from src.database import get_retriever_getter
-from src.evaluation import prompt_for_ranking, run_tournament_ranking
+from src.evaluation import default_round_evaluator, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Profile, Ranking
 
 
@@ -231,7 +231,7 @@ def evaluate_is_profile1_preferred(model, tokenizer, profile1: Profile, profile2
 
     tournament = run_tournament_ranking(
         list(range(len(profiles))),
-        evaluator,
+        default_round_evaluator(evaluator),
         do_shuffle=True,
     )
 
