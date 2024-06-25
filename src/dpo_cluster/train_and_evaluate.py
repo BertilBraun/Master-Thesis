@@ -140,8 +140,8 @@ def get_trainer(model) -> DPOTrainer:
     args = DPOConfig(
         output_dir=TRAINING_OUTPUT_DIR,  # directory to save and repository id
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
-        per_device_train_batch_size=4,  # batch size per device during training
-        per_device_eval_batch_size=8,  # batch size for evaluation
+        per_device_train_batch_size=2,  # batch size per device during training
+        per_device_eval_batch_size=4,  # batch size for evaluation
         gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
