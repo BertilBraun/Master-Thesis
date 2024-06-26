@@ -1,9 +1,10 @@
 import GPUtil
-from asyncio import sleep, run
+from time import sleep
+
 from src.log import log
 
 
-async def trace_gpu_usage(file_name: str = 'gpu_usage.log'):
+def trace_gpu_usage(file_name: str = 'gpu_usage.log'):
     average_usage = 0
     average_memory_free = 0
     average_memory_used = 0
@@ -34,8 +35,8 @@ async def trace_gpu_usage(file_name: str = 'gpu_usage.log'):
         log('-' * 40, log_file_name=file_name)
         log('=' * 40, log_file_name=file_name)
 
-        await sleep(2)
+        sleep(2)
 
 
 if __name__ == '__main__':
-    run(trace_gpu_usage())
+    trace_gpu_usage()

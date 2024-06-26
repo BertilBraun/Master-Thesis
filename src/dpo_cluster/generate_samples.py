@@ -1,6 +1,7 @@
 from math import ceil, log2
 from queue import Queue
-from asyncio import run, sleep, gather
+from concurrent.futures import ProcessPoolExecutor
+from time import sleep
 
 
 from src.log import log
@@ -50,7 +51,7 @@ NUM_AUTHORS_TO_PROCESS = calculate_number_of_authors_to_process()
 done_populating_authors = False
 
 
-async def populate_samples_to_generate() -> None:
+def populate_samples_to_generate() -> None:
     # While we have not generated enough samples
     # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
     # Fetch all abstracts of these papers by the author
@@ -68,13 +69,13 @@ async def populate_samples_to_generate() -> None:
         samples_to_generate.put(SampleToGenerate(query.author, query.abstracts, examples))
 
         while samples_to_generate.qsize() > 50:
-            await sleep(10)
+            sleep(10)
             log(f'Waiting for samples to generate: {samples_to_generate.qsize()}')
 
     done_populating_authors = True
 
 
-async def process_samples_to_generate(index: int) -> None:
+def process_samples_to_generate(index: int) -> None:
     # Each thread will fetch one element from the samples to generate list
     # Then will call a LLM pipeline on its dedicated GPU to generate the samples
     # This call will be with the following parameters:
@@ -90,11 +91,10 @@ async def process_samples_to_generate(index: int) -> None:
 
     with json_dumper(get_profile_output_file_path(START_DATETIME, index)) as dumper:
         while not done_populating_authors or not samples_to_generate.empty():
-            with log_all_exceptions('generate'):
+            with log_all_exceptions(f'generate samples {index}'):
                 sample_to_generate = samples_to_generate.get(timeout=10)
-                log(f'Generating sample for {sample_to_generate.author}')
 
-                with timeblock(f'Generating sample for {sample_to_generate.author}'):
+                with timeblock(f'Generating sample for {sample_to_generate.author} on thread {index}'):
                     sample = process_sample_to_generate_into_sample_to_evaluate(
                         tokenizer,
                         model,
@@ -131,7 +131,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
             'prompt': prompt_messages,
             'profiles': [str(profile) for profile in profiles],
         },
-        f'{OUTPUT_DIR}/generate/{sample_to_generate.author}_{START_DATETIME}.json',
+        f'{OUTPUT_DIR}/generate/{START_DATETIME}/{sample_to_generate.author}.json',
     )
 
     return SampleToEvaluate(
@@ -142,17 +142,18 @@ def process_sample_to_generate_into_sample_to_evaluate(
     )
 
 
-async def main():
+if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
 
-    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage/generate_{START_DATETIME}.log')
-    await gather(
-        populate_samples_to_generate(),
-        *[process_samples_to_generate(i) for i in range(NUM_THREADS_GENERATE)],
-    )
-    trace_future.close()
+    with ProcessPoolExecutor() as executor:
+        trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
+        executor.submit(populate_samples_to_generate)
+        for i in range(NUM_THREADS_GENERATE):
+            executor.submit(process_samples_to_generate, i)
 
+        while not done_populating_authors or not samples_to_generate.empty():
+            sleep(10)
 
-if __name__ == '__main__':
-    run(main())
+        trace_future.cancel()
+        executor.shutdown(wait=True)

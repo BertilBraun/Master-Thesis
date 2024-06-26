@@ -29,7 +29,7 @@ class Competency:
             prefix, name, description = match.groups()
             return Competency(name=name, description=description)
         log(f'Invalid competency format: {text}.', level=LogLevel.DEBUG)
-        return Competency(name=text, description='')
+        return Competency(name=f'Invalid competency format: {text}.', description='')
 
 
 @dataclass(frozen=True)
@@ -87,7 +87,7 @@ Competencies:
         competencies: list[Competency] = []
         for line in text.split('\n'):
             competency = Competency.parse(line)
-            if competency.name.strip():
+            if competency.name.strip() and competency.description.strip():
                 competencies.append(competency)
             elif competencies:
                 # If the line doesn't match the pattern and we have already found competencies, we break

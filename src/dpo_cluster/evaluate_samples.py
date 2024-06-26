@@ -1,7 +1,7 @@
 import partialjson
+from time import sleep
 from queue import Queue
-from asyncio import run, gather
-
+from concurrent.futures import ProcessPoolExecutor
 
 from src.log import log
 from src.database import get_retriever_getter
@@ -26,7 +26,7 @@ samples_to_evaluate = Queue[SampleToEvaluate]()
 done_loading_samples_to_evaluate = False
 
 
-async def load_samples_to_generate() -> None:
+def load_samples_to_generate() -> None:
     global done_loading_samples_to_evaluate
     log(f'Loading samples to evaluate from {START_DATETIME}')
 
@@ -41,7 +41,7 @@ async def load_samples_to_generate() -> None:
     done_loading_samples_to_evaluate = True
 
 
-async def process_samples_to_evaluate(index: int) -> None:
+def process_samples_to_evaluate(index: int) -> None:
     # Each thread will on startup create a threadlocal database (threadid + timestamp) to store the evaluation samples
     # Each thread will fetch one element from the samples to evaluate list
     # Then will call a tournament evaluation on the samples with the largest possible LLM
@@ -114,7 +114,7 @@ def process_sample_to_evaluate(
                 }
                 for prompt, response in zip(prompts, responses)
             ],
-            f'{OUTPUT_DIR}/evaluate/{START_DATETIME}_{sample_to_evaluate.author}_round({len(matches)}).json',
+            f'{OUTPUT_DIR}/evaluate/{START_DATETIME}/{sample_to_evaluate.author}_round({len(matches)}).json',
         )
 
         # Parse the responses and return the results
@@ -155,17 +155,18 @@ def process_sample_to_evaluate(
     return preferences
 
 
-async def main():
+if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
-    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage/evaluate_{START_DATETIME}.log')
-    await gather(
-        load_samples_to_generate(),
-        *[process_samples_to_evaluate(i) for i in range(NUM_THREADS_EVALUATE)],
-    )
-    trace_future.close()
+    with ProcessPoolExecutor() as executor:
+        trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
+        executor.submit(load_samples_to_generate)
+        for i in range(NUM_THREADS_EVALUATE):
+            executor.submit(process_samples_to_evaluate, i)
 
+        while not done_loading_samples_to_evaluate or not samples_to_evaluate.empty():
+            sleep(10)
 
-if __name__ == '__main__':
-    run(main())
+        trace_future.cancel()
+        executor.shutdown(wait=True)

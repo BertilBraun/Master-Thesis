@@ -85,11 +85,11 @@ def get_previous_datetime_str() -> str:
 
 
 def get_profile_output_file_path(start_datetime: str, index: int) -> str:
-    return f'{OUTPUT_DIR}/samples_to_evaluate_{start_datetime}_{index}.json'
+    return f'{OUTPUT_DIR}/samples_to_evaluate/{start_datetime}/{index}.json'
 
 
 def get_preference_output_file_path(start_datetime: str, index: int) -> str:
-    return f'{OUTPUT_DIR}/preferences_{start_datetime}_{index}.json'
+    return f'{OUTPUT_DIR}/preferences/{start_datetime}/{index}.json'
 
 
 @dataclass(frozen=True)
