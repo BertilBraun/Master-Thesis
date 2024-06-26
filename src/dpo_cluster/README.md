@@ -37,12 +37,14 @@ sbatch setup.sh
 ## Scaling calculations and notes
 
 how many samples to we generate with each extraction of TOP_K_TO_SAMPLE?
+
 - 4 papers per sample
 - TOP_K_TO_SAMPLE extracted profiles
 - TOP_K_TO_SAMPLE profiles in a tournament
 - TOP_K_TO_SAMPLE - 1 comparisons in a tournament
-- TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
 - TOP_K_TO_SAMPLE = 8 -> 12 usable preferences and 7 comparisons
+- TOP_K_TO_SAMPLE = 16 -> 32 usable preferences and 15 comparisons
+
 => higher TOP_K_TO_SAMPLE means more usable preferences with comparativly less comparisons
    but limited by the number of good profiles we can extract with such a high TEMPERATURE
 
@@ -50,13 +52,16 @@ TODO are the TOP_K_TO_SAMPLE samples different enough?
 
 TODO how long does extracting NUM_SAMPLES_TO_GENERATE samples take? Measure it!
 Theoretically:
+
 - NUM_SAMPLES_TO_GENERATE samples / 32 preferences = 63 tournaments
 - 63 tournaments \* 15 comparisons = 945 comparisons
 - 945 comparisons \* 30 seconds / NUM_THREADS_EVALUATE = 1.6 hours
 - 63 extractions \* 30 seconds \* TOP_K_TO_SAMPLE / NUM_THREADS_GENERATE = 2.8 hours
+
 TODO how do generating and evaluating compare in time? Do we need more threads for one or the other?
 
 How much would 10k training samples cost?
+
 - Approximately 3.0k Tokens in a one-shot prompt
 - ~300 tokens for the response
 - 1M tokens input = 5\$
