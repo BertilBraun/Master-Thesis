@@ -62,7 +62,13 @@ Competencies:
 
     @staticmethod
     def from_json(data: dict) -> Profile:
-        return Profile.parse_json(data)
+        return Profile(
+            domain=data['domain'],
+            competencies=[
+                Competency(name=competency['name'], description=competency['description'])
+                for competency in data['competencies']
+            ],
+        )
 
     @staticmethod
     def _parse_domain(text: str) -> str:
