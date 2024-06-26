@@ -31,30 +31,22 @@ EVALUATION_BATCH_SIZE = 8
 
 TEST_PERCENTAGE = 0.05
 OUTPUT_DIR = 'dpo_output'
-TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
+
 
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
-
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
-
-NUMBER_OF_EPOCHS_TO_TRAIN = 3
-NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 5
 SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
     f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'
 )
 
-
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
-CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
 USE_FLASH_ATTENTION_FOR_EVALUATION = True
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 3
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
-SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
-    f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'
-)
+
 
 # TODO test parameters - comment out for production
 # ---------------------------------------
@@ -75,7 +67,6 @@ NUM_THREADS_GENERATE = 2
 NUM_THREADS_EVALUATE = 2
 
 TEST_PERCENTAGE = 1 / NUM_SAMPLES_TO_GENERATE  # only one test sample
-OUTPUT_DIR = 'dpo_output_test'
 
 # ---------------------------------------
 
