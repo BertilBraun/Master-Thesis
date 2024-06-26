@@ -34,16 +34,24 @@ OTHER_REFERENCE_GENERATION_MODEL = 'mistral'  # should be something other than t
 REFERENCE_GENERATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 EVALUATION_MODEL = 'neural'  # TODO should be something stronger like 'gpt-4-turbo'
 
-OTHER_REFERENCE_GENERATION_MODEL = 'alias-fast'
-REFERENCE_GENERATION_MODEL = 'alias-large'
-EVALUATION_MODEL = 'alias-large'
+OTHER_REFERENCE_GENERATION_MODEL = 'alias-fast-instruct'
+REFERENCE_GENERATION_MODEL = 'alias-fast-instruct'
+EVALUATION_MODEL = 'alias-large-instruct'
 
-DO_SHUFFLE_DURING_EVALUATION = False  # TODO set to True to shuffle the order of the profiles during evaluation
+DO_SHUFFLE_DURING_EVALUATION = True
 
 MODELS = [
-    # 'alias-fast',
-    'alias-fast-instruct',
+    'dev-phi-3-mini',
+    'dev-phi-3',
+    'dev-gemma-large',
+    'dev-gemma-small',
+    'dev-llama-3-large',
+    'dev-llama-3-small',
     'alias-large-instruct',
+    'alias-fast-instruct',
+    # 'alias-fast',
+    # TODO sind gut 'alias-fast-instruct',
+    # TODO sind gut 'alias-large-instruct',
     # 'dev-llama-3-large',
     # 'mistral',
     # 'neural',
@@ -54,7 +62,7 @@ MODELS = [
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
-EXAMPLES = [1, 0]  # [2, 1, 0] # TODO how many are actually needed
+EXAMPLES = [1]  # TODO set to [1, 0]
 
 EXTRACTORS = [
     extract_from_abstracts_custom,
@@ -65,6 +73,7 @@ EXTRACTORS = [
     extract_from_full_texts_json,
 ][::2]  # Only use the custom extractors for now, as they seem to return better results
 # [1::2]  # Only use the json extractors for now, as they are more reliable
+EXTRACTORS = [extract_from_abstracts_custom]  # TODO remove
 
 
 @timeit('Processing Author')

@@ -103,6 +103,10 @@ Training is for Adam, though idk. we would use LoRA, which should reduce the gra
 
 **LLM fine-tuning:**
 
+- Faster training using `accelerate` and `deepspeed`:
+  - https://huggingface.co/docs/trl/v0.9.4/customization
+  - https://huggingface.co/docs/accelerate/usage_guides/deepspeed
+
 - https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md
 - https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py
 - https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py

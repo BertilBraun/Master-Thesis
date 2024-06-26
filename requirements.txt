@@ -17,6 +17,7 @@ chromadb==0.5.3
 click==8.1.7
 coloredlogs==15.0.1
 datasets==2.20.0
+deepspeed==0.14.4
 Deprecated==1.2.14
 dill==0.3.8
 distro==1.9.0

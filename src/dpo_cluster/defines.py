@@ -13,6 +13,9 @@ from src.types import Example, Message, Profile
 from src.log import datetime_str
 from src.util import write_to_file
 
+
+CAS_OPENAI_API_KEY = 'sk-ce-service-account-OvzVRsc0DRXVJeCvxiQGT3BlbkFJmcquyYhxboiGGtFxshKi'
+
 NUM_SAMPLES_TO_GENERATE = 2000  # TODO less? more?
 
 PAPERS_PER_SAMPLE = 4

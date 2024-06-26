@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=evaluate                # job name
-#SBATCH --partition=gpu_4_a100             # mby GPU queue for the resource allocation.
-#SBATCH --time=01:00:00  # TODO 3h?                  # wall-clock time limit
+#SBATCH --partition=dev_gpu_4_a100 # TODO gpu_4_a100             # mby GPU queue for the resource allocation.
+#SBATCH --time=00:30:00  # TODO 3h?                  # wall-clock time limit
 #SBATCH --mem=100000                       # memory per node
 #SBATCH --nodes=1                          # number of nodes to be used
 #SBATCH --cpus-per-task=4                  # number of CPUs required per MPI task
