@@ -9,6 +9,7 @@ from src.papers import get_random_english_authors_abstracts
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import Example, Profile
 from src.dpo_cluster.defines import *
+from src.dpo_cluster.log_gpu_usage import trace_gpu_usage
 from src.util import dump_json, json_dumper, log_all_exceptions, timeblock
 
 # While we have not generated enough samples
@@ -145,10 +146,12 @@ async def main():
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
 
+    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage_generate_{START_DATETIME}.log')
     await gather(
         populate_samples_to_generate(),
         *[process_samples_to_generate(i) for i in range(NUM_THREADS_GENERATE)],
     )
+    trace_future.close()
 
 
 if __name__ == '__main__':

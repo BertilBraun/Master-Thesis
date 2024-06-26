@@ -8,6 +8,7 @@ from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Ranking
 from src.dpo_cluster.defines import *
+from src.dpo_cluster.log_gpu_usage import trace_gpu_usage
 from src.util import dump_json, json_dumper, load_json, log_all_exceptions, timeblock
 
 # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
@@ -157,10 +158,12 @@ async def main():
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
+    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage_evaluate_{START_DATETIME}.log')
     await gather(
         load_samples_to_generate(),
         *[process_samples_to_evaluate(i) for i in range(NUM_THREADS_EVALUATE)],
     )
+    trace_future.close()
 
 
 if __name__ == '__main__':
