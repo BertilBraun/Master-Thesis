@@ -133,7 +133,12 @@ class SampleToEvaluate:
 
     @staticmethod
     def from_json(data: dict) -> 'SampleToEvaluate':
-        return SampleToEvaluate(**data, profiles=[Profile.from_json(profile) for profile in data['profiles']])
+        return SampleToEvaluate(
+            author=data['author'],
+            prompt=data['prompt'],
+            abstracts=data['abstracts'],
+            profiles=[Profile.from_json(profile) for profile in data['profiles']],
+        )
 
 
 @dataclass(frozen=True)
