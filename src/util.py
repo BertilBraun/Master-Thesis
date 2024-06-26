@@ -196,8 +196,10 @@ def load_json(file_name: str) -> Any:
 @contextmanager
 def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
     # with json_dumper('data.json') as dumper:
-    #    for i in range(10):
-    #        dumper.dump({'a': i})
+    #    for i in range(3):
+    #        dumper({'a': i})
+    # This will write the following content to data.json:
+    # [ {"a": 0}, {"a": 1}, {"a": 2} ]
 
     with open(file_name, 'w') as f:
         f.write('[')

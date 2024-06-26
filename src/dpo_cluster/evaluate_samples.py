@@ -36,10 +36,7 @@ async def load_samples_to_generate() -> None:
         log(f'Loading samples to evaluate from {file}')
         for sample in load_json(file):
             log(f'Adding sample to evaluate for {sample["author"]}')
-            try:
-                samples_to_evaluate.put(SampleToEvaluate.from_json(sample))
-            except Exception as e:
-                log(f'Error loading sample: {e}')
+            samples_to_evaluate.put(SampleToEvaluate.from_json(sample))
 
     done_loading_samples_to_evaluate = True
 

@@ -46,7 +46,9 @@ def log(
 
     if log_file_name != LOG_FILE:
         # ensure that the log file folder exists
-        os.makedirs(os.path.dirname(log_file_name), exist_ok=True)
+        dir_name = os.path.dirname(log_file_name)
+        if dir_name:
+            os.makedirs(dir_name, exist_ok=True)
         log_file = open(log_file_name, 'a')
     else:
         log_file = GLOBAL_LOG_FILE
