@@ -35,6 +35,7 @@ async def load_samples_to_generate() -> None:
         file = get_profile_output_file_path(START_DATETIME, i)
         log(f'Loading samples to evaluate from {file}')
         for sample in load_json(file):
+            log(f'Adding sample to evaluate for {sample["author"]}')
             samples_to_evaluate.put(SampleToEvaluate.from_json(sample))
 
     done_loading_samples_to_evaluate = True
