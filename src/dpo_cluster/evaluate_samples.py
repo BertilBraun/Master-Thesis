@@ -114,7 +114,7 @@ def process_sample_to_evaluate(
                 }
                 for prompt, response in zip(prompts, responses)
             ],
-            f'{OUTPUT_DIR}/evaluation_{START_DATETIME}_{sample_to_evaluate.author}_round({len(matches)}).json',
+            f'{OUTPUT_DIR}/evaluate/{START_DATETIME}_{sample_to_evaluate.author}_round({len(matches)}).json',
         )
 
         # Parse the responses and return the results
@@ -159,7 +159,7 @@ async def main():
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
-    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage_evaluate_{START_DATETIME}.log')
+    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage/evaluate_{START_DATETIME}.log')
     await gather(
         load_samples_to_generate(),
         *[process_samples_to_evaluate(i) for i in range(NUM_THREADS_EVALUATE)],

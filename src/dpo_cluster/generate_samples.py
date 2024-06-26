@@ -131,7 +131,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
             'prompt': prompt_messages,
             'profiles': [str(profile) for profile in profiles],
         },
-        f'{OUTPUT_DIR}/sample_to_evaluate_{sample_to_generate.author}_{START_DATETIME}.json',
+        f'{OUTPUT_DIR}/generate/{sample_to_generate.author}_{START_DATETIME}.json',
     )
 
     return SampleToEvaluate(
@@ -146,7 +146,7 @@ async def main():
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
 
-    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage_generate_{START_DATETIME}.log')
+    trace_future = trace_gpu_usage(f'{OUTPUT_DIR}/gpu_usage/generate_{START_DATETIME}.log')
     await gather(
         populate_samples_to_generate(),
         *[process_samples_to_generate(i) for i in range(NUM_THREADS_GENERATE)],
