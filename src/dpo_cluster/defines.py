@@ -121,7 +121,11 @@ class SampleToGenerate:
 
     @staticmethod
     def from_json(data: dict) -> 'SampleToGenerate':
-        return SampleToGenerate(**data, examples=[Example.from_json(example) for example in data['examples']])
+        return SampleToGenerate(
+            author=data['author'],
+            abstracts=data['abstracts'],
+            examples=[Example.from_json(example) for example in data['examples']],
+        )
 
 
 @dataclass(frozen=True)
