@@ -61,6 +61,10 @@ Competencies:
         )
 
     @staticmethod
+    def from_json(data: dict) -> Profile:
+        return Profile.parse_json(data)
+
+    @staticmethod
     def _parse_domain(text: str) -> str:
         # Return the text between the first occurrence of 'Domain:' and the next '\n'
         assert 'Domain:' in text, f'Domain not found in text: {text}'
@@ -133,6 +137,10 @@ class Example:
 
 {self.profile}
 """
+
+    @staticmethod
+    def from_json(data: dict) -> Example:
+        return Example(abstracts=data['abstracts'], profile=Profile.from_json(data['profile']))
 
     @staticmethod
     def _parse_abstracts(text: str) -> str:

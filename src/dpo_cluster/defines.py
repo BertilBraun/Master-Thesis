@@ -127,7 +127,7 @@ class SampleToGenerate:
 
     @staticmethod
     def from_json(data: dict) -> 'SampleToGenerate':
-        return SampleToGenerate(**data)
+        return SampleToGenerate(**data, examples=[Example.from_json(example) for example in data['examples']])
 
 
 @dataclass(frozen=True)
@@ -139,7 +139,7 @@ class SampleToEvaluate:
 
     @staticmethod
     def from_json(data: dict) -> 'SampleToEvaluate':
-        return SampleToEvaluate(**data)
+        return SampleToEvaluate(**data, profiles=[Profile.from_json(profile) for profile in data['profiles']])
 
 
 @dataclass(frozen=True)
