@@ -188,6 +188,7 @@ def dump_json(obj: Any, file_name: str) -> None:
 
 
 def load_json(file_name: str) -> Any:
+    log(f'Loading JSON from {file_name}, file exists: {os.path.exists(file_name)}')
     with open(file_name, 'r') as f:
         return json.load(f)
 
