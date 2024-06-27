@@ -5,7 +5,7 @@ dotenv.load_dotenv()
 
 
 DEBUG = False  # Set to True to enable debugging output (streaming of the AI's output to the console)
-MAX_RETRIES = 3
+MAX_RETRIES = 1
 
 LOCAL_AI_LOCALHOST = 'http://localhost:8080'
 LOCAL_AI_CODER = 'http://coder.aifb.kit.edu:8080'
