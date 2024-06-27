@@ -123,20 +123,20 @@ if __name__ == '__main__':
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
 
     samples_to_generate = load_samples_to_generate()
-    samples_per_thread = len(samples_to_generate) // NUM_THREADS_GENERATE
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor() as executor, json_dumper(get_profile_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
 
-        eval_futures: list[Future[list[SampleToEvaluate]]] = []
-        for i in range(NUM_THREADS_EVALUATE):
-            eval_futures.append(
-                executor.submit(
-                    generate_sample, i, samples_to_generate[i * samples_per_thread : (i + 1) * samples_per_thread]
-                )
-            )
+        while samples_to_generate:
+            samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 20)
 
-        with json_dumper(get_profile_output_file_path(START_DATETIME)) as dumper:
+            eval_futures: list[Future[list[SampleToEvaluate]]] = []
+            for i in range(NUM_THREADS_EVALUATE):
+                authors = [sample.author for sample in samples_to_generate[:samples_per_thread]]
+                log(f'Starting thread {i} to generate {samples_per_thread} samples for authors: {authors}')
+                eval_futures.append(executor.submit(generate_sample, i, samples_to_generate[:samples_per_thread]))
+                samples_to_generate = samples_to_generate[samples_per_thread:]
+
             for future in eval_futures:
                 for preference in future.result():
                     dumper(preference)
