@@ -1,7 +1,7 @@
 import partialjson
 from concurrent.futures import Future, ProcessPoolExecutor
 
-from src.log import log
+from src.log import log, progress_status
 from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Ranking
@@ -28,13 +28,14 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
 
 def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
     log(f'Starting evaluation thread {index}')
-    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-    model = get_model(
-        EVALUATION_MODEL_ID,
-        device=f'cuda:{index}',
-        load_in_8bit=True,
-        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
-    )
+    with progress_status(f'Loading model for evaluation thread {index}'):
+        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+        model = get_model(
+            EVALUATION_MODEL_ID,
+            device=f'cuda:{index}',
+            load_in_8bit=True,
+            use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+        )
 
     preferences: list[PreferenceSample] = []
 
