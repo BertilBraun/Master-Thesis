@@ -153,6 +153,10 @@ class OpenAILanguageModel(LanguageModel):
         )
 
         if not success:
+            if 'timeout' in result.lower():
+                log('Backend seems to be down!', level=LogLevel.ERROR)
+                exit(1)
+
             return self._invoke_with_retry(
                 prompt,
                 stop,

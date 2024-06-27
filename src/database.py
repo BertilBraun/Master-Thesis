@@ -7,6 +7,7 @@ except ImportError:
     pass
 
 from collections import Counter
+import random
 import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import os
@@ -241,30 +242,44 @@ def get_summary_messages(content: str, retriever: Retriever[Summary]) -> list[Me
 
 
 def format_ranking_messages(rankings: list[Ranking]) -> list[Message]:
-    return [
-        message
-        for i, evaluation in enumerate(rankings)
-        for message in [
+    messages: list[Message] = []
+    for i, ranking in enumerate(rankings):
+        # shuffle the preferred profile to avoid bias
+        do_shuffle = random.choice([True, False])
+        if do_shuffle:
+            profile1, profile2 = ranking.profiles
+            preferred_profile = ranking.preferred_profile
+            reasoning = ranking.reasoning
+        else:
+            profile2, profile1 = ranking.profiles
+            preferred_profile = 1 - ranking.preferred_profile
+            reasoning = ranking.reasoning.replace('1', 'PLACEHOLDER').replace('2', '1').replace('PLACEHOLDER', '2')
+
+        messages.append(
             HumanExampleMessage(
                 content=f"""Example {i + 1}:
-{evaluation.paper_text}
+{ranking.paper_text}
 
 
 Profile 1:
-{evaluation.profiles[0]}
+{profile1}
 
 
 Profile 2:
-{evaluation.profiles[1]}"""
-            ),
+{profile2}"""
+            )
+        )
+
+        messages.append(
             AIExampleMessage(
                 content=f"""{{
-    "reasoning": "{evaluation.reasoning}",
-    "preferred_profile": {evaluation.preferred_profile + 1}
+    "reasoning": "{reasoning}",
+    "preferred_profile": {preferred_profile + 1}
 }}"""
             ),
-        ]
-    ]
+        )
+
+    return messages
 
 
 def get_ranking_messages_json(content: str, retriever: Retriever[Ranking]) -> list[Message]:

@@ -41,8 +41,8 @@ EVALUATION_MODEL = 'alias-large-instruct'
 DO_SHUFFLE_DURING_EVALUATION = True
 
 MODELS = [
-    'dev-phi-3-mini',
-    'dev-phi-3',
+    # 'dev-phi-3-mini-128k',
+    'dev-phi-3-medium',
     'dev-gemma-large',
     'dev-gemma-small',
     'dev-llama-3-large',
@@ -73,7 +73,6 @@ EXTRACTORS = [
     extract_from_full_texts_json,
 ][::2]  # Only use the custom extractors for now, as they seem to return better results
 # [1::2]  # Only use the json extractors for now, as they are more reliable
-EXTRACTORS = [extract_from_abstracts_custom]  # TODO remove
 
 
 @timeit('Processing Author')
