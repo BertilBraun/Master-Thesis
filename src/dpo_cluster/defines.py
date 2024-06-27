@@ -224,7 +224,7 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
-    inputs = tokenizer(prompt, return_tensors='pt', padding=True).to(model.device)
+    inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [
         tokenizer.eos_token_id,
@@ -269,6 +269,7 @@ def batched_generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
+    prompts = [tokenizer.eos_token + prompt for prompt in prompts]
     inputs = tokenizer(prompts, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [

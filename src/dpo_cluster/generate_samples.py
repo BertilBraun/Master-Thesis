@@ -71,7 +71,7 @@ def generate_sample(index: int, samples_to_generate: list[SampleToGenerate]) -> 
     samples_to_evaluate: list[SampleToEvaluate] = []
 
     for sample in samples_to_generate:
-        with log_all_exceptions('generate'):
+        with log_all_exceptions(f'generate on {index} for {sample.author} failed'):
             log(f'Generating sample for {sample.author}')
 
             with timeblock(f'Generating sample for {sample.author}'):

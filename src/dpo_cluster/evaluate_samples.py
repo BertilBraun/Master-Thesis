@@ -27,7 +27,7 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
 
 
 def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
-    log(f'Starting evaluation thread {index}')
+    log(f'Starting evaluation thread {index} for {len(samples_to_evaluate)} samples')
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(
         EVALUATION_MODEL_ID,
@@ -37,10 +37,8 @@ def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> 
     )
 
     preferences: list[PreferenceSample] = []
-
-    log(f'Starting evaluation for {len(samples_to_evaluate)} samples for thread {index}')
     for sample in samples_to_evaluate:
-        with log_all_exceptions('evaluate'):
+        with log_all_exceptions(f'evaluate on {index} for {sample.author} failed'):
             with timeblock(f'Evaluating sample for {sample.author}'):
                 preferences += process_sample_to_evaluate(tokenizer, model, sample)
 
