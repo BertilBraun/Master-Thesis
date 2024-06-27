@@ -162,6 +162,7 @@ def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | Pr
         padding_side='left',
         add_eos_token=True,
         add_bos_token=True,
+        use_fast=False,
     )
 
     if tokenizer.pad_token_id is None:

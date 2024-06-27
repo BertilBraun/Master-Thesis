@@ -41,28 +41,23 @@ EVALUATION_MODEL = 'alias-large-instruct'
 DO_SHUFFLE_DURING_EVALUATION = True
 
 MODELS = [
-    # 'dev-phi-3-mini-128k',
-    'dev-phi-3-medium',
-    'dev-gemma-large',
-    'dev-gemma-small',
-    'dev-llama-3-large',
-    'dev-llama-3-small',
-    'alias-large-instruct',
-    'alias-fast-instruct',
-    # 'alias-fast',
-    # TODO sind gut 'alias-fast-instruct',
-    # TODO sind gut 'alias-large-instruct',
+    # 'dev-phi-3-mini-128k', # 3.8B parameters
+    # 'dev-phi-3-medium',
+    # 'dev-gemma-large',
+    # 'dev-gemma-small',
     # 'dev-llama-3-large',
+    # 'dev-llama-3-small',
+    # 'alias-fast',
+    'alias-fast-instruct',
+    'alias-large-instruct',
     # 'mistral',
     # 'neural',
     # 'mixtral',
-    # TODO 'phi3 mini' 3.8B parameters
-    # TODO 'llama3' 8B parameters (ultra sota)
     # Set src.openai_defines.BASE_URL_LLM = None for and set the API key and use one of the following models to run the inference on the OpenAI API
     # TODO 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'
 ]
 
-EXAMPLES = [1]  # TODO set to [1, 0]
+EXAMPLES = [1, 0]
 
 EXTRACTORS = [
     extract_from_abstracts_custom,
