@@ -7,6 +7,7 @@ from transformers import (
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
     PreTrainedModel,
+    BitsAndBytesConfig,
 )
 from dataclasses import dataclass
 from src.types import Example, Message, Profile
@@ -176,7 +177,10 @@ def get_model(
     load_in_8bit: bool = False,
     use_flash_attention: bool = False,
 ) -> PreTrainedModel:
-    # TODO bits and bytes config
+    bnb_config = BitsAndBytesConfig(
+        load_in_4bit=load_in_4bit,
+        load_in_8bit=load_in_8bit,
+    )
 
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
@@ -184,6 +188,7 @@ def get_model(
         device_map=device,
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
+        quantization_config=bnb_config,
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
     )

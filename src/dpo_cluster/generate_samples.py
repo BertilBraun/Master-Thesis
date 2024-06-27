@@ -1,7 +1,5 @@
-from time import sleep
 from math import ceil, log2
 from concurrent.futures import Future, ProcessPoolExecutor
-from typing import Generator
 
 
 from src.log import log
@@ -46,7 +44,7 @@ def calculate_number_of_authors_to_process() -> int:
 NUM_AUTHORS_TO_PROCESS = calculate_number_of_authors_to_process()
 
 
-def load_samples_to_generate() -> Generator[SampleToGenerate, None, None]:
+def load_samples_to_generate() -> list[SampleToGenerate]:
     # While we have not generated enough samples
     # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
     # Fetch all abstracts of these papers by the author
@@ -54,25 +52,32 @@ def load_samples_to_generate() -> Generator[SampleToGenerate, None, None]:
     # Add a tuple of (author, abstracts, examples) to the samples to generate list
     log(f'Populating samples to generate from {START_DATETIME}')
 
+    samples_to_generate: list[SampleToGenerate] = []
     for query in get_random_english_authors_abstracts(NUM_AUTHORS_TO_PROCESS, PAPERS_PER_SAMPLE):
         log(f'Processing query: {query.author}')
         abstracts = '\n\n'.join(query.abstracts)
 
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
 
-        yield SampleToGenerate(query.author, query.abstracts, examples)
+        samples_to_generate.append(SampleToGenerate(query.author, query.abstracts, examples))
+
+    return samples_to_generate
 
 
-def generate_sample(
-    tokenizer,
-    model,
-    sample_to_generate: SampleToGenerate,
-) -> SampleToEvaluate:
-    with log_all_exceptions('generate'):
-        log(f'Generating sample for {sample_to_generate.author}')
+def generate_sample(index: int, samples_to_generate: list[SampleToGenerate]) -> list[SampleToEvaluate]:
+    tokenizer = get_tokenizer()
+    model = get_model(device=f'cuda:{index}')
 
-        with timeblock(f'Generating sample for {sample_to_generate.author}'):
-            return process_sample_to_generate_into_sample_to_evaluate(tokenizer, model, sample_to_generate)
+    samples_to_evaluate: list[SampleToEvaluate] = []
+
+    for sample in samples_to_generate:
+        with log_all_exceptions('generate'):
+            log(f'Generating sample for {sample.author}')
+
+            with timeblock(f'Generating sample for {sample.author}'):
+                samples_to_evaluate.append(process_sample_to_generate_into_sample_to_evaluate(tokenizer, model, sample))
+
+    return samples_to_evaluate
 
 
 def process_sample_to_generate_into_sample_to_evaluate(
@@ -117,31 +122,24 @@ if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to generate
     # NUM_THREADS_GENERATE other threads will be running in parallel to generate the samples
 
-    tokenizer = get_tokenizer()
-    models = [get_model(device=f'cuda:{i}') for i in range(NUM_THREADS_GENERATE)]
+    samples_to_generate = load_samples_to_generate()
+    samples_per_thread = len(samples_to_generate) // NUM_THREADS_GENERATE
 
-    eval_futures: list[list[Future[SampleToEvaluate]]] = [[] for _ in range(NUM_THREADS_GENERATE)]
-
-    with ProcessPoolExecutor(max_workers=NUM_THREADS_GENERATE + 1) as executor:
+    with ProcessPoolExecutor() as executor:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
 
+        eval_futures: list[Future[list[SampleToEvaluate]]] = []
+        for i in range(NUM_THREADS_EVALUATE):
+            eval_futures.append(
+                executor.submit(
+                    generate_sample, i, samples_to_generate[i * samples_per_thread : (i + 1) * samples_per_thread]
+                )
+            )
+
         with json_dumper(get_profile_output_file_path(START_DATETIME)) as dumper:
-            for sample in load_samples_to_generate():
-                # find the thread with the least number of samples in the queue
-                min_index = min(range(NUM_THREADS_GENERATE), key=lambda i: len(eval_futures[i]))
-                log(f'Submitting sample to generate for {sample.author} to thread {min_index}')
-                eval_futures[min_index].append(executor.submit(generate_sample, tokenizer, models[min_index], sample))
-
-                # load balancing - keep 10 samples per thread in a queue (submitted to the executor) before loading more
-                while any(len(futures) >= 10 for futures in eval_futures):
-                    sleep(1)
-                    for i, futures in enumerate(eval_futures):
-                        # write the results to the file, then remove the futures
-                        for future in futures:
-                            if future.done():
-                                dumper(future.result())
-
-                        eval_futures[i] = [future for future in futures if not future.done()]
+            for future in eval_futures:
+                for preference in future.result():
+                    dumper(preference)
 
         trace_future.cancel()
         executor.shutdown(wait=True)

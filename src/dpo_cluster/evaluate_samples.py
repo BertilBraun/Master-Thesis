@@ -1,6 +1,4 @@
-from typing import Generator
 import partialjson
-from time import sleep
 from concurrent.futures import Future, ProcessPoolExecutor
 
 from src.log import log
@@ -21,29 +19,32 @@ if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
 
 
-def load_samples_to_evaluate() -> Generator[SampleToEvaluate, None, None]:
+def load_samples_to_evaluate() -> list[SampleToEvaluate]:
     log(f'Loading samples to evaluate from {START_DATETIME}')
 
     # load samples to generate from the json files into the samples_to_evaluate queue
     file = get_profile_output_file_path(START_DATETIME)
     log(f'Loading samples to evaluate from {file}')
-    for sample in load_json(file):
-        log(f'Adding sample to evaluate for {sample["author"]}')
-        yield SampleToEvaluate.from_json(sample)
+    return [SampleToEvaluate.from_json(sample) for sample in load_json(file)]
 
 
-def evaluate_sample(
-    tokenizer,
-    model,
-    sample_to_evaluate: SampleToEvaluate,
-) -> list[PreferenceSample]:
-    with log_all_exceptions('evaluate'):
-        log(f'Evaluating sample for {sample_to_evaluate.author}')
+def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(
+        EVALUATION_MODEL_ID,
+        device=f'cuda:{index}',
+        load_in_8bit=True,
+        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+    )
 
-        with timeblock(f'Evaluating sample for {sample_to_evaluate.author}'):
-            preferences = process_sample_to_evaluate(tokenizer, model, sample_to_evaluate)
+    preferences: list[PreferenceSample] = []
 
-        return preferences
+    for sample in samples_to_evaluate:
+        with log_all_exceptions('evaluate'):
+            with timeblock(f'Evaluating sample for {sample.author}'):
+                preferences += process_sample_to_evaluate(tokenizer, model, sample)
+
+    return preferences
 
 
 def process_sample_to_evaluate(
@@ -137,40 +138,24 @@ if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
-    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-    models = [
-        get_model(
-            EVALUATION_MODEL_ID,
-            device=f'cuda:{i}',
-            load_in_8bit=True,
-            use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
-        )
-        for i in range(NUM_THREADS_EVALUATE)
-    ]
+    samples_to_evaluate = load_samples_to_evaluate()
+    samples_per_thread = len(samples_to_evaluate) // NUM_THREADS_EVALUATE
 
-    eval_futures: list[list[Future[list[PreferenceSample]]]] = [[] for _ in range(NUM_THREADS_EVALUATE)]
-
-    with ProcessPoolExecutor(max_workers=NUM_THREADS_EVALUATE + 1) as executor:
+    with ProcessPoolExecutor() as executor:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
 
+        eval_futures: list[Future[list[PreferenceSample]]] = []
+        for i in range(NUM_THREADS_EVALUATE):
+            eval_futures.append(
+                executor.submit(
+                    evaluate_sample, i, samples_to_evaluate[i * samples_per_thread : (i + 1) * samples_per_thread]
+                )
+            )
+
         with json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
-            for sample in load_samples_to_evaluate():
-                # find the thread with the least number of samples in the queue
-                min_index = min(range(NUM_THREADS_EVALUATE), key=lambda i: len(eval_futures[i]))
-                log(f'Submitting sample to evaluate for {sample.author} to thread {min_index}')
-                eval_futures[min_index].append(executor.submit(evaluate_sample, tokenizer, models[min_index], sample))
-
-                # load balancing - keep 10 samples per thread in a queue (submitted to the executor) before loading more
-                while any(len(futures) >= 10 for futures in eval_futures):
-                    sleep(1)
-                    for i, futures in enumerate(eval_futures):
-                        # write the results to the file, then remove the futures
-                        for future in futures:
-                            if future.done():
-                                for preference in future.result():
-                                    dumper(preference)
-
-                        eval_futures[i] = [future for future in futures if not future.done()]
+            for future in eval_futures:
+                for preference in future.result():
+                    dumper(preference)
 
         trace_future.cancel()
         executor.shutdown(wait=True)
