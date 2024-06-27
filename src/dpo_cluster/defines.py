@@ -186,9 +186,7 @@ def get_model(
         name_or_path,
         torch_dtype=float16 if not load_in_4bit and not load_in_8bit else None,
         device_map=device,
-        load_in_4bit=load_in_4bit,
-        load_in_8bit=load_in_8bit,
-        # TODO test if that crashes quantization_config=bnb_config,
+        quantization_config=bnb_config,
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
     )
