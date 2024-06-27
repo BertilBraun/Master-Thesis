@@ -1,7 +1,8 @@
+from typing import Callable, Generator
 import partialjson
 from time import sleep
 from queue import Queue
-from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures import Future, ProcessPoolExecutor
 
 from src.log import log
 from src.database import get_retriever_getter
@@ -21,13 +22,7 @@ if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
 
 
-samples_to_evaluate = Queue[SampleToEvaluate]()
-
-done_loading_samples_to_evaluate = False
-
-
-def load_samples_to_generate() -> None:
-    global done_loading_samples_to_evaluate
+def load_samples_to_generate() -> Generator[SampleToEvaluate, None, None]:
     log(f'Loading samples to evaluate from {START_DATETIME}')
 
     # load samples to generate from the json files into the samples_to_evaluate queue
@@ -36,36 +31,21 @@ def load_samples_to_generate() -> None:
         log(f'Loading samples to evaluate from {file}')
         for sample in load_json(file):
             log(f'Adding sample to evaluate for {sample["author"]}')
-            samples_to_evaluate.put(SampleToEvaluate.from_json(sample))
-
-    done_loading_samples_to_evaluate = True
+            yield SampleToEvaluate.from_json(sample)
 
 
-def process_samples_to_evaluate(index: int) -> None:
-    # Each thread will on startup create a threadlocal database (threadid + timestamp) to store the evaluation samples
-    # Each thread will fetch one element from the samples to evaluate list
-    # Then will call a tournament evaluation on the samples with the largest possible LLM
-    # The evaluation will be written to the threadlocal database with all the preferences
-    log(f'Starting evaluation thread {index}')
+def evaluate_sample(
+    tokenizer,
+    model,
+    sample_to_evaluate: SampleToEvaluate,
+) -> list[PreferenceSample]:
+    with log_all_exceptions('evaluate'):
+        log(f'Evaluating sample for {sample_to_evaluate.author}')
 
-    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-    model = get_model(
-        EVALUATION_MODEL_ID,
-        load_in_8bit=True,
-        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
-    )
+        with timeblock(f'Evaluating sample for {sample_to_evaluate.author}'):
+            preferences = process_sample_to_evaluate(tokenizer, model, sample_to_evaluate)
 
-    with json_dumper(get_preference_output_file_path(START_DATETIME, index)) as dumper:
-        while not done_loading_samples_to_evaluate or not samples_to_evaluate.empty():
-            with log_all_exceptions('evaluate'):
-                sample_to_evaluate = samples_to_evaluate.get(timeout=10)
-                log(f'Evaluating sample for {sample_to_evaluate.author}')
-
-                with timeblock(f'Evaluating sample for {sample_to_evaluate.author}'):
-                    preferences = process_sample_to_evaluate(tokenizer, model, sample_to_evaluate)
-
-                for preference in preferences:
-                    dumper(preference)
+        return preferences
 
 
 def process_sample_to_evaluate(
@@ -159,14 +139,39 @@ if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=NUM_THREADS_EVALUATE + 1) as executor:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
-        executor.submit(load_samples_to_generate)
-        for i in range(NUM_THREADS_EVALUATE):
-            executor.submit(process_samples_to_evaluate, i)
 
-        while not done_loading_samples_to_evaluate or not samples_to_evaluate.empty():
-            sleep(10)
+        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+        models = [
+            get_model(
+                EVALUATION_MODEL_ID,
+                device=f'cuda:{i}',
+                load_in_8bit=True,
+                use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+            )
+            for i in range(NUM_THREADS_EVALUATE)
+        ]
+
+        eval_futures: list[list[Future[list[PreferenceSample]]]] = [[] for _ in range(NUM_THREADS_EVALUATE)]
+
+        with json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
+            for sample in load_samples_to_generate():
+                # load balancing - keep 10 samples per thread in a queue (submitted to the executor) before loading more
+                # find the thread with the least number of samples in the queue
+                min_index = min(range(NUM_THREADS_EVALUATE), key=lambda i: len(eval_futures[i]))
+                eval_futures[min_index].append(executor.submit(evaluate_sample, tokenizer, models[min_index], sample))
+
+                while any(len(futures) >= 10 for futures in eval_futures):
+                    sleep(1)
+                    for i, futures in enumerate(eval_futures):
+                        # write the results to the file, then remove the futures
+                        for future in futures:
+                            if future.done():
+                                for preference in future.result():
+                                    dumper(preference)
+
+                        eval_futures[i] = [future for future in futures if not future.done()]
 
         trace_future.cancel()
         executor.shutdown(wait=True)

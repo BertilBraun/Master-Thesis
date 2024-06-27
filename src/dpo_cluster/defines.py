@@ -51,21 +51,21 @@ NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
 # TODO test parameters - comment out for production
 # ---------------------------------------
 
-# EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
-# USE_FLASH_ATTENTION_FOR_EVALUATION = False
-#
-# EVALUATION_BATCH_SIZE = 4
-#
-# NUM_SAMPLES_TO_GENERATE = 32
-#
-# TOP_K_TO_SAMPLE = 8
-#
-# NUMBER_OF_EPOCHS_TO_TRAIN = 2
-#
-# NUM_THREADS_GENERATE = 2
-# NUM_THREADS_EVALUATE = 2
-#
-# TEST_PERCENTAGE = 1 / NUM_SAMPLES_TO_GENERATE  # only one test sample
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
+USE_FLASH_ATTENTION_FOR_EVALUATION = False
+
+EVALUATION_BATCH_SIZE = 4
+
+NUM_SAMPLES_TO_GENERATE = 32
+
+TOP_K_TO_SAMPLE = 8
+
+NUMBER_OF_EPOCHS_TO_TRAIN = 2
+
+NUM_THREADS_GENERATE = 2
+NUM_THREADS_EVALUATE = 2
+
+TEST_PERCENTAGE = 1 / NUM_SAMPLES_TO_GENERATE  # only one test sample
 
 # ---------------------------------------
 
@@ -88,8 +88,8 @@ def get_profile_output_file_path(start_datetime: str, index: int) -> str:
     return f'{OUTPUT_DIR}/samples_to_evaluate/{start_datetime}/{index}.json'
 
 
-def get_preference_output_file_path(start_datetime: str, index: int) -> str:
-    return f'{OUTPUT_DIR}/preferences/{start_datetime}/{index}.json'
+def get_preference_output_file_path(start_datetime: str) -> str:
+    return f'{OUTPUT_DIR}/preferences/{start_datetime}.json'
 
 
 @dataclass(frozen=True)

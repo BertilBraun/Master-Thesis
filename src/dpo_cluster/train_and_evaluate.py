@@ -49,7 +49,7 @@ if __name__ == '__main__':
 
 
 def load_dataset(
-    json_file_paths: list[str],
+    json_dataset_file: str,
     tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
     test_percentage: float = TEST_PERCENTAGE,
 ) -> tuple[Dataset, Dataset]:
@@ -67,12 +67,11 @@ def load_dataset(
     chosens: list[str] = []
     rejecteds: list[str] = []
 
-    for file in json_file_paths:
-        for element in load_json(file):
-            sample = PreferenceSample.from_json(element)
-            prompts.append(sample.prompt)
-            chosens.append(sample.chosen)
-            rejecteds.append(sample.rejected)
+    for element in load_json(json_dataset_file):
+        sample = PreferenceSample.from_json(element)
+        prompts.append(sample.prompt)
+        chosens.append(sample.chosen)
+        rejecteds.append(sample.rejected)
 
     ds = Dataset.from_dict({'prompt': prompts, 'chosen': chosens, 'rejected': rejecteds})
 
@@ -296,8 +295,7 @@ def evaluate_model() -> bool:
 if __name__ == '__main__':
     # Load all the database datasets into one Dataset
     with progress_status('Loading datasets'):
-        files = [get_preference_output_file_path(START_DATETIME, i) for i in range(NUM_THREADS_EVALUATE)]
-        train_dataset, test_dataset = load_dataset(files, tokenizer)
+        train_dataset, test_dataset = load_dataset(get_preference_output_file_path(START_DATETIME), tokenizer)
 
     # lets find the p95 length of the prompt
     with progress_status('Finding p95 lengths'):
