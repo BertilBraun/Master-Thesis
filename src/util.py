@@ -188,7 +188,9 @@ def dump_json(obj: Any, file_name: str) -> None:
 
 
 def load_json(file_name: str) -> Any:
-    log(f'Loading JSON from {file_name}, file exists: {os.path.exists(file_name)}')
+    if not os.path.exists(file_name):
+        log(f'File does not exist: {file_name}', level=LogLevel.ERROR)
+        exit(1)
     with open(file_name, 'r') as f:
         return json.load(f)
 
@@ -200,7 +202,9 @@ def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
     #        dumper({'a': i})
     # This will write the following content to data.json:
     # [ {"a": 0}, {"a": 1}, {"a": 2} ]
-
+    dir_name = os.path.dirname(file_name)
+    if dir_name:
+        os.makedirs(dir_name, exist_ok=True)
     with open(file_name, 'w') as f:
         f.write('[')
         first = True
