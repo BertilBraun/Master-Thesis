@@ -188,7 +188,7 @@ def get_model(
         device_map=device,
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
-        quantization_config=bnb_config,
+        # TODO test if that crashes quantization_config=bnb_config,
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
     )

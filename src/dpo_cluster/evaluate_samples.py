@@ -1,7 +1,7 @@
 import partialjson
 from concurrent.futures import Future, ProcessPoolExecutor
 
-from src.log import log, progress_status
+from src.log import log
 from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, Ranking
@@ -28,14 +28,13 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
 
 def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
     log(f'Starting evaluation thread {index}')
-    with progress_status(f'Loading model for evaluation thread {index}'):
-        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-        model = get_model(
-            EVALUATION_MODEL_ID,
-            device=f'cuda:{index}',
-            load_in_8bit=True,
-            use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
-        )
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(
+        EVALUATION_MODEL_ID,
+        device=f'cuda:{index}',
+        load_in_8bit=True,
+        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+    )
 
     preferences: list[PreferenceSample] = []
 
@@ -147,17 +146,10 @@ if __name__ == '__main__':
 
         eval_futures: list[Future[list[PreferenceSample]]] = []
         for i in range(NUM_THREADS_EVALUATE):
-            authors = [
-                sample.author for sample in samples_to_evaluate[i * samples_per_thread : (i + 1) * samples_per_thread]
-            ]
-            log(
-                f'Starting thread {i} to evaluate samples {i * samples_per_thread} to {(i + 1) * samples_per_thread} for authors: {authors}'
-            )
-            eval_futures.append(
-                executor.submit(
-                    evaluate_sample, i, samples_to_evaluate[i * samples_per_thread : (i + 1) * samples_per_thread]
-                )
-            )
+            start, end = i * samples_per_thread, (i + 1) * samples_per_thread
+            authors = [sample.author for sample in samples_to_evaluate[start:end]]
+            log(f'Starting thread {i} to evaluate samples {start} to {end} for authors: {authors}')
+            eval_futures.append(executor.submit(evaluate_sample, i, samples_to_evaluate[start:end]))
 
         with json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
             for future in eval_futures:
