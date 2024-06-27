@@ -191,6 +191,17 @@
         document.getElementById('titlesList').innerHTML = authorData.titles.map(title => `<li>${title}</li>`).join('');
 
 
+        window.addEventListener('beforeunload', function (e) {
+            const evaluationStarted = document.getElementById('startModal').style.display === 'none';
+            const evaluationNotCompleted = document.getElementById('pleaseWait').innerText.toLocaleLowerCase().includes('please wait');
+            if (evaluationStarted && evaluationNotCompleted) {
+                // Cancel the event
+                e.preventDefault(); // If you prevent default behavior in older browsers
+                e.returnValue = ''; // Chrome requires returnValue to be set
+            }
+        });
+
+
         function toggleVisibility(id, display = 'block') {
             var element = document.getElementById(id);
             if (element) element.style.display = (element.style.display === display ? 'none' : display);
