@@ -157,7 +157,12 @@ class PreferenceSample:
 
 
 def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
-    tokenizer = AutoTokenizer.from_pretrained(name_or_path)
+    tokenizer = AutoTokenizer.from_pretrained(
+        name_or_path,
+        padding_side='left',
+        add_eos_token=True,
+        add_bos_token=True,
+    )
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
