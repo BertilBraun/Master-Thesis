@@ -84,8 +84,8 @@ def get_previous_datetime_str() -> str:
         return f.read()
 
 
-def get_profile_output_file_path(start_datetime: str, index: int) -> str:
-    return f'{OUTPUT_DIR}/samples_to_evaluate/{start_datetime}/{index}.json'
+def get_profile_output_file_path(start_datetime: str) -> str:
+    return f'{OUTPUT_DIR}/samples_to_evaluate/{start_datetime}.json'
 
 
 def get_preference_output_file_path(start_datetime: str) -> str:
@@ -176,6 +176,8 @@ def get_model(
     load_in_8bit: bool = False,
     use_flash_attention: bool = False,
 ) -> PreTrainedModel:
+    # TODO bits and bytes config
+
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
         torch_dtype=float16 if not load_in_4bit and not load_in_8bit else None,

@@ -1,7 +1,6 @@
-from typing import Callable, Generator
+from typing import Generator
 import partialjson
 from time import sleep
-from queue import Queue
 from concurrent.futures import Future, ProcessPoolExecutor
 
 from src.log import log
@@ -22,16 +21,15 @@ if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
 
 
-def load_samples_to_generate() -> Generator[SampleToEvaluate, None, None]:
+def load_samples_to_evaluate() -> Generator[SampleToEvaluate, None, None]:
     log(f'Loading samples to evaluate from {START_DATETIME}')
 
     # load samples to generate from the json files into the samples_to_evaluate queue
-    for i in range(NUM_THREADS_GENERATE):
-        file = get_profile_output_file_path(START_DATETIME, i)
-        log(f'Loading samples to evaluate from {file}')
-        for sample in load_json(file):
-            log(f'Adding sample to evaluate for {sample["author"]}')
-            yield SampleToEvaluate.from_json(sample)
+    file = get_profile_output_file_path(START_DATETIME)
+    log(f'Loading samples to evaluate from {file}')
+    for sample in load_json(file):
+        log(f'Adding sample to evaluate for {sample["author"]}')
+        yield SampleToEvaluate.from_json(sample)
 
 
 def evaluate_sample(
@@ -139,29 +137,30 @@ if __name__ == '__main__':
     # One thread will be running in parallel to populate the samples to evaluate queue
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    models = [
+        get_model(
+            EVALUATION_MODEL_ID,
+            device=f'cuda:{i}',
+            load_in_8bit=True,
+            use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+        )
+        for i in range(NUM_THREADS_EVALUATE)
+    ]
+
+    eval_futures: list[list[Future[list[PreferenceSample]]]] = [[] for _ in range(NUM_THREADS_EVALUATE)]
+
     with ProcessPoolExecutor(max_workers=NUM_THREADS_EVALUATE + 1) as executor:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
 
-        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-        models = [
-            get_model(
-                EVALUATION_MODEL_ID,
-                device=f'cuda:{i}',
-                load_in_8bit=True,
-                use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
-            )
-            for i in range(NUM_THREADS_EVALUATE)
-        ]
-
-        eval_futures: list[list[Future[list[PreferenceSample]]]] = [[] for _ in range(NUM_THREADS_EVALUATE)]
-
         with json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
-            for sample in load_samples_to_generate():
-                # load balancing - keep 10 samples per thread in a queue (submitted to the executor) before loading more
+            for sample in load_samples_to_evaluate():
                 # find the thread with the least number of samples in the queue
                 min_index = min(range(NUM_THREADS_EVALUATE), key=lambda i: len(eval_futures[i]))
+                log(f'Submitting sample to evaluate for {sample.author} to thread {min_index}')
                 eval_futures[min_index].append(executor.submit(evaluate_sample, tokenizer, models[min_index], sample))
 
+                # load balancing - keep 10 samples per thread in a queue (submitted to the executor) before loading more
                 while any(len(futures) >= 10 for futures in eval_futures):
                     sleep(1)
                     for i, futures in enumerate(eval_futures):
