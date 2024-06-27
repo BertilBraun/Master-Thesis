@@ -39,6 +39,7 @@ def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> 
 
     preferences: list[PreferenceSample] = []
 
+    log(f'Starting evaluation for {len(samples_to_evaluate)} samples for thread {index}')
     for sample in samples_to_evaluate:
         with log_all_exceptions('evaluate'):
             with timeblock(f'Evaluating sample for {sample.author}'):
