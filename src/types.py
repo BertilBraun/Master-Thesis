@@ -29,7 +29,7 @@ class Competency:
             prefix, name, description = match.groups()
             return Competency(name=name, description=description)
         log(f'Invalid competency format: {text}.', level=LogLevel.DEBUG)
-        return Competency(name=f'Invalid competency format: {text}.', description='')
+        return Competency(name=text, description='')
 
 
 @dataclass(frozen=True)
@@ -73,6 +73,7 @@ Competencies:
     @staticmethod
     def _parse_domain(text: str) -> str:
         # Return the text between the first occurrence of 'Domain:' and the next '\n'
+        text = text.replace('\n\n', '\n').replace('**', '')
         assert 'Domain:' in text, f'Domain not found in text: {text}'
         return text.split('Domain:')[1].split('\n')[0].strip().strip('"').strip()
 
@@ -80,14 +81,14 @@ Competencies:
     def _parse_competencies(text: str) -> list[Competency]:
         # Returns the list of competencies after the first occurrence of 'Competencies:\n' while the competencies are not empty and the line matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
         text = text.replace('\n\n', '\n').replace('**', '')
-        assert 'Competencies:\n' in text, f'Competencies not found in text: {text}'
+        assert 'Competencies:' in text, f'Competencies not found in text: {text}'
 
-        text = text.split('Competencies:\n')[1]
+        text = text.split('Competencies:')[1]
 
         competencies: list[Competency] = []
         for line in text.split('\n'):
             competency = Competency.parse(line)
-            if competency.name.strip() and competency.description.strip():
+            if competency.name.strip():
                 competencies.append(competency)
             elif competencies:
                 # If the line doesn't match the pattern and we have already found competencies, we break
