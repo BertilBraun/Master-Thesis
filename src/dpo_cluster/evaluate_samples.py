@@ -20,8 +20,6 @@ if __name__ == '__main__':
 
 
 def load_samples_to_evaluate() -> list[SampleToEvaluate]:
-    log(f'Loading samples to evaluate from {START_DATETIME}')
-
     # load samples to generate from the json files into the samples_to_evaluate queue
     file = get_profile_output_file_path(START_DATETIME)
     log(f'Loading samples to evaluate from {file}')
@@ -29,6 +27,7 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
 
 
 def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
+    log(f'Starting evaluation thread {index}')
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(
         EVALUATION_MODEL_ID,
@@ -146,6 +145,12 @@ if __name__ == '__main__':
 
         eval_futures: list[Future[list[PreferenceSample]]] = []
         for i in range(NUM_THREADS_EVALUATE):
+            authors = [
+                sample.author for sample in samples_to_evaluate[i * samples_per_thread : (i + 1) * samples_per_thread]
+            ]
+            log(
+                f'Starting thread {i} to evaluate samples {i * samples_per_thread} to {(i + 1) * samples_per_thread} for authors: {authors}'
+            )
             eval_futures.append(
                 executor.submit(
                     evaluate_sample, i, samples_to_evaluate[i * samples_per_thread : (i + 1) * samples_per_thread]
