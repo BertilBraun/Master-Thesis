@@ -188,6 +188,14 @@ class EvaluationResult(TypedDict):
     preferred_profile: int
 
 
+def EvaluationResult_from_invalid_response(response: str) -> EvaluationResult:
+    # last number [1|2] is the preferred profile
+    last_one = response.rfind('1')
+    last_two = response.rfind('2')
+    preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
+    return {'reasoning': response, 'preferred_profile': preferred_profile}
+
+
 class Preference(TypedDict):
     prompt: str
     chosen: str

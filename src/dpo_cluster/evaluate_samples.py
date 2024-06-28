@@ -4,16 +4,10 @@ from concurrent.futures import Future, ProcessPoolExecutor
 from src.log import log
 from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
-from src.types import EvaluationResult, Ranking
+from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking
 from src.dpo_cluster.defines import *
 from src.dpo_cluster.log_gpu_usage import trace_gpu_usage
 from src.util import dump_json, json_dumper, load_json, log_all_exceptions, timeblock
-
-# NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
-# Each thread will on startup create a threadlocal database (threadid + timestamp) to store the evaluation samples
-# Each thread will fetch one element from the samples to evaluate list
-# Then will call a tournament evaluation on the samples with the largest possible LLM
-# The evaluation will be written to the threadlocal database with all the preferences
 
 if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
@@ -101,11 +95,7 @@ def process_sample_to_evaluate(
                 evaluation_results.append(partialjson.JSONParser().parse(response))
             except Exception as e:
                 log(f'Error parsing response: {response} - {e}')
-                # last number [1|2] is the preferred profile
-                last_one = response.rfind('1')
-                last_two = response.rfind('2')
-                preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
-                evaluation_results.append({'reasoning': response, 'preferred_profile': preferred_profile})
+                evaluation_results.append(EvaluationResult_from_invalid_response(response))
 
         return evaluation_results
 

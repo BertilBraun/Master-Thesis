@@ -176,7 +176,7 @@ def get_trainer(model) -> DPOTrainer:
     )
 
 
-def get_model():
+def get_model_to_train():
     # BitsAndBytesConfig int-4 config
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
@@ -260,11 +260,23 @@ def evaluate_model() -> bool:
             max_new_tokens=650,
         )[0]
 
-        samples_for_fine_tuning_improvement_evaluation.append(sample.with_new_profile(response))
+        samples_for_fine_tuning_improvement_evaluation.append(
+            sample.with_new_profiles(
+                str(Profile.parse(response)),
+            )
+        )
 
-    # TODO unload the model from the GPU
-    # TODO other evaluation model -> should be a large strong model
-    # TODO proper tokenizer for the evaluation model
+    # free the memory again
+    del model
+    gc.collect()
+    cuda.empty_cache()
+
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(
+        EVALUATION_MODEL_ID,
+        load_in_8bit=True,
+        use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
+    )
 
     number_of_wins_current_model = 0
 
@@ -312,7 +324,7 @@ if __name__ == '__main__':
     print(f'len(test_dataset): {len(test_dataset)} -> removed {old_len_test - len(test_dataset)}')
 
     with progress_status('Loading model'):
-        model = get_model()
+        model = get_model_to_train()
 
     with progress_status('Loading trainer'):
         trainer = get_trainer(model)
@@ -325,6 +337,8 @@ if __name__ == '__main__':
     # free the memory again
     del model
     del trainer
+
+    gc.collect()
     cuda.empty_cache()
 
     if not evaluate_model():

@@ -1,5 +1,6 @@
 import json
 import os
+from time import sleep
 import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import tiktoken
@@ -7,7 +8,7 @@ import tiktoken
 from typing import Literal, overload
 from partialjson.json_parser import JSONParser
 
-from openai import OpenAI
+from openai import OpenAI, RateLimitError
 
 from src.log import LogLevel, log, time_str
 from src.types import AIMessage, Profile, LanguageModel, Message
@@ -16,10 +17,18 @@ from src.util import generate_hashcode
 
 
 class OpenAILanguageModel(LanguageModel):
-    def __init__(self, model: str, debug_context_name: str = ''):
+    def __init__(
+        self,
+        model: str,
+        debug_context_name: str = '',
+        base_url: str | None = src.defines.BASE_URL_LLM,
+        api_key: str | None = None,
+        max_retries: int = src.defines.MAX_RETRIES,
+    ):
         self.model = model
-        self.openai = OpenAI(base_url=src.defines.BASE_URL_LLM)
+        self.openai = OpenAI(base_url=base_url, api_key=api_key)
         self.debug_context_name = debug_context_name
+        self.max_retries = max_retries
 
     @overload
     def batch(
@@ -98,7 +107,7 @@ class OpenAILanguageModel(LanguageModel):
         key = json.dumps(
             {
                 'model': self.model,
-                'base_url': src.defines.BASE_URL_LLM,
+                'base_url': self.openai.base_url,
                 'messages': generate_hashcode([message.to_dict() for message in prompt]),
                 'stop': stop,
                 'temperature': temperature,
@@ -118,7 +127,7 @@ class OpenAILanguageModel(LanguageModel):
             stop,
             response_format,
             temperature,
-            src.defines.MAX_RETRIES,
+            self.max_retries,
         )
 
         if success:
@@ -146,7 +155,7 @@ class OpenAILanguageModel(LanguageModel):
 
         success, result = self._invoke(prompt, stop, response_format, temperature)
 
-        try_str = '' if retries == src.defines.MAX_RETRIES else f' (try {src.defines.MAX_RETRIES-retries+1})'
+        try_str = '' if retries == self.max_retries else f' (try {self.max_retries-retries+1})'
         generate_html_file_for_chat(
             prompt + [AIMessage(content=result)],
             f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
@@ -194,6 +203,13 @@ class OpenAILanguageModel(LanguageModel):
                 # 100 seconds - should be enough for the model to respond (unless the backend is down)
                 timeout=100,
             )
+        except RateLimitError as e:
+            log(
+                f'Error: Rate limit exceeded for model {self.model} with debug context {self.debug_context_name}: {e}',
+                level=LogLevel.WARNING,
+            )
+            sleep(60)
+            return False, 'Error: Rate limit exceeded'
         except Exception as e:
             log(
                 f'Error Generating Response: {e} for model {self.model} with debug context {self.debug_context_name}',

@@ -104,11 +104,15 @@ class SampleForFineTuningImprovementEvaluation:
     def from_json(data: dict) -> 'SampleForFineTuningImprovementEvaluation':
         return SampleForFineTuningImprovementEvaluation(**data)
 
-    def with_new_profile(self, best_profile_from_last_model: str) -> 'SampleForFineTuningImprovementEvaluation':
+    def with_new_profiles(
+        self,
+        best_profile_from_last_model: str,
+        best_profile_from_original_model: str | None = None,
+    ) -> 'SampleForFineTuningImprovementEvaluation':
         return SampleForFineTuningImprovementEvaluation(
             prompt=self.prompt,
             abstracts=self.abstracts,
-            best_profile_from_original_model=self.best_profile_from_original_model,
+            best_profile_from_original_model=best_profile_from_original_model or self.best_profile_from_original_model,
             best_profile_from_last_model=best_profile_from_last_model,
         )
 
