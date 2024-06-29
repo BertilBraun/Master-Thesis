@@ -41,15 +41,17 @@ EVALUATION_MODEL = 'alias-large-instruct'
 DO_SHUFFLE_DURING_EVALUATION = True
 
 MODELS = [
-    # 'dev-phi-3-mini-128k', # 3.8B parameters
-    # 'dev-phi-3-medium',
-    # 'dev-gemma-large',
-    # 'dev-gemma-small',
-    # 'dev-llama-3-large',
-    # 'dev-llama-3-small',
-    # 'alias-fast',
+    'dev-phi-3-mini-128k',  # 3.8B parameters
+    'dev-phi-3-medium',
+    'dev-gemma-large',
+    'dev-gemma-small',
+    'dev-llama-3-large',
+    'dev-llama-3-small',
     'alias-fast-instruct',
     'alias-large-instruct',
+    # 'alias-fast',
+    # TODO 'alias-fast-instruct',
+    # TODO 'alias-large-instruct',
     # 'mistral',
     # 'neural',
     # 'mixtral',
