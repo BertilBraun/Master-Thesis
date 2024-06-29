@@ -8,13 +8,17 @@
 #SBATCH --cpus-per-task=1                  # number of CPUs required per MPI task
 #SBATCH --ntasks-per-node=1                # maximum count of tasks per node
 #SBATCH --mail-type=ALL                    # Notify user by email when certain event types occur.
-#SBATCH --gres=gpu:1 # TODO can we train with more? accelerate 
+#SBATCH --gres=gpu:2 # TODO 4
 #SBATCH --output=train_%j.txt
 #SBATCH --error=train_%j.txt
 
 source shared_slurm_setup.sh
 
-python -m src.dpo_cluster.train_and_evaluate
+cd src/dpo_cluster
+accelerate launch train.py
+cd ../..
+
+python -m src.dpo_cluster.evaluate
 
 # if the train script is successful, then the next step is to generate again
 if [ $? -eq 0 ]; then

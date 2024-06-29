@@ -30,22 +30,21 @@ NUM_THREADS_EVALUATE = 4
 EVALUATION_BATCH_SIZE = 8
 
 
-TEST_PERCENTAGE = 0.05
+# WARNING there is a copy of this variable in src/dpo_cluster/train.py
 OUTPUT_DIR = 'dpo_output'
 
 
-TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
     f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'
 )
 
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
+# WARNING there is a copy of this variable in src/dpo_cluster/train.py
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 
 USE_FLASH_ATTENTION_FOR_EVALUATION = True
 
-NUMBER_OF_EPOCHS_TO_TRAIN = 3
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
 
 
@@ -66,8 +65,6 @@ NUMBER_OF_EPOCHS_TO_TRAIN = 2
 NUM_THREADS_GENERATE = 2
 NUM_THREADS_EVALUATE = 2
 
-TEST_PERCENTAGE = 1 / NUM_SAMPLES_TO_GENERATE  # only one test sample
-
 # ---------------------------------------
 
 
@@ -78,6 +75,7 @@ def get_new_datetime_str() -> str:
 
 
 def get_previous_datetime_str() -> str:
+    # WARNING there is a copy of this function in src/dpo_cluster/train.py
     assert os.path.exists(
         f'{OUTPUT_DIR}/start_datetime.txt'
     ), 'Run get_new_datetime_str() first to create the start_datetime.txt file.'
@@ -90,6 +88,7 @@ def get_profile_output_file_path(start_datetime: str) -> str:
 
 
 def get_preference_output_file_path(start_datetime: str) -> str:
+    # WARNING there is a copy of this function in src/dpo_cluster/train.py
     return f'{OUTPUT_DIR}/preferences/{start_datetime}.json'
 
 
@@ -151,6 +150,7 @@ class SampleToEvaluate:
 
 @dataclass(frozen=True)
 class PreferenceSample:
+    # WARNING there is a copy of this class in src/dpo_cluster/train.py
     prompt: str
     chosen: str
     rejected: str
@@ -161,6 +161,7 @@ class PreferenceSample:
 
 
 def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
+    # WARNING there is a copy of this function in src/dpo_cluster/train.py
     tokenizer = AutoTokenizer.from_pretrained(
         name_or_path,
         padding_side='left',
