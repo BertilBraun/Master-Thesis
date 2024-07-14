@@ -135,15 +135,18 @@ if __name__ == '__main__':
     with ProcessPoolExecutor() as executor, json_dumper(get_profile_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
 
-        while samples_to_generate:
-            samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 20)
+        samples_processed = 0
+        samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 20)
 
+        while samples_processed < len(samples_to_generate):
             eval_futures: list[Future[list[SampleToEvaluate]]] = []
             for i in range(NUM_THREADS_EVALUATE):
-                authors = [sample.author for sample in samples_to_generate[:samples_per_thread]]
+                this_threads_samples = samples_to_generate[samples_processed : samples_processed + samples_per_thread]
+                samples_processed += samples_per_thread
+
+                authors = [sample.author for sample in this_threads_samples]
                 log(f'Starting thread {i} to generate {samples_per_thread} samples for authors: {authors}')
-                eval_futures.append(executor.submit(generate_sample, i, samples_to_generate[:samples_per_thread]))
-                samples_to_generate = samples_to_generate[samples_per_thread:]
+                eval_futures.append(executor.submit(generate_sample, i, this_threads_samples))
 
             for future in eval_futures:
                 for preference in future.result():

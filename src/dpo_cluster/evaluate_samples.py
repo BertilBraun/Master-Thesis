@@ -135,15 +135,19 @@ if __name__ == '__main__':
     with ProcessPoolExecutor() as executor, json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
 
-        while samples_to_evaluate:
-            samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
+        samples_processed = 0
+        samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
 
+        while samples_processed < len(samples_to_evaluate):
             eval_futures: list[Future[list[PreferenceSample]]] = []
             for i in range(NUM_THREADS_EVALUATE):
-                authors = [sample.author for sample in samples_to_evaluate[:samples_per_thread]]
+                this_threads_samples = samples_to_evaluate[samples_processed : samples_processed + samples_per_thread]
+                samples_processed += samples_per_thread
+
+                authors = [sample.author for sample in this_threads_samples]
                 log(f'Starting thread {i} to evaluate {samples_per_thread} samples for authors: {authors}')
-                eval_futures.append(executor.submit(evaluate_sample, i, samples_to_evaluate[:samples_per_thread]))
-                samples_to_evaluate = samples_to_evaluate[samples_per_thread:]
+
+                eval_futures.append(executor.submit(evaluate_sample, i, this_threads_samples))
 
             for future in eval_futures:
                 for preference in future.result():

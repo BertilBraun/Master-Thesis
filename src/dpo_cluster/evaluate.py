@@ -129,16 +129,21 @@ def evaluate_profile_preference_batch(
 def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation]) -> int:
     number_of_wins_current_model = 0
 
-    with ProcessPoolExecutor() as executor:
-        while samples_to_evaluate:
-            samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
+    samples_processed = 0
+    samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
 
+    with ProcessPoolExecutor() as executor:
+        while samples_processed < len(samples_to_evaluate):
             eval_futures: list[Future[int]] = []
             for i in range(NUM_THREADS_EVALUATE):
                 eval_futures.append(
-                    executor.submit(evaluate_profile_preference_batch, i, samples_to_evaluate[:samples_per_thread])
+                    executor.submit(
+                        evaluate_profile_preference_batch,
+                        i,
+                        samples_to_evaluate[samples_processed : samples_processed + samples_per_thread],
+                    )
                 )
-                samples_to_evaluate = samples_to_evaluate[samples_per_thread:]
+                samples_processed += samples_per_thread
 
             for future in eval_futures:
                 number_of_wins_current_model += future.result()
