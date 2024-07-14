@@ -1,3 +1,4 @@
+from collections import Counter
 from contextlib import contextmanager
 import hashlib
 import json
@@ -119,6 +120,13 @@ def download(url: str, extension: str = '') -> tuple[bool, str]:
     log(f'Downloaded file from {url} to {file_name}', level=LogLevel.DEBUG)
 
     return True, file_name
+
+
+def text_similarity(a: str, b: str) -> float:
+    # count the words in a that are in b including the number of times they appear -> all words of a are in b -> 1
+    c = Counter(a.split())
+    d = Counter(b.split())
+    return sum((c & d).values()) / sum(c.values())
 
 
 def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):

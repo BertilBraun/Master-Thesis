@@ -14,6 +14,7 @@
 # Otherwise the script is then responsible to write the new model to the 'current-finetuned-model' file so that it can be used in the next iteration
 
 
+from concurrent.futures import Future, ProcessPoolExecutor
 import sys
 import partialjson
 from torch import float16, cuda
@@ -99,19 +100,20 @@ def get_samples_for_fine_tuning_improvement_evaluation() -> list[SampleForFineTu
     return samples_for_fine_tuning_improvement_evaluation
 
 
-def get_number_of_wins_current_model(
-    samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation],
+def evaluate_profile_preference_batch(
+    index: int, samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation]
 ) -> int:
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(
         EVALUATION_MODEL_ID,
+        device=f'cuda:{index}',
         load_in_8bit=True,
         use_flash_attention=USE_FLASH_ATTENTION_FOR_EVALUATION,
     )
 
     number_of_wins_current_model = 0
 
-    for sample in samples_for_fine_tuning_improvement_evaluation:
+    for sample in samples_to_evaluate:
         if evaluate_is_profile1_preferred(
             model,
             tokenizer,
@@ -121,10 +123,25 @@ def get_number_of_wins_current_model(
         ):
             number_of_wins_current_model += 1
 
-    # free the memory again
-    del model
-    gc.collect()
-    cuda.empty_cache()
+    return number_of_wins_current_model
+
+
+def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation]) -> int:
+    number_of_wins_current_model = 0
+
+    with ProcessPoolExecutor() as executor:
+        while samples_to_evaluate:
+            samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
+
+            eval_futures: list[Future[int]] = []
+            for i in range(NUM_THREADS_EVALUATE):
+                eval_futures.append(
+                    executor.submit(evaluate_profile_preference_batch, i, samples_to_evaluate[:samples_per_thread])
+                )
+                samples_to_evaluate = samples_to_evaluate[samples_per_thread:]
+
+            for future in eval_futures:
+                number_of_wins_current_model += future.result()
 
     return number_of_wins_current_model
 

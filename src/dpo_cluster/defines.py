@@ -17,15 +17,15 @@ from src.util import write_to_file
 
 CAS_OPENAI_API_KEY = 'sk-ce-service-account-OvzVRsc0DRXVJeCvxiQGT3BlbkFJmcquyYhxboiGGtFxshKi'
 
-NUM_SAMPLES_TO_GENERATE = 200  # TODO less? more?
+NUM_SAMPLES_TO_GENERATE = 200  # 2000 # TODO less? more?
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 8
 TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
-NUM_THREADS_GENERATE = 4  # TODO 8
-NUM_THREADS_EVALUATE = 4
+NUM_THREADS_GENERATE = cuda.device_count()
+NUM_THREADS_EVALUATE = cuda.device_count()
 
 EVALUATION_BATCH_SIZE = 8
 
@@ -57,13 +57,7 @@ USE_FLASH_ATTENTION_FOR_EVALUATION = False
 # EVALUATION_BATCH_SIZE = 4
 
 NUM_SAMPLES_TO_GENERATE = 32
-
-TOP_K_TO_SAMPLE = 8
-
 NUMBER_OF_EPOCHS_TO_TRAIN = 2
-
-NUM_THREADS_GENERATE = 2
-NUM_THREADS_EVALUATE = 2
 
 # ---------------------------------------
 

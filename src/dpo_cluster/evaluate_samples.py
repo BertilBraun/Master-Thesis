@@ -1,7 +1,7 @@
 import partialjson
 from concurrent.futures import Future, ProcessPoolExecutor
 
-from src.log import log
+from src.log import LogLevel, log
 from src.database import get_retriever_getter
 from src.evaluation import get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking
@@ -127,6 +127,10 @@ if __name__ == '__main__':
     # NUM_THREADS_EVALUATE other threads will be running in parallel to evaluate the samples
 
     samples_to_evaluate = load_samples_to_evaluate()
+
+    log(f'Evaluating {len(samples_to_evaluate)} samples on {NUM_THREADS_EVALUATE} threads')
+    if len(samples_to_evaluate) < NUM_SAMPLES_TO_GENERATE * 0.9:
+        log('Less than 90% of the samples were generated, exiting', level=LogLevel.WARNING)
 
     with ProcessPoolExecutor() as executor, json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')

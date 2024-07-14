@@ -103,31 +103,21 @@ if __name__ == '__main__':
         exit(1)
 
     # load the samples to compare from the setup, save a backup
-    # then write the samples with the current best model being the baseline model
-    # - when the training with the new samples is done, then the current best model (which was trained on the preferences of llama3 70B) will be compared to the new model (trained on the preferences of GPT4o)
-
     create_backup(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
 
-    new_samples: list[SampleForFineTuningImprovementEvaluation] = []
-    for element in load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE):
-        sample = SampleForFineTuningImprovementEvaluation.from_json(element)
-
-        new_samples.append(
-            sample.with_new_profiles(
-                sample.best_profile_from_last_model,
-                sample.best_profile_from_last_model,
-            )
-        )
-
+    # then write the samples with the current best model being the baseline model
+    # - when the training with the new samples is done, then the current best model (which was trained on the preferences of llama3 70B) will be compared to the new model (trained on the preferences of GPT4o)
+    all_samples = load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
+    # NOTE: load the samples before opening the dumper, otherwise the file will be overwritten already
     with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
-        for sample in new_samples:
-            dumper(sample)
+        for sample in all_samples:
+            sample = SampleForFineTuningImprovementEvaluation.from_json(sample)
+            dumper(sample.with_new_profiles(sample.best_profile_from_last_model, sample.best_profile_from_last_model))
 
-    with ProcessPoolExecutor(max_workers=40) as executor:
-        futures = executor.map(evaluate_sample, load_samples_to_evaluate())
-
-    with json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
-        for preference in futures:
+    with ProcessPoolExecutor(max_workers=40) as executor, json_dumper(
+        get_preference_output_file_path(START_DATETIME)
+    ) as dumper:
+        for preference in executor.map(evaluate_sample, load_samples_to_evaluate()):
             dumper(preference)
 
     # compare agreement with current preferences

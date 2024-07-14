@@ -6,7 +6,6 @@ try:
 except ImportError:
     pass
 
-from collections import Counter
 import random
 import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
@@ -32,7 +31,7 @@ from src.types import (
     Summary,
     DatabaseTypes,
 )
-from src.util import timeit
+from src.util import text_similarity, timeit
 from src.log import LogLevel, log
 
 DB_LOG_FOLDER = 'logs'
@@ -98,13 +97,6 @@ def _cosine_similarity(a: Embedding, b: Embedding) -> float:
     return dot_product / (len_a * len_b)
 
 
-def _text_similarity(a: str, b: str) -> float:
-    # count the words in a that are in b including the number of times they appear -> all words of a are in b -> 1
-    c = Counter(a.split())
-    d = Counter(b.split())
-    return sum((c & d).values()) / sum(c.values())
-
-
 # TODO adjust the threshold
 def _greedy_filter(
     query: str,
@@ -118,7 +110,7 @@ def _greedy_filter(
     not_added_documents: list[str] = []
 
     for document, embedding in zip(documents, embeddings):
-        if _text_similarity(query, document) > 0.95:
+        if text_similarity(query, document) > 0.95:
             # Never add the query itself
             log(
                 f'Found query in document - this most likely means the query was already added to the database: {document}',

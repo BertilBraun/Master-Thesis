@@ -184,8 +184,8 @@ def filter_by_max_length(dataset: Dataset, max_length: int) -> Dataset:
 def get_trainer(model) -> DPOTrainer:
     # LoRA config based on QLoRA paper & Sebastian Raschka experiment
     peft_config = LoraConfig(
-        r=256,
-        lora_alpha=128,
+        r=8,
+        lora_alpha=32,
         lora_dropout=0.05,
         bias='none',
         task_type='CAUSAL_LM',

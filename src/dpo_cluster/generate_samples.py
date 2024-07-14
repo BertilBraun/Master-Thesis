@@ -9,7 +9,7 @@ from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import Example, Profile
 from src.dpo_cluster.defines import *
 from src.dpo_cluster.log_gpu_usage import trace_gpu_usage
-from src.util import dump_json, json_dumper, log_all_exceptions, timeblock
+from src.util import dump_json, json_dumper, log_all_exceptions, text_similarity, timeblock
 
 # While we have not generated enough samples
 # Fetch a random set of authors with at least PAPERS_PER_SAMPLE papers
@@ -102,10 +102,18 @@ def process_sample_to_generate_into_sample_to_evaluate(
 
     profiles = [Profile.parse(response) for response in responses]
 
+    # Filter out too similar profiles
+    filtered_profiles: list[Profile] = []
+    for profile in profiles:
+        if not any(
+            text_similarity(str(profile), str(filtered_profile)) > 0.95 for filtered_profile in filtered_profiles
+        ):
+            filtered_profiles.append(profile)
+
     dump_json(
         {
             'prompt': prompt_messages,
-            'profiles': [str(profile) for profile in profiles],
+            'profiles': [str(profile) for profile in filtered_profiles],
         },
         f'{OUTPUT_DIR}/generate/{START_DATETIME}/{sample_to_generate.author}.json',
     )
@@ -114,7 +122,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
         author=sample_to_generate.author,
         prompt=prompt,
         abstracts=sample_to_generate.abstracts,
-        profiles=profiles,
+        profiles=filtered_profiles,
     )
 
 
