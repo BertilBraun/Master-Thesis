@@ -1,4 +1,3 @@
-import partialjson
 from concurrent.futures import ProcessPoolExecutor
 
 from src.language_model import OpenAILanguageModel
@@ -58,11 +57,8 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
             f'{OUTPUT_DIR}/evaluate/{START_DATETIME}/{sample_to_evaluate.author}_match({profile1_index}-{profile2_index}).json',
         )
 
-        try:
-            return partialjson.JSONParser().parse(response)
-        except Exception as e:
-            log(f'Error parsing response: {response} - {e}')
-            return EvaluationResult_from_invalid_response(response)
+        # The output almost never contains a valid JSON, so we need to parse it manually
+        return EvaluationResult_from_invalid_response(response)
 
     log(f'Running tournament for {sample_to_evaluate.author}')
     tournament = run_tournament_ranking(
