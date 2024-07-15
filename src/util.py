@@ -203,6 +203,26 @@ def load_json(file_name: str) -> Any:
         return json.load(f)
 
 
+def create_backup(file_path: str) -> tuple[bool, str]:
+    if not os.path.exists(file_path):
+        log(f'No preferences found at {file_path}', level=LogLevel.ERROR)
+        return False, ''
+
+    backup_path = file_path + '.bak'
+    if not os.path.exists(backup_path):
+        write_to_file(backup_path, open(file_path, 'r').read())
+        return True, backup_path
+
+    for i in range(1, 1000):
+        backup_path = file_path + f'.bak({i})'
+        if not os.path.exists(backup_path):
+            write_to_file(backup_path, open(file_path, 'r').read())
+            return True, backup_path
+
+    log(f'Could not create backup for {file_path}', level=LogLevel.ERROR)
+    return False, ''
+
+
 @contextmanager
 def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
     # with json_dumper('data.json') as dumper:
@@ -213,6 +233,9 @@ def json_dumper(file_name: str) -> Generator[Callable[[Any], None], None, None]:
     dir_name = os.path.dirname(file_name)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
+
+    create_backup(file_name)
+
     with open(file_name, 'w') as f:
         f.write('[')
         first = True

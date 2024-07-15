@@ -6,7 +6,7 @@ from src.database import get_retriever_getter
 from src.evaluation import default_round_evaluator, get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking
 from src.dpo_cluster.defines import *
-from src.util import dump_json, json_dumper, load_json, log_all_exceptions, timeblock
+from src.util import create_backup, dump_json, json_dumper, load_json, log_all_exceptions, timeblock
 
 if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
@@ -85,16 +85,6 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
     return preferences
 
 
-def create_backup(file_path: str) -> tuple[bool, str]:
-    if not os.path.exists(file_path):
-        log(f'No preferences found at {file_path}', level=LogLevel.ERROR)
-        return False, ''
-
-    backup_path = file_path + '.bak'
-    write_to_file(backup_path, open(file_path, 'r').read())
-    return True, backup_path
-
-
 def compare_aggreement_of_preferences(preference_path: str, other_preference_path: str) -> tuple[float, int, int]:
     # compare agreement with current preferences
     # map from prompt to (chosen, rejected)
@@ -121,12 +111,9 @@ def compare_aggreement_of_preferences(preference_path: str, other_preference_pat
 if __name__ == '__main__':
     # load current preferences and save them as a backup
     preference_path = get_preference_output_file_path(START_DATETIME)
-    success, preference_backup_path = create_backup(preference_path)
-    if not success:
+    preferences_existed, preference_backup_path = create_backup(preference_path)
+    if not preferences_existed:
         exit(1)
-
-    # load the samples to compare from the setup, save a backup
-    create_backup(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
 
     # then write the samples with the current best model being the baseline model
     # - when the training with the new samples is done, then the current best model (which was trained on the preferences of llama3 70B) will be compared to the new model (trained on the preferences of GPT4o)
@@ -139,8 +126,9 @@ if __name__ == '__main__':
 
     samples_to_evaluate = load_samples_to_evaluate()
     with ProcessPoolExecutor(max_workers=2) as executor, json_dumper(preference_path) as dumper:
-        for preference in executor.map(evaluate_sample, samples_to_evaluate):
-            dumper(preference)
+        for preferences in executor.map(evaluate_sample, samples_to_evaluate):
+            for preference in preferences:
+                dumper(preference)
 
     # compare agreement with current preferences
     percent, number_of_samples, number_of_agreements = compare_aggreement_of_preferences(
