@@ -28,6 +28,7 @@ def evaluate_sample(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSamp
 
 
 def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSample]:
+    log(f'Processing sample to evaluate for {sample_to_evaluate.author}')
     examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
         '\n\n'.join(sample_to_evaluate.abstracts)
     )
@@ -45,6 +46,7 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
             api_key=CAS_OPENAI_API_KEY,
             max_retries=2,
         )
+        log(f'Running match evaluator for {sample_to_evaluate.author} - {profile1_index} vs {profile2_index}')
         response = llm.invoke(prompt, stop=['\n\n\n\n'], temperature=0.2)
 
         # Log the response to a file
@@ -62,11 +64,13 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
             log(f'Error parsing response: {response} - {e}')
             return EvaluationResult_from_invalid_response(response)
 
+    log(f'Running tournament for {sample_to_evaluate.author}')
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
         default_round_evaluator(match_evaluator),
         do_shuffle=True,
     )
+    log(f'Tournament finished for {sample_to_evaluate.author}')
 
     preferences: list[PreferenceSample] = []
 
