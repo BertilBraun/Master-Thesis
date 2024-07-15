@@ -34,6 +34,7 @@ EVALUATION_BATCH_SIZE = 8
 OUTPUT_DIR = 'dpo_output'
 
 
+# WARNING there is a copy of this variable in src/dpo_cluster/train.py
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
     f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'

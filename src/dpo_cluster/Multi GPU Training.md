@@ -18,6 +18,4 @@ To run the training script on multiple GPUs, you can use the `accelerate launch`
 accelerate launch training_script.py
 ```
 
-## TODO
-
 I think that `accelerate launch` has to be run with a single script, so we will need to merge all the functionality required for training into a single script. The evaluation would therefore be better done in a separate script.

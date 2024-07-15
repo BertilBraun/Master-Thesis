@@ -2,7 +2,7 @@ from math import ceil, log2
 from concurrent.futures import Future, ProcessPoolExecutor
 
 
-from src.log import log
+from src.log import LogLevel, log
 from src.database import get_retriever_getter
 from src.papers import get_random_english_authors_abstracts
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
@@ -109,6 +109,9 @@ def process_sample_to_generate_into_sample_to_evaluate(
             text_similarity(str(profile), str(filtered_profile)) > 0.95 for filtered_profile in filtered_profiles
         ):
             filtered_profiles.append(profile)
+
+    if len(filtered_profiles) < len(profiles):
+        log(f'Filtered out {len(profiles) - len(filtered_profiles)} similar profiles', level=LogLevel.WARNING)
 
     dump_json(
         {

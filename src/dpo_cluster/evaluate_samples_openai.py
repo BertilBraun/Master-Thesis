@@ -43,7 +43,7 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
             debug_context_name='evaluate_samples_openai',
             base_url=None,
             api_key=CAS_OPENAI_API_KEY,
-            max_retries=1,
+            max_retries=2,
         )
         response = llm.invoke(prompt, stop=['\n\n\n\n'], temperature=0.2)
 
@@ -95,6 +95,29 @@ def create_backup(file_path: str) -> tuple[bool, str]:
     return True, backup_path
 
 
+def compare_aggreement_of_preferences(preference_path: str, other_preference_path: str) -> tuple[float, int, int]:
+    # compare agreement with current preferences
+    # map from prompt to (chosen, rejected)
+    current_preferences: dict[str, tuple[str, str]] = {}
+
+    for preference in load_json(preference_path):
+        current_preferences[preference['prompt']] = (preference['chosen'], preference['rejected'])
+
+    number_of_samples, number_of_agreements = 0, 0
+
+    for sample in load_json(other_preference_path):
+        prompt = sample['prompt']
+        if prompt not in current_preferences:
+            log(f'Prompt {prompt} not found in current preferences', level=LogLevel.ERROR)
+            continue
+
+        number_of_samples += 1
+        number_of_agreements += current_preferences[prompt] == (sample['chosen'], sample['rejected'])
+
+    percent = number_of_agreements / number_of_samples * 100
+    return percent, number_of_samples, number_of_agreements
+
+
 if __name__ == '__main__':
     # load current preferences and save them as a backup
     preference_path = get_preference_output_file_path(START_DATETIME)
@@ -114,29 +137,12 @@ if __name__ == '__main__':
             sample = SampleForFineTuningImprovementEvaluation.from_json(sample)
             dumper(sample.with_new_profiles(sample.best_profile_from_last_model, sample.best_profile_from_last_model))
 
-    with ProcessPoolExecutor(max_workers=40) as executor, json_dumper(
-        get_preference_output_file_path(START_DATETIME)
-    ) as dumper:
+    with ProcessPoolExecutor(max_workers=40) as executor, json_dumper(preference_path) as dumper:
         for preference in executor.map(evaluate_sample, load_samples_to_evaluate()):
             dumper(preference)
 
     # compare agreement with current preferences
-    # map from prompt to (chosen, rejected)
-    current_preferences: dict[str, tuple[str, str]] = {}
-
-    for preference in load_json(preference_path):
-        current_preferences[preference['prompt']] = (preference['chosen'], preference['rejected'])
-
-    number_of_samples, number_of_agreements = 0, 0
-
-    for sample in load_json(preference_backup_path):
-        prompt = sample['prompt']
-        if prompt not in current_preferences:
-            log(f'Prompt {prompt} not found in current preferences', level=LogLevel.ERROR)
-            continue
-
-        number_of_samples += 1
-        number_of_agreements += current_preferences[prompt] == (sample['chosen'], sample['rejected'])
-
-    percent = number_of_agreements / number_of_samples * 100
+    percent, number_of_samples, number_of_agreements = compare_aggreement_of_preferences(
+        preference_path, preference_backup_path
+    )
     log(f'Agreement with current preferences: {number_of_agreements}/{number_of_samples} ({percent:.2f}%)')

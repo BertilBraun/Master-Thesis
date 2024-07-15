@@ -26,10 +26,12 @@ from rich.status import Status
 
 
 TEST_PERCENTAGE = 0.05
+# WARNING there is a copy of this variable in src/dpo_cluster/train.py
 OUTPUT_DIR = 'dpo_output'
 
 
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
+# WARNING there is a copy of this variable in src/dpo_cluster/train.py
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
