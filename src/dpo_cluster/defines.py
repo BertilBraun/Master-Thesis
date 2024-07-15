@@ -42,6 +42,7 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
+BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'  # TODO tbd
 BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 
 USE_FLASH_ATTENTION_FOR_EVALUATION = True

@@ -107,7 +107,7 @@ class OpenAILanguageModel(LanguageModel):
         key = json.dumps(
             {
                 'model': self.model,
-                'base_url': self.openai.base_url,
+                'base_url': self.openai.base_url.host,
                 'messages': generate_hashcode([message.to_dict() for message in prompt]),
                 'stop': stop,
                 'temperature': temperature,
