@@ -142,7 +142,7 @@ if __name__ == '__main__':
             dumper(sample.with_new_profiles(sample.best_profile_from_last_model, sample.best_profile_from_last_model))
 
     samples_to_evaluate = load_samples_to_evaluate()
-    with ProcessPoolExecutor(max_workers=40) as executor, json_dumper(preference_path) as dumper:
+    with ProcessPoolExecutor(max_workers=2) as executor, json_dumper(preference_path) as dumper:
         for preference in executor.map(evaluate_sample, samples_to_evaluate):
             dumper(preference)
 
