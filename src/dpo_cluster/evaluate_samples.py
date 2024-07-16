@@ -36,6 +36,10 @@ def evaluate_sample(index: int, samples_to_evaluate: list[SampleToEvaluate]) -> 
             with timeblock(f'Evaluating sample for {sample.author}'):
                 preferences += process_sample_to_evaluate(tokenizer, model, sample)
 
+    del model
+    gc.collect()
+    cuda.empty_cache()
+
     return preferences
 
 
@@ -130,7 +134,7 @@ if __name__ == '__main__':
 
     log(f'Evaluating {len(samples_to_evaluate)} samples on {NUM_THREADS_EVALUATE} threads')
     if len(samples_to_evaluate) < NUM_SAMPLES_TO_GENERATE * 0.9:
-        log('Less than 90% of the samples were generated, exiting', level=LogLevel.WARNING)
+        log('Less than 90% of the samples were generated', level=LogLevel.WARNING)
 
     with ProcessPoolExecutor() as executor, json_dumper(get_preference_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
