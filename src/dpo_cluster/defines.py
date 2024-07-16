@@ -53,12 +53,12 @@ NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
 # TODO test parameters - comment out for production
 # ---------------------------------------
 
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
-USE_FLASH_ATTENTION_FOR_EVALUATION = False
+# EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
+# USE_FLASH_ATTENTION_FOR_EVALUATION = False
 
 # EVALUATION_BATCH_SIZE = 4
 
-NUM_SAMPLES_TO_GENERATE = 32
+# NUM_SAMPLES_TO_GENERATE = 32
 NUMBER_OF_EPOCHS_TO_TRAIN = 2
 
 # ---------------------------------------
