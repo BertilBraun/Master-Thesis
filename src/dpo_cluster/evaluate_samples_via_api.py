@@ -1,50 +1,23 @@
-import sys
-from typing import Any
-from src.defines import LOCAL_AI_CODER, LOCAL_AI_ML_PC
-from src.language_model import OpenAILanguageModel
 from src.log import LogLevel, log
 from src.database import get_retriever_getter
 from src.evaluation import default_round_evaluator, get_all_preferences, prompt_for_ranking, run_tournament_ranking
 from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking, TournamentNode
 from src.dpo_cluster.defines import *
-from src.util import create_backup, dump_json, json_dumper, load_json, log_all_exceptions, timeblock
+from src.util import (
+    create_backup,
+    dump_json,
+    json_dumper,
+    load_json,
+    log_all_exceptions,
+    parse_llm_from_sysargs,
+    timeblock,
+)
 
 
 if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
 
-# if sysargs are not provided, exit with error message
-if len(sys.argv) < 4:
-    log(
-        'Please provide the Model ID and the base URL and which API KEY to use as command line arguments.',
-        level=LogLevel.ERROR,
-    )
-    exit(1)
-
-
-def parse_sys_arg(arg_name: str, arg_value: str, valid_values: dict[str, Any]) -> Any:
-    INVALID_ARG_VALUE = f'Invalid {arg_name} value'
-    value = valid_values.get(arg_value, INVALID_ARG_VALUE)
-    assert value != INVALID_ARG_VALUE, f'{INVALID_ARG_VALUE}: {arg_value}'
-    return value
-
-
-# Model to use from sysargs
-model_id = parse_sys_arg('Model ID', sys.argv[1], {'gpt-4o-mini': 'gpt-4o-mini', 'dev-llama-large': 'dev-llama-large'})
-
-# Base url from sysargs either None or LOCAL_AI_ML_PC
-base_url = parse_sys_arg('Base URL', sys.argv[2], {'openai': None, 'mlpc': LOCAL_AI_ML_PC, 'coder': LOCAL_AI_CODER})
-
-# API key to use from sysargs
-api_key = parse_sys_arg('API Key', sys.argv[3], {'cas': CAS_OPENAI_API_KEY, 'none': None})
-
-LLM = OpenAILanguageModel(
-    model_id,
-    debug_context_name='evaluate_samples_via_api',
-    base_url=base_url,
-    api_key=api_key,
-    max_retries=2,
-)
+LLM = parse_llm_from_sysargs()
 
 
 def load_samples_to_evaluate() -> list[SampleToEvaluate]:

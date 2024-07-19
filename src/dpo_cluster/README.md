@@ -19,7 +19,10 @@ To run the code, start with the `setup.sh` script. This will setup the model and
 ```bash
 cd ~/Master-Thesis/src/dpo_cluster
 # Run first setup, then generate and finally train
+# One time setup
+./cluster_setup.sh
 ./setup.sh
+# One time setup
 ./generate_samples.sh
 ./evaluate_samples.sh
 ./train_and_evaluate.sh
