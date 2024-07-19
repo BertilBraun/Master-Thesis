@@ -13,7 +13,7 @@
 
 source shared_slurm_setup.sh
 
-python -m src.dpo_cluster.evaluate_samples_via_api dev-llama-large mlpc none
+python -m src.dpo_cluster.evaluate_samples_via_api llama mlpc none
 
 # if the generate script is successful, then the next step is to train the model
 if [ $? -eq 0 ]; then

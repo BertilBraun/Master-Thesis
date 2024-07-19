@@ -26,9 +26,7 @@ def parse_llm_from_sysargs() -> OpenAILanguageModel:
         return value
 
     # Model to use from sysargs
-    model_id = parse_sys_arg(
-        'Model ID', sys.argv[1], {'gpt-4o-mini': 'gpt-4o-mini', 'dev-llama-large': 'dev-llama-large'}
-    )
+    model_id = parse_sys_arg('Model ID', sys.argv[1], {'gpt-4o': 'gpt-4o-mini', 'llama': 'dev-llama-3-large'})
 
     # Base url from sysargs either None or LOCAL_AI_ML_PC
     base_url = parse_sys_arg('Base URL', sys.argv[2], {'openai': None, 'mlpc': LOCAL_AI_ML_PC, 'coder': LOCAL_AI_CODER})

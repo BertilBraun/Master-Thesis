@@ -18,7 +18,7 @@ cd src/dpo_cluster
 accelerate launch train.py
 cd ../..
 
-python -m src.dpo_cluster.evaluate_model_after_finetuning dev-llama-large mlpc none
+python -m src.dpo_cluster.evaluate_model_after_finetuning llama mlpc none
 
 # if the train script is successful, then the next step is to generate again
 if [ $? -eq 0 ]; then
