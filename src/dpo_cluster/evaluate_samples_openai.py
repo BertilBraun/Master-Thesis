@@ -33,6 +33,7 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
     )
 
     def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
+        # TODO could be in parallel
         profile1 = sample_to_evaluate.profiles[profile1_index]
         profile2 = sample_to_evaluate.profiles[profile2_index]
 

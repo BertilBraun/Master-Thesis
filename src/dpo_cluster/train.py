@@ -35,8 +35,8 @@ TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
+# BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'  # TODO tbd
-BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 3
 

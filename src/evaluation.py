@@ -16,6 +16,8 @@ from src.types import (
 from src.language_model import OpenAILanguageModel
 
 
+random.seed(1)
+
 # EvaluatorResult is a dictionary with the keys "reasoning" and "preferred_profile"
 # "reasoning" is a string with the evaluator's reasoning for the preferred profile
 # "preferred_profile" is an integer (1 or 2) indicating which profile is preferred

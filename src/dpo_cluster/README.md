@@ -82,42 +82,44 @@ How much would 10k training samples cost?
 
 **Nodes on the BWUniCluster:**
 
-https://wiki.bwhpc.de/e/BwUniCluster2.0/Hardware_and_Architecture
-https://wiki.bwhpc.de/e/BwUniCluster2.0/Batch_Queues
+<https://wiki.bwhpc.de/e/BwUniCluster2.0/Hardware_and_Architecture>
+<https://wiki.bwhpc.de/e/BwUniCluster2.0/Batch_Queues>
 
 **LLM generation:**
 
-https://huggingface.co/docs/transformers/en/llm_tutorial
+<https://huggingface.co/docs/transformers/en/llm_tutorial>
 
 **LLM.generate() parameters:**
 
-https://huggingface.co/docs/transformers/v4.41.3/en/main_classes/text_generation#transformers.GenerationConfig
+<https://huggingface.co/docs/transformers/v4.41.3/en/main_classes/text_generation#transformers.GenerationConfig>
 
 **Memory Usage:**
 
-https://huggingface.co/spaces/hf-accelerate/model-memory-usage
+<https://huggingface.co/spaces/hf-accelerate/model-memory-usage>
 
-Example model: https://huggingface.co/instruction-pretrain/finance-Llama3-8B
+Example model: <https://huggingface.co/instruction-pretrain/finance-Llama3-8B>
 
 Training is for Adam, though idk. we would use LoRA, which should reduce the gradient and backward pass memory usage by a lot
 
 **LLM fine-tuning:**
 
+- <https://huggingface.co/docs/transformers/perf_train_gpu_one>
+
 - Faster training using `accelerate` and `deepspeed`:
-  - https://huggingface.co/docs/trl/v0.9.4/customization
-  - https://huggingface.co/docs/accelerate/usage_guides/deepspeed
+  - <https://huggingface.co/docs/trl/v0.9.4/customization>
+  - <https://huggingface.co/docs/accelerate/usage_guides/deepspeed>
 
-- https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md
-- https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py
-- https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py
+- <https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/README.md>
+- <https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/sft_llama2.py>
+- <https://github.com/huggingface/trl/blob/main/examples/research_projects/stack_llama_2/scripts/dpo_llama2.py>
 
-- https://huggingface.co/blog/rlhf
-- https://huggingface.co/blog/dpo-trl
-- https://huggingface.co/blog/pref-tuning
-- https://huggingface.co/docs/trl/en/dpo_trainer
-- https://huggingface.co/docs/peft/quicktour
-- https://huggingface.co/docs/peft/main/en/conceptual_guides/lora
+- <https://huggingface.co/blog/rlhf>
+- <https://huggingface.co/blog/dpo-trl>
+- <https://huggingface.co/blog/pref-tuning>
+- <https://huggingface.co/docs/trl/en/dpo_trainer>
+- <https://huggingface.co/docs/peft/quicktour>
+- <https://huggingface.co/docs/peft/main/en/conceptual_guides/lora>
 
-- https://gitlab.kit.edu/kit/aifb/BIS/templates/projects/llmfinetuningstarterkit/-/blob/main/supervised_finetuning/finetuning.ipynb?ref_type=heads
+- <https://gitlab.kit.edu/kit/aifb/BIS/templates/projects/llmfinetuningstarterkit/-/blob/main/supervised_finetuning/finetuning.ipynb?ref_type=heads>
 
-- https://github.com/huggingface/alignment-handbook - Parameters for multiple different model trainings
+- <https://github.com/huggingface/alignment-handbook> - Parameters for multiple different model trainings

@@ -53,6 +53,7 @@ def process_sample_to_evaluate(
     )
 
     def round_evaluator(matches: list[tuple[int, int]]) -> list[EvaluationResult]:
+        log(f'Running round evaluator for {sample_to_evaluate.author} - {len(matches)} matches')
         prompts: list[str] = []
 
         for profile1_index, profile2_index in matches:
@@ -103,11 +104,13 @@ def process_sample_to_evaluate(
 
         return evaluation_results
 
+    log(f'Running tournament for {sample_to_evaluate.author}')
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
         round_evaluator,
         do_shuffle=True,
     )
+    log(f'Tournament finished for {sample_to_evaluate.author}')
 
     preferences: list[PreferenceSample] = []
 
@@ -140,7 +143,7 @@ if __name__ == '__main__':
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_evaluate.log')
 
         samples_processed = 0
-        samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 20)
+        samples_per_thread = min(len(samples_to_evaluate) // NUM_THREADS_EVALUATE, 200)
 
         while samples_processed < len(samples_to_evaluate):
             eval_futures: list[Future[list[PreferenceSample]]] = []

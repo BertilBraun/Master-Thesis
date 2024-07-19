@@ -117,6 +117,8 @@ if __name__ == '__main__':
     # - For each extraction method and model - how long did extraction take
 
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
+    total_times_profile1_preferred = 0
+    total_nodes = 0
 
     for data in get_all_jsons():
         author_result = AuthorResult.from_json(data)
@@ -125,6 +127,11 @@ if __name__ == '__main__':
                 results[evaluation_identifier] += evaluation_result
             else:
                 results[evaluation_identifier] = evaluation_result
+
+        total_times_profile1_preferred += sum(
+            1 for node in author_result.tournament.all_nodes if node.match.preferred_profile_index == 0
+        )
+        total_nodes += len(author_result.tournament.all_nodes)
 
     for evaluation_identifier, evaluation_result in results.items():
         print(
@@ -183,3 +190,7 @@ if __name__ == '__main__':
     print_preference_stats(lambda x: x.extraction_method, 'Method')
     print_preference_stats(lambda x: x.num_examples, 'Examples')
     print_preference_stats(lambda x: (x.model, x.extraction_method), 'Model, Method')
+
+    print(
+        f'\nTotal Times Profile 1 Preferred: {total_times_profile1_preferred} / {total_nodes} ({total_times_profile1_preferred / total_nodes * 100:.2f}%)'
+    )
