@@ -2,6 +2,7 @@ import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
+from src.log import ratio
 from src.evaluation import get_all_preferences
 from src.types import AuthorResult, ExtractedProfile
 from src.util import load_json
@@ -153,8 +154,7 @@ if __name__ == '__main__':
         for criterion, filtered_results in get_stats(getter):
             total_times_preferred = sum(result.num_times_preferred for result in filtered_results)
             print(
-                f'{description}: "{criterion}" - Total Times Preferred: {total_times_preferred} / {total_number_of_evaluations} '
-                f'({total_times_preferred / total_number_of_evaluations * 100:.2f}%)'
+                f'{description}: "{criterion}" - Total Times Preferred: {ratio(total_times_preferred, total_number_of_evaluations)}'
             )
 
     # Print section header
@@ -191,6 +191,4 @@ if __name__ == '__main__':
     print_preference_stats(lambda x: x.num_examples, 'Examples')
     print_preference_stats(lambda x: (x.model, x.extraction_method), 'Model, Method')
 
-    print(
-        f'\nTotal Times Profile 1 Preferred: {total_times_profile1_preferred} / {total_nodes} ({total_times_profile1_preferred / total_nodes * 100:.2f}%)'
-    )
+    print(f'\nTotal Times Profile 1 Preferred: {ratio(total_times_profile1_preferred,total_nodes)}')

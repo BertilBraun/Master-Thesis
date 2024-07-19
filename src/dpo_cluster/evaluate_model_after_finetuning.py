@@ -21,7 +21,8 @@ from torch import cuda
 
 from src.log import log
 from src.dpo_cluster.defines import *
-from src.util import create_backup, dump_json, load_json, parse_llm_from_sysargs, timeblock
+from src.dpo_cluster.llm_util import parse_llm_from_sysargs
+from src.util import create_backup, dump_json, load_json, timeblock
 from src.database import get_retriever_getter
 from src.evaluation import prompt_for_ranking
 from src.types import EvaluationResult_from_invalid_response, Profile, Ranking

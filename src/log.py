@@ -74,3 +74,7 @@ def progress_status(message: str) -> Status:
     # with good_progress_status('Some message'):
     #     something that happens for some time and the message gets displayed in the meantime with a loading indicator
     return Console().status('[bold green]' + message)
+
+
+def ratio(a: int, b: int) -> str:
+    return f'{a}/{b} ({a / b*100:.2%})'

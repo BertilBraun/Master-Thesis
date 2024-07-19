@@ -1,17 +1,11 @@
-from src.log import LogLevel, log
+from src.log import LogLevel, log, ratio
+from src.util import create_backup, dump_json, json_dumper, load_json, log_all_exceptions, timeblock
+from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking, TournamentNode
 from src.database import get_retriever_getter
 from src.evaluation import default_round_evaluator, get_all_preferences, prompt_for_ranking, run_tournament_ranking
-from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking, TournamentNode
+
 from src.dpo_cluster.defines import *
-from src.util import (
-    create_backup,
-    dump_json,
-    json_dumper,
-    load_json,
-    log_all_exceptions,
-    parse_llm_from_sysargs,
-    timeblock,
-)
+from src.dpo_cluster.llm_util import parse_llm_from_sysargs
 
 
 if __name__ == '__main__':
@@ -29,11 +23,8 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
 
 def evaluate_sample(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSample]:
     with log_all_exceptions(f'evaluate for {sample_to_evaluate.author} failed'):
-        log(f'Processing sample to evaluate for {sample_to_evaluate.author}')
         with timeblock(f'Evaluating sample for {sample_to_evaluate.author}'):
-            result = process_sample_to_evaluate(sample_to_evaluate)
-        log(f'Finished processing sample to evaluate for {sample_to_evaluate.author}')
-        return result
+            return process_sample_to_evaluate(sample_to_evaluate)
 
 
 def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSample]:
@@ -62,13 +53,11 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
         # The output almost never contains a valid JSON, so we need to parse it manually
         return EvaluationResult_from_invalid_response(response)
 
-    log(f'Running tournament for {sample_to_evaluate.author}')
     tournament = run_tournament_ranking(
         list(range(len(sample_to_evaluate.profiles))),
         default_round_evaluator(match_evaluator),
         do_shuffle=True,
     )
-    log(f'Tournament finished for {sample_to_evaluate.author}')
 
     return tournament_to_preference_samples(sample_to_evaluate, tournament)
 
@@ -135,9 +124,8 @@ if __name__ == '__main__':
     number_of_samples, number_of_agreements = calculate_aggreement_of_preferences(
         preference_path, preference_backup_path
     )
-    log(
-        f'Agreement with current preferences: {number_of_agreements}/{number_of_samples} ({number_of_agreements / number_of_samples * 100:.2f}%)'
-    )
+
+    log(f'Agreement with current preferences: {ratio(number_of_agreements, number_of_samples)}')
 
     # then write the samples with the current best model being the baseline model
     # - when the training with the new samples is done, then the current best model (which was trained on the preferences of llama3 70B) will be compared to the new model (trained on the preferences of GPT4o)
