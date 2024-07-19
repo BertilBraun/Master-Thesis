@@ -32,7 +32,7 @@ def parse_llm_from_sysargs() -> OpenAILanguageModel:
     base_url = parse_sys_arg('Base URL', sys.argv[2], {'openai': None, 'mlpc': LOCAL_AI_ML_PC, 'coder': LOCAL_AI_CODER})
 
     # API key to use from sysargs
-    api_key = parse_sys_arg('API Key', sys.argv[3], {'cas': CAS_OPENAI_API_KEY, 'none': None})
+    api_key = parse_sys_arg('API Key', sys.argv[3], {'CAS': CAS_OPENAI_API_KEY, 'none': None})
 
     return OpenAILanguageModel(
         model_id,
