@@ -1,6 +1,6 @@
 import src.defines
-from src.dpo.dpo_database import DPODatabase, EvaluationType
-from src.dpo.jsonbin import JsonBin
+from src.old_dpo.dpo_database import DPODatabase, EvaluationType
+from src.old_dpo.jsonbin import JsonBin
 from src.evaluation import get_all_preferences
 from src.types import AuthorResult
 from src.papers import get_paper_by_title
