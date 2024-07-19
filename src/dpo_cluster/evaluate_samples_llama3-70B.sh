@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --job-name=evaluate_llama3-70B         # job name
+#SBATCH --job-name=evaluate_llama3-70B     # job name
 #SBATCH --partition=single                 # mby GPU queue for the resource allocation.
 #SBATCH --time=02:00:00                    # wall-clock time limit
 #SBATCH --mem=5000                         # memory per node
