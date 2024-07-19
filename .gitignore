@@ -18,3 +18,5 @@ results/**
 #tournament_example_extraction.py
 
 **/jsonbin_cache/**
+
+dpo_output/**

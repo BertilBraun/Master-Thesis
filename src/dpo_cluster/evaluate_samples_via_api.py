@@ -1,5 +1,5 @@
 from src.log import LogLevel, log, ratio
-from src.util import create_backup, dump_json, json_dumper, load_json, log_all_exceptions, timeblock
+from src.util import create_backup, json_dumper, load_json, log_all_exceptions, timeblock, timeit
 from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking, TournamentNode
 from src.database import get_retriever_getter
 from src.evaluation import default_round_evaluator, get_all_preferences, prompt_for_ranking, run_tournament_ranking
@@ -32,23 +32,13 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
         '\n\n'.join(sample_to_evaluate.abstracts)
     )
 
+    @timeit(f'author {sample_to_evaluate.author}')
     def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
         profile1 = sample_to_evaluate.profiles[profile1_index]
         profile2 = sample_to_evaluate.profiles[profile2_index]
 
         prompt = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
-
-        log(f'Running match evaluator for {sample_to_evaluate.author} - {profile1_index} vs {profile2_index}')
         response = LLM.invoke(prompt, stop=['\n\n\n\n'], temperature=0.2)
-
-        # Log the response to a file
-        dump_json(
-            {
-                'prompt': prompt,
-                'response': response,
-            },
-            f'{OUTPUT_DIR}/evaluate/{START_DATETIME}/{sample_to_evaluate.author}_match({profile1_index}-{profile2_index}).json',
-        )
 
         # The output almost never contains a valid JSON, so we need to parse it manually
         return EvaluationResult_from_invalid_response(response)
@@ -106,6 +96,19 @@ def calculate_aggreement_of_preferences(preference_path: str, other_preference_p
 
 
 if __name__ == '__main__':
+    samples_to_evaluate = [
+        SampleToEvaluate.from_json(sample)
+        for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\samples_to_evaluate.json')
+    ]
+    log(f'Evaluating {len(samples_to_evaluate)} samples')
+
+    with json_dumper(get_preference_output_file_path('TEMPORARY_LOCAL_ONLY')) as dumper:
+        for sample in samples_to_evaluate:
+            for preference in evaluate_sample(sample):
+                dumper(preference)
+
+
+if __name__ == '__main__2':
     # load current preferences and save them as a backup
     preference_path = get_preference_output_file_path(START_DATETIME)
     preferences_existed, preference_backup_path = create_backup(preference_path)

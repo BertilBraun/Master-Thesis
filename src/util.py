@@ -207,7 +207,7 @@ def load_json(file_name: str) -> Any:
 
 def create_backup(file_path: str) -> tuple[bool, str]:
     if not os.path.exists(file_path):
-        log(f'No preferences found at {file_path}', level=LogLevel.ERROR)
+        log(f'No file to backup found at {file_path}', level=LogLevel.ERROR)
         return False, ''
 
     backup_path = file_path + '.bak'

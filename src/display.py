@@ -4,6 +4,7 @@ import json
 from src.log import date_str
 from src.types import AuthorResult, Message
 from src.util import custom_asdict
+from src.defines import DEBUG
 
 
 def generate_html_file_for_extraction_result(author_result: AuthorResult):
@@ -61,7 +62,8 @@ def _write_and_display(html_content: str, output_file_path: str):
     with open(output_file_path, 'w') as file:
         file.write(html_content)
 
-    print('file:///' + output_file_path.replace('\\', '/'))
+    if DEBUG:
+        print('file:///' + output_file_path.replace('\\', '/'))
 
 
 if __name__ == '__main__':
