@@ -10,14 +10,7 @@ from src.language_model import OpenAILanguageModel
 def parse_llm_from_sysargs() -> OpenAILanguageModel:
     # The script should be called as follows:
     # python script.py <model_id> <base_url> <api_key>
-
-    # if sysargs are not provided, exit with error message
-    if len(sys.argv) < 4:
-        log(
-            'Please provide the Model ID and the base URL and which API KEY to use as command line arguments.',
-            level=LogLevel.ERROR,
-        )
-        exit(1)
+    # python script.py <endpoint>
 
     def parse_sys_arg(arg_name: str, arg_value: str, valid_values: dict[str, Any]) -> Any:
         INVALID_ARG_VALUE = f'Invalid {arg_name} value'
@@ -25,14 +18,34 @@ def parse_llm_from_sysargs() -> OpenAILanguageModel:
         assert value != INVALID_ARG_VALUE, f'{INVALID_ARG_VALUE}: {arg_value}'
         return value
 
-    # Model to use from sysargs
-    model_id = parse_sys_arg('Model ID', sys.argv[1], {'gpt-4o': 'gpt-4o-mini', 'llama': 'dev-llama-3-large'})
+    # if sysargs are not provided, exit with error message
+    if len(sys.argv) == 2:
+        model_id, base_url, api_key = parse_sys_arg(
+            'endpoint',
+            sys.argv[1],
+            {
+                'openai': ('gpt-4o-mini', None, CAS_OPENAI_API_KEY),
+                'mlpc': ('dev-llama-3-large', LOCAL_AI_ML_PC, None),
+            },
+        )
+    elif len(sys.argv) == 4:
+        # Model to use from sysargs
+        model_id = parse_sys_arg('Model ID', sys.argv[1], {'gpt-4o': 'gpt-4o-mini', 'llama': 'dev-llama-3-large'})
 
-    # Base url from sysargs either None or LOCAL_AI_ML_PC
-    base_url = parse_sys_arg('Base URL', sys.argv[2], {'openai': None, 'mlpc': LOCAL_AI_ML_PC, 'coder': LOCAL_AI_CODER})
+        # Base url from sysargs either None or LOCAL_AI_ML_PC
+        base_url = parse_sys_arg(
+            'Base URL', sys.argv[2], {'openai': None, 'mlpc': LOCAL_AI_ML_PC, 'coder': LOCAL_AI_CODER}
+        )
 
-    # API key to use from sysargs
-    api_key = parse_sys_arg('API Key', sys.argv[3], {'CAS': CAS_OPENAI_API_KEY, 'none': None})
+        # API key to use from sysargs
+        api_key = parse_sys_arg('API Key', sys.argv[3], {'CAS': CAS_OPENAI_API_KEY, 'none': None})
+
+    else:
+        log(
+            'Invalid number of arguments. Please provide either 1 argument for the endpoint or 3 arguments for the model_id, base_url, and api_key.\n\nCorrect usage:\npython script.py <model_id> <base_url> <api_key>\npython script.py <endpoint>',
+            level=LogLevel.ERROR,
+        )
+        exit(1)
 
     return OpenAILanguageModel(
         model_id,

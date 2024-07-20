@@ -77,4 +77,4 @@ def progress_status(message: str) -> Status:
 
 
 def ratio(a: int, b: int) -> str:
-    return f'{a}/{b} ({a / b*100:.2%})'
+    return f'{a}/{b} ({(a / b) * 100:.2f}%)'
