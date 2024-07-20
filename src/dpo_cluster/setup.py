@@ -19,7 +19,7 @@ from src.papers import get_random_english_authors_abstracts
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.types import Example, Profile
 from src.dpo_cluster.defines import *
-from src.util import dump_json
+from src.util import json_dumper
 
 
 if __name__ == '__main__':
@@ -36,46 +36,40 @@ if __name__ == '__main__':
     model.save_pretrained(CURRENT_MODEL_PATH)
     tokenizer = get_tokenizer()
 
-    samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation] = []
+    with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
+        for query in get_random_english_authors_abstracts(
+            NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING, PAPERS_PER_SAMPLE
+        ):
+            abstracts = '\n\n'.join(query.abstracts)
 
-    for query in get_random_english_authors_abstracts(
-        NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING, PAPERS_PER_SAMPLE
-    ):
-        abstracts = '\n\n'.join(query.abstracts)
+            examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
 
-        examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
+            prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
 
-        prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
+            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
 
-        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+            response = generate(
+                tokenizer,
+                model,
+                prompt,
+                num_return_sequences=1,
+                do_sample=True,
+                temperature=0.2,
+                max_new_tokens=650,
+            )[0]
 
-        response = generate(
-            tokenizer,
-            model,
-            prompt,
-            num_return_sequences=1,
-            do_sample=True,
-            temperature=0.2,
-            max_new_tokens=650,
-        )[0]
+            try:
+                profile = Profile.parse(response)
 
-        try:
-            profile = Profile.parse(response)
-
-            samples_for_fine_tuning_improvement_evaluation.append(
-                SampleForFineTuningImprovementEvaluation(
-                    prompt=prompt,
-                    abstracts=query.abstracts,
-                    best_profile_from_original_model=str(profile),
-                    best_profile_from_last_model=str(profile),
+                dumper(
+                    SampleForFineTuningImprovementEvaluation(
+                        prompt=prompt,
+                        abstracts=query.abstracts,
+                        best_profile_from_original_model=str(profile),
+                        best_profile_from_last_model=str(profile),
+                    )
                 )
-            )
-        except Exception as e:
-            print(f'Error while parsing profile: {e}')
-            print(f'Prompt: {prompt}')
-            print(f'Response: {response}')
-
-    dump_json(
-        samples_for_fine_tuning_improvement_evaluation,
-        SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE,
-    )
+            except Exception:
+                print(f'Error while parsing profile: {query.author}')
+                print(f'Prompt: {prompt}')
+                print(f'Response: {response}')
