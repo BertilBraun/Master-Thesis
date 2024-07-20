@@ -177,18 +177,14 @@ def get_all_preferences(root: TournamentNode) -> list[RankingResult]:
     preferences: list[RankingResult] = []
 
     for node in root.all_nodes:
-        preferences.append(node.match)
-
-        # The winner profile is also preferred over all profiles in the loser bracket (unique)
-        loser_profiles = {
-            loser_profile for loser_node in node.all_loser_nodes for loser_profile in loser_node.match.profiles
-        }
-
-        for loser_profile in loser_profiles:
+        # The winner profile is preferred over all profiles in the loser bracket
+        for loser_profile in node.all_profiles_in_loser_subtree:
             preferences.append(
                 RankingResult(
                     profiles=(node.match.winner, loser_profile),
-                    reasoning='Automatically preferred over all profiles in the loser bracket.',
+                    reasoning='Automatically preferred over all profiles in the loser bracket.'
+                    if loser_profile != node.match.loser
+                    else node.match.reasoning,
                     preferred_profile_index=0,
                 )
             )

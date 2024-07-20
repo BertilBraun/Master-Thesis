@@ -547,13 +547,25 @@ class TournamentNode:
         return nodes
 
     @property
-    def all_loser_nodes(self) -> list[TournamentNode]:
+    def all_leafes(self) -> list[TournamentNode]:
+        leafes: list[TournamentNode] = []
+        for child in self.children:
+            leafes.extend(child.all_leafes)
         if not self.children:
-            return []
-        if self.match.profiles[0] == self.match.profiles[1]:
-            # If the profiles are the same, return the children of the first child
-            return self.children[0].all_loser_nodes
-        return self.children[1 - self.match.preferred_profile_index].all_nodes
+            leafes.append(self)
+        return leafes
+
+    @property
+    def all_profiles_in_loser_subtree(self) -> list[int]:
+        if not self.children:
+            return [self.match.loser]
+
+        loser_child = self.children[1 - self.match.preferred_profile_index]
+        profiles: list[int] = []
+        for node in loser_child.all_leafes:
+            for profile in node.match.profiles:
+                profiles.append(profile)
+        return profiles
 
 
 @dataclass(frozen=True)

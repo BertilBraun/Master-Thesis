@@ -1,4 +1,5 @@
-from src.log import LogLevel, log, ratio
+from collections import Counter, defaultdict
+from src.log import log, ratio
 from src.util import create_backup, json_dumper, load_json, log_all_exceptions, timeblock, timeit
 from src.types import EvaluationResult, EvaluationResult_from_invalid_response, Ranking, TournamentNode
 from src.database import get_retriever_getter
@@ -76,36 +77,48 @@ def tournament_to_preference_samples(
 def calculate_aggreement_of_preferences(preference_path: str, other_preference_path: str) -> tuple[int, int]:
     # compare agreement with current preferences
     # map from prompt to (chosen, rejected)
-    current_preferences: dict[str, tuple[str, str]] = {}
+    current_preferences: dict[tuple[str, str, str], int] = defaultdict(int)
 
-    for preference in load_json(preference_path):
-        current_preferences[preference['prompt']] = (preference['chosen'], preference['rejected'])
-
-    number_of_samples, number_of_agreements = 0, 0
+    for sample in load_json(preference_path):
+        current_preferences[(sample['prompt'], sample['chosen'], sample['rejected'])] += 1
 
     for sample in load_json(other_preference_path):
-        prompt = sample['prompt']
-        if prompt not in current_preferences:
-            log(f'Prompt {prompt} not found in current preferences', level=LogLevel.ERROR)
-            continue
+        current_preferences[(sample['prompt'], sample['chosen'], sample['rejected'])] -= 1
 
-        number_of_samples += 1
-        number_of_agreements += current_preferences[prompt] == (sample['chosen'], sample['rejected'])
+    counter = Counter(current_preferences.values())
 
-    return number_of_samples, number_of_agreements
+    if counter[2] > 0:
+        log(
+            f'There are multiple samples ({counter[2]}) with the same prompt, chosen and rejected profiles in the current preferences'
+        )
+    if counter[-2] > 0:
+        log(
+            f'There are multiple samples ({counter[-2]}) with the same prompt, chosen and rejected profiles in the other preferences'
+        )
+
+    return counter[0] + counter[1], counter[0]
 
 
 if __name__ == '__main__':
-    samples_to_evaluate = [
-        SampleToEvaluate.from_json(sample)
-        for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\samples_to_evaluate.json')
-    ]
-    log(f'Evaluating {len(samples_to_evaluate)} samples')
+    EVALUATE = True
+    if EVALUATE:
+        samples_to_evaluate = [
+            SampleToEvaluate.from_json(sample)
+            for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\samples_to_evaluate.json')
+        ]
+        log(f'Evaluating {len(samples_to_evaluate)} samples')
 
-    with json_dumper(get_preference_output_file_path('TEMPORARY_LOCAL_ONLY')) as dumper:
-        for sample in samples_to_evaluate:
-            for preference in evaluate_sample(sample):
-                dumper(preference)
+        with json_dumper(get_preference_output_file_path(f'TEMPORARY_LOCAL_ONLY_{LLM.model}')) as dumper:
+            for sample in samples_to_evaluate:
+                for preference in evaluate_sample(sample):
+                    dumper(preference)
+
+    number_of_samples, number_of_agreements = calculate_aggreement_of_preferences(
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\preferences\TEMPORARY_LOCAL_ONLY_dev-llama-3-large.json',
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\preferences\TEMPORARY_LOCAL_ONLY_gpt-4o-mini.json',
+    )
+
+    log(f'Agreement with current preferences: {ratio(number_of_agreements, number_of_samples)}')
 
 
 if __name__ == '__main__2':
