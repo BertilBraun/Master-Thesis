@@ -208,7 +208,10 @@ def get_model(
 
 
 def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast, messages: list[Message]) -> str:
-    prompt = tokenizer.apply_chat_template(conversation=[message.to_dict() for message in messages], tokenize=False)  # type: ignore
+    prompt: str = tokenizer.apply_chat_template(
+        conversation=[message.to_dict() for message in messages],  # type: ignore
+        tokenize=False,
+    )
     prompt = prompt.replace('<|endoftext|>', '').strip() + '\n<|assistant|>'
     return prompt
 
@@ -237,10 +240,7 @@ def generate(
 ) -> list[str]:
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
-    terminators = [
-        tokenizer.eos_token_id,
-        tokenizer.convert_tokens_to_ids('<|eot_id|>'),
-    ]  # TODO specifically for Meta-Llama3-8B-Instruct
+    terminators = [tokenizer.eos_token_id]
 
     do_sample = do_sample and num_return_sequences == 1
 
