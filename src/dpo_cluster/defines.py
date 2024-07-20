@@ -233,7 +233,7 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
-    prompt = prompt.replace('<|endoftext|>', '').strip()
+    prompt = prompt.replace('<|endoftext|>', '').strip() + '\n<|assistant|>'
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [
