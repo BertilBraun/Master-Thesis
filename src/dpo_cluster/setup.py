@@ -28,7 +28,7 @@ if __name__ == '__main__':
         print(f'{CURRENT_MODEL_PATH} already exists. Exiting...')
         sys.exit(1)
 
-    huggingface_hub.login()
+    huggingface_hub.login(new_session=False)
 
     model = get_model(BASE_MODEL_ID)
 
