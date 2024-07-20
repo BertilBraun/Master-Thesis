@@ -161,8 +161,8 @@ def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | Pr
     tokenizer = AutoTokenizer.from_pretrained(
         name_or_path,
         padding_side='left',
-        add_eos_token=True,
-        add_bos_token=True,
+        # add_eos_token=True,
+        # add_bos_token=True,
         use_fast=False,
     )
 
