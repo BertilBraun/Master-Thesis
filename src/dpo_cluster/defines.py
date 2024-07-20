@@ -208,7 +208,9 @@ def get_model(
 
 
 def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast, messages: list[Message]) -> str:
-    return tokenizer.apply_chat_template(conversation=[message.to_dict() for message in messages], tokenize=False)  # type: ignore
+    prompt = tokenizer.apply_chat_template(conversation=[message.to_dict() for message in messages], tokenize=False)  # type: ignore
+    prompt = prompt.replace('<|endoftext|>', '').strip() + '\n<|assistant|>'
+    return prompt
 
 
 def clean_output(output: str, tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast) -> str:
@@ -233,7 +235,6 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
-    prompt = prompt.replace('<|endoftext|>', '').strip() + '\n<|assistant|>'
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [
