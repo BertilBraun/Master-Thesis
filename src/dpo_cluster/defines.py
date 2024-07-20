@@ -1,6 +1,6 @@
 import gc
 import os
-from torch import Tensor, float16, compile, cuda
+from torch import Tensor, float16, compile, cuda, float32
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -189,6 +189,7 @@ def get_model(
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
+        bnb_4bit_compute_dtype=float16 if not load_in_4bit and not load_in_8bit else float32,
     )
 
     model = AutoModelForCausalLM.from_pretrained(

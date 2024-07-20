@@ -70,9 +70,7 @@ def get_samples_for_fine_tuning_improvement_evaluation() -> list[SampleForFineTu
         )[0]
 
         samples_for_fine_tuning_improvement_evaluation.append(
-            sample.with_new_profiles(
-                str(Profile.parse(response)),
-            )
+            sample.with_new_profiles(str(Profile.parse(response))),
         )
 
     # free the memory again
