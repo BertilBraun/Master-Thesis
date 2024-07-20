@@ -59,16 +59,21 @@ if __name__ == '__main__':
             max_new_tokens=650,
         )[0]
 
-        profile = Profile.parse(response)
+        try:
+            profile = Profile.parse(response)
 
-        samples_for_fine_tuning_improvement_evaluation.append(
-            SampleForFineTuningImprovementEvaluation(
-                prompt=prompt,
-                abstracts=query.abstracts,
-                best_profile_from_original_model=str(profile),
-                best_profile_from_last_model=str(profile),
+            samples_for_fine_tuning_improvement_evaluation.append(
+                SampleForFineTuningImprovementEvaluation(
+                    prompt=prompt,
+                    abstracts=query.abstracts,
+                    best_profile_from_original_model=str(profile),
+                    best_profile_from_last_model=str(profile),
+                )
             )
-        )
+        except Exception as e:
+            print(f'Error while parsing profile: {e}')
+            print(f'Prompt: {prompt}')
+            print(f'Response: {response}')
 
     dump_json(
         samples_for_fine_tuning_improvement_evaluation,
