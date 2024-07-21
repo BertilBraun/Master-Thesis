@@ -31,7 +31,7 @@ CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
 
-NUMBER_OF_EPOCHS_TO_TRAIN = 3
+NUMBER_OF_EPOCHS_TO_TRAIN = 2
 
 
 def get_preference_output_file_path(start_datetime: str) -> str:
@@ -188,9 +188,9 @@ def get_trainer(model) -> DPOTrainer:
     args = DPOConfig(
         output_dir=TRAINING_OUTPUT_DIR,  # directory to save and repository id
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
-        per_device_train_batch_size=2,  # batch size per device during training
+        per_device_train_batch_size=4,  # batch size per device during training
         per_device_eval_batch_size=4,  # batch size for evaluation
-        gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
+        gradient_accumulation_steps=2,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
         learning_rate=2e-5,  # 4x higher LR than QLoRA paper
@@ -240,7 +240,7 @@ def get_model_to_train():
         CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
-        # Not supported on V100 attn_implementation='flash_attention_2'
+        attn_implementation='flash_attention_2',
         torch_dtype=float16,
         # Quant config of the saved model is used.. quantization_config=bnb_config,
     )
