@@ -14,9 +14,11 @@
 
 source shared_slurm_setup.sh
 
-cd src/dpo_cluster
-accelerate launch --num_processes=2 train.py
-cd ../..
+# cd src/dpo_cluster
+# accelerate launch --num_processes=2 train.py
+# cd ../..
+python -m src.dpo_cluster.train
+
 
 if [ $? -eq 0 ]; then
     python -m src.dpo_cluster.evaluate_model_after_finetuning mlpc
