@@ -8,7 +8,7 @@ import json
 import multiprocessing
 import os
 from typing import Any
-from torch import bfloat16, cuda
+from torch import cuda, float16
 
 from datasets import Dataset
 from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
@@ -201,7 +201,7 @@ def get_trainer(model) -> DPOTrainer:
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
         eval_steps=700,  # when to evaluate
-        bf16=True,  # use bfloat16 precision
+        bf16=False,  # use bfloat16 precision
         tf32=False,  # use tf32 precision
         # Currently crashes training group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
@@ -239,7 +239,7 @@ def get_model_to_train():
         device_map='auto',
         use_cache=False,
         # Not supported on V100 attn_implementation='flash_attention_2'
-        torch_dtype=bfloat16,
+        torch_dtype=float16,
         # Quant config of the saved model is used.. quantization_config=bnb_config,
     )
 
@@ -248,7 +248,7 @@ def merge_and_save_model():
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
         TRAINING_OUTPUT_DIR,
-        torch_dtype=bfloat16,
+        torch_dtype=float16,
         low_cpu_mem_usage=True,
     )
     # Merge LoRA and base model and save
@@ -281,7 +281,8 @@ if __name__ == '__main__':
     with progress_status('Loading trainer'):
         trainer = get_trainer(model)
 
-    trainer.train()
+    with cuda.amp.autocast():
+        trainer.train()
 
     # save model at the end of training
     trainer.save_model()
