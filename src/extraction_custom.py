@@ -36,7 +36,22 @@ Your analysis should be neutral, accurate, and solely based on the content of th
         ),
         *format_example_messages(examples),
         HumanMessage(
-            content=f'Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.\n\n{str_abstracts}'
+            content=f"""Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.
+            
+{str_abstracts}
+
+
+Format the output as follows:
+```
+Domain: [Short Domain Description]
+Competencies:
+- [Competency Name]: [Brief description of how Competency 1 is demonstrated across the abstracts]
+- [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
+...
+```
+The domain description should be a brief label, summarizing the overall area of expertise. The competencies should be specific skills or knowledge areas demonstrated in the abstracts.
+Extract 3 to at most 8 competencies from the abstracts, providing concise descriptions for each.
+Your analysis should be neutral, accurate, and solely based on the content of the abstracts provided."""
         ),
     ]
 
