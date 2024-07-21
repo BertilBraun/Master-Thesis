@@ -139,11 +139,11 @@ if __name__ == '__main__':
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
 
         samples_processed = 0
-        samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 200)
+        samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 50)
 
         while samples_processed < len(samples_to_generate):
             eval_futures: list[Future[list[SampleToEvaluate]]] = []
-            for i in range(NUM_THREADS_EVALUATE):
+            for i in range(NUM_THREADS_GENERATE):
                 this_threads_samples = samples_to_generate[samples_processed : samples_processed + samples_per_thread]
                 samples_processed += samples_per_thread
 
