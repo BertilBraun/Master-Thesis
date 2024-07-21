@@ -8,7 +8,7 @@ import json
 import multiprocessing
 import os
 from typing import Any
-from torch import bfloat16, float16, cuda
+from torch import bfloat16, cuda
 
 from datasets import Dataset
 from transformers import (
@@ -254,7 +254,7 @@ def merge_and_save_model():
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
         TRAINING_OUTPUT_DIR,
-        torch_dtype=float16,
+        torch_dtype=bfloat16,
         low_cpu_mem_usage=True,
     )
     # Merge LoRA and base model and save
