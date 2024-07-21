@@ -198,10 +198,10 @@ def get_trainer(model) -> DPOTrainer:
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
         logging_steps=25,  # log every 25 steps
-        save_steps=500,  # when to save checkpoint
+        save_steps=30,  # when to save checkpoint # approx every 30min
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
-        eval_steps=700,  # when to evaluate
+        eval_steps=120,  # when to evaluate # approx every 2hours
         bf16=False,  # use bfloat16 precision
         fp16=True,  # use fp16 precision
         tf32=False,  # use tf32 precision
