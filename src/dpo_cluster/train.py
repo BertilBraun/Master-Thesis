@@ -202,6 +202,7 @@ def get_trainer(model) -> DPOTrainer:
         evaluation_strategy='steps',  # evaluate every 1000 steps
         eval_steps=700,  # when to evaluate
         bf16=False,  # use bfloat16 precision
+        fp16=True,  # use fp16 precision
         tf32=False,  # use tf32 precision
         # Currently crashes training group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
