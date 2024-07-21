@@ -234,8 +234,8 @@ def get_model_to_train():
     # BitsAndBytesConfig int-4 config
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=True,
-        bnb_4bit_use_double_quant=True,
         bnb_4bit_quant_type='nf4',
+        bnb_4bit_use_double_quant=True,
         bnb_4bit_compute_dtype=bfloat16,
     )
 
@@ -246,7 +246,7 @@ def get_model_to_train():
         use_cache=False,
         attn_implementation='flash_attention_2',
         torch_dtype=bfloat16,
-        quantization_config=bnb_config,
+        # quantization_config=bnb_config,
     )
 
 
