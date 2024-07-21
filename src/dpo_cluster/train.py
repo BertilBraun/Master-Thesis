@@ -237,7 +237,7 @@ def get_model_to_train():
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
         CURRENT_MODEL_PATH,
-        device_map='auto',
+        # device_map='auto',
         use_cache=False,
         # Not supported on V100 attn_implementation='flash_attention_2'
         torch_dtype=float16,
