@@ -246,7 +246,7 @@ def get_model_to_train():
         use_cache=False,
         attn_implementation='flash_attention_2',
         torch_dtype=bfloat16,
-        # quantization_config=bnb_config,
+        quantization_config=bnb_config,
     )
 
 
