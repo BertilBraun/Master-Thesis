@@ -35,8 +35,7 @@ TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
-# BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
-BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'  # TODO tbd
+BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 3
 
@@ -60,18 +59,14 @@ def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | Pr
     tokenizer = AutoTokenizer.from_pretrained(
         name_or_path,
         padding_side='left',
-        add_eos_token=True,
-        add_bos_token=True,
+        truncation_side='left',
         use_fast=False,
     )
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
     if tokenizer.chat_template is None:
-        tokenizer.chat_template = "{% for message in messages %}{{message['role'] + ': ' + message['content'] + '\n\n'}}{% endfor %}{{ eos_token }}"
-
-    tokenizer.padding_side = 'left'  # to prevent errors with FA
-    tokenizer.truncation_side = 'left'  # to prevent cutting off last generation
+        tokenizer.chat_template = "{% for message in messages %}{{'<|' + message['role'] + '|> ' + message['content'] + '<|eos|>\n'}}{% endfor %}"
 
     return tokenizer
 

@@ -25,7 +25,6 @@ TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
 NUM_THREADS_GENERATE = cuda.device_count()
-NUM_THREADS_EVALUATE = cuda.device_count()
 
 EVALUATION_BATCH_SIZE = 8
 
@@ -42,8 +41,7 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
 
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
-# BASE_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'  # TODO tbd
-BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'  # TODO tbd
+BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
 
 USE_FLASH_ATTENTION_FOR_EVALUATION = True
 
@@ -161,17 +159,14 @@ def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | Pr
     tokenizer = AutoTokenizer.from_pretrained(
         name_or_path,
         padding_side='left',
-        # add_eos_token=True,
-        # add_bos_token=True,
+        truncation_side='left',
         use_fast=False,
     )
 
     if tokenizer.pad_token_id is None:
         tokenizer.pad_token_id = tokenizer.eos_token_id
     if tokenizer.chat_template is None:
-        tokenizer.chat_template = "{% for message in messages %}{{message['role'] + ': ' + message['content'] + '\n\n'}}{% endfor %}{{ eos_token }}"
-
-    tokenizer.truncation_side = 'left'  # to prevent cutting off last generation
+        tokenizer.chat_template = "{% for message in messages %}{{'<|' + message['role'] + '|> ' + message['content'] + '<|eos|>\n'}}{% endfor %}"
 
     return tokenizer
 
@@ -283,10 +278,7 @@ def batched_generate(
     prompts = [tokenizer.eos_token + prompt for prompt in prompts]
     inputs = tokenizer(prompts, return_tensors='pt', padding=True).to(model.device)
 
-    terminators = [
-        tokenizer.eos_token_id,
-        tokenizer.convert_tokens_to_ids('<|eot_id|>'),
-    ]  # TODO specifically for Meta-Llama3-8B-Instruct
+    terminators = [tokenizer.eos_token_id]
 
     outputs: Tensor = model.generate(
         **inputs,  # type: ignore
