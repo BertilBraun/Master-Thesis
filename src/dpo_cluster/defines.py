@@ -181,17 +181,19 @@ def get_model(
     gc.collect()
     cuda.empty_cache()
 
+    quantized = load_in_4bit or load_in_8bit
+
     bnb_config = BitsAndBytesConfig(
         load_in_4bit=load_in_4bit,
         load_in_8bit=load_in_8bit,
-        bnb_4bit_compute_dtype=float16 if not load_in_4bit and not load_in_8bit else float32,
+        bnb_4bit_compute_dtype=float16 if not quantized else float32,
     )
 
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
-        torch_dtype=float16 if not load_in_4bit and not load_in_8bit else None,
+        torch_dtype=float16 if not quantized else None,
         device_map=device,
-        quantization_config=bnb_config,
+        quantization_config=bnb_config if quantized else None,
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
     )

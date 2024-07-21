@@ -30,7 +30,7 @@ if __name__ == '__main__':
 
     huggingface_hub.login(new_session=False)
 
-    model = get_model(BASE_MODEL_ID)
+    model = get_model(BASE_MODEL_ID, load_in_8bit=True)
 
     # Save the initial model as MODEL_NAME
     model.save_pretrained(CURRENT_MODEL_PATH)
