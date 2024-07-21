@@ -11,13 +11,7 @@ from typing import Any
 from torch import bfloat16, cuda
 
 from datasets import Dataset
-from transformers import (
-    AutoTokenizer,
-    AutoModelForCausalLM,
-    PreTrainedTokenizer,
-    PreTrainedTokenizerFast,
-    BitsAndBytesConfig,
-)
+from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
 
@@ -232,12 +226,12 @@ def get_trainer(model) -> DPOTrainer:
 
 def get_model_to_train():
     # BitsAndBytesConfig int-4 config
-    bnb_config = BitsAndBytesConfig(
-        load_in_8bit=True,
-        bnb_4bit_quant_type='nf4',
-        bnb_4bit_use_double_quant=True,
-        bnb_4bit_compute_dtype=bfloat16,
-    )
+    # bnb_config = BitsAndBytesConfig(
+    #     load_in_8bit=True,
+    #     bnb_4bit_quant_type='nf4',
+    #     bnb_4bit_use_double_quant=True,
+    #     bnb_4bit_compute_dtype=bfloat16,
+    # )
 
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
@@ -246,7 +240,7 @@ def get_model_to_train():
         use_cache=False,
         # Not supported on V100 attn_implementation='flash_attention_2'
         torch_dtype=bfloat16,
-        quantization_config=bnb_config,
+        # Quant config of the saved model is used.. quantization_config=bnb_config,
     )
 
 
