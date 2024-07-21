@@ -244,7 +244,7 @@ def get_model_to_train():
         CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
-        attn_implementation='flash_attention_2',
+        # Not supported on V100 attn_implementation='flash_attention_2'
         torch_dtype=bfloat16,
         quantization_config=bnb_config,
     )
