@@ -14,13 +14,14 @@
 
 source shared_slurm_setup.sh
 
-# cd src/dpo_cluster
+cd src/dpo_cluster
 # accelerate launch --num_processes=2 train.py
-# cd ../..
-python -m src.dpo_cluster.train
+python train.py
 
 
 if [ $? -eq 0 ]; then
+    cd ../..
+
     python -m src.dpo_cluster.evaluate_model_after_finetuning mlpc
 
     # if the train script is successful, then the next step is to generate again
