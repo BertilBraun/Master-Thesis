@@ -30,7 +30,7 @@ EVALUATION_BATCH_SIZE = 8
 
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
-OUTPUT_DIR = os.path.expanduser('~/Master-Thesis/dpo_output')
+OUTPUT_DIR = 'dpo_output'
 
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
