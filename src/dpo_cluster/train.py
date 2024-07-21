@@ -27,7 +27,7 @@ from rich.status import Status
 
 TEST_PERCENTAGE = 0.05
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
-OUTPUT_DIR = '~/Master-Thesis/dpo_output'
+OUTPUT_DIR = os.path.expanduser('~/Master-Thesis/dpo_output')
 
 
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
