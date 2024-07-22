@@ -334,8 +334,7 @@ if __name__ == '__main__':
     )
     thread.start()
 
-    with cuda.amp.autocast():
-        trainer.train()
+    trainer.train()
 
     # save model at the end of training
     trainer.save_model()
