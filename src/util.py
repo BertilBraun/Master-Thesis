@@ -138,26 +138,18 @@ def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
         def wrapper(*args, **kwargs):
             if os.path.exists(file_name):
                 with open(file_name, 'r') as f:
-                    cache = eval(
-                        f.read(),
-                        {
-                            # add the return_type to globals so that eval can find it
-                            return_type_to_be_able_to_parse_from_file.__name__: return_type_to_be_able_to_parse_from_file,
-                            **globals(),
-                            **locals(),
-                        },
-                    )
+                    cache = json.load(f)
             else:
                 cache = {}
 
-            key = (args, frozenset(kwargs.items()))
+            key = json.dumps((args, frozenset(kwargs.items())))
             if key in cache:
-                return cache[key]
+                return return_type_to_be_able_to_parse_from_file.from_json(cache[key])
 
             result = func(*args, **kwargs)
             cache[key] = result
 
-            write_to_file(file_name, str(cache))
+            dump_json(cache, file_name)
 
             return result
 

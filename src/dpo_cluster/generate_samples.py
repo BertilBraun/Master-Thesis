@@ -72,8 +72,6 @@ def generate_sample(index: int, samples_to_generate: list[SampleToGenerate]) -> 
 
     for sample in samples_to_generate:
         with log_all_exceptions(f'generate on {index} for {sample.author} failed'):
-            log(f'Generating sample for {sample.author}')
-
             with timeblock(f'Generating sample for {sample.author}'):
                 samples_to_evaluate.append(process_sample_to_generate_into_sample_to_evaluate(tokenizer, model, sample))
 

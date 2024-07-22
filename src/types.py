@@ -326,6 +326,10 @@ class Author:
     def __repr__(self) -> str:
         return f"Author(name='{self.name}', id='{self.id}', count={self.count})"
 
+    @staticmethod
+    def from_json(data: dict) -> Author:
+        return Author(name=data['name'], id=data['id'], count=data['count'])
+
 
 @dataclass(frozen=True)
 class Query:
@@ -349,6 +353,15 @@ class Query:
             abstracts=self.abstracts + other.abstracts,
             titles=self.titles + other.titles,
             author=self.author,
+        )
+
+    @staticmethod
+    def from_json(data: dict) -> Query:
+        return Query(
+            full_texts=data['full_texts'],
+            abstracts=data['abstracts'],
+            titles=data['titles'],
+            author=data['author'],
         )
 
 
