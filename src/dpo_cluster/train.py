@@ -4,9 +4,10 @@
 
 from dataclasses import dataclass
 import gc
-import json
-import multiprocessing
 import os
+import json
+import shutil
+import multiprocessing
 from typing import Any
 from torch import cuda, float16
 
@@ -247,6 +248,11 @@ def get_model_to_train():
 
 
 def merge_and_save_model():
+    # make a copy of the CURRENT_MODEL_PATH
+    os.makedirs(CURRENT_MODEL_PATH + '_backup', exist_ok=True)
+    for file in os.listdir(CURRENT_MODEL_PATH):
+        shutil.copyfile(f'{CURRENT_MODEL_PATH}/{file}', f'{CURRENT_MODEL_PATH}_backup/{file}')
+
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
         TRAINING_OUTPUT_DIR,
@@ -255,7 +261,7 @@ def merge_and_save_model():
     )
     # Merge LoRA and base model and save
     merged_model = model.merge_and_unload()
-    merged_model.save_pretrained(OUTPUT_DIR, safe_serialization=True, max_shard_size='2GB')
+    merged_model.save_pretrained(CURRENT_MODEL_PATH, safe_serialization=True, max_shard_size='2GB')
 
 
 if __name__ == '__main__':
