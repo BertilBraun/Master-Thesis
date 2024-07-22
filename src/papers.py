@@ -12,7 +12,7 @@ KIT_INSTITUTION_ID = 'i102335020'
 
 
 @timeit('Get Author by Name')
-@cache_to_file('author_cache.cache', Author)
+@cache_to_file('author_cache.json', Author)
 def get_author_by_name(name: str, KIT_only: bool) -> Author | None:
     # Get the OpenAlex author by the author's display name
     request = Authors().search_filter(display_name=name)
@@ -92,7 +92,7 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
 
 
 @timeit('Get Paper by Title')
-@cache_to_file('paper_cache.cache', Query)
+@cache_to_file('paper_cache.json', Query)
 def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None:
     # Get the paper with the given title
     papers = Works().search_filter(title=title).get()
@@ -117,7 +117,7 @@ def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None
 
 
 @timeit('Get Papers by Author')
-@cache_to_file('papers_cache.cache', Query)
+@cache_to_file('papers_cache.json', Query)
 def get_papers_by_author(
     name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
 ) -> Query:
@@ -192,7 +192,7 @@ def get_random_english_authors_abstracts(
 
 
 @timeit('Get Authors of KIT')
-@cache_to_file('authors_cache.cache', Author)
+@cache_to_file('authors_cache.json', Author)
 def get_authors_of_kit(count: int = 100) -> list[Author]:
     authors = (
         Works()
