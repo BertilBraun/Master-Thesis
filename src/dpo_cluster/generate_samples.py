@@ -138,6 +138,8 @@ if __name__ == '__main__':
     with ProcessPoolExecutor() as executor, json_dumper(get_profile_output_file_path(START_DATETIME)) as dumper:
         trace_future = executor.submit(trace_gpu_usage, f'{OUTPUT_DIR}/gpu_usage/{START_DATETIME}_generate.log')
 
+        NUM_THREADS_GENERATE = cuda.device_count()
+
         samples_processed = 0
         samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 50)
 

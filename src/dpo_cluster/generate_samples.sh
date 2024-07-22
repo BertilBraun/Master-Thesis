@@ -15,9 +15,3 @@
 source shared_slurm_setup.sh
 
 python -m src.dpo_cluster.generate_samples
-
-# if the generate script is successful, then the next step is to train the model
-if [ $? -eq 0 ]; then
-    cd src/dpo_cluster
-    sbatch evaluate_samples.sh
-fi

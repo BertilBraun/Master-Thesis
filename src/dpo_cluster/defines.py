@@ -24,8 +24,6 @@ TOP_K_TO_SAMPLE = 8
 TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
 NUM_EXAMPLES = 1  # TODO or 0?
 
-NUM_THREADS_GENERATE = cuda.device_count()
-
 EVALUATION_BATCH_SIZE = 8
 
 
