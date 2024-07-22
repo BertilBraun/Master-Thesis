@@ -236,10 +236,10 @@ def get_trainer(model) -> DPOTrainer:
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
         logging_steps=1,  # log every step
-        save_steps=150,  # when to save checkpoint # approx every 30min
+        save_steps=60,  # when to save checkpoint # approx every 30min
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
-        eval_steps=600,  # when to evaluate # approx every 2hours
+        eval_steps=240,  # when to evaluate # approx every 2hours
         bf16=False,  # use bfloat16 precision
         fp16=True,  # use fp16 precision
         tf32=False,  # use tf32 precision
@@ -288,7 +288,8 @@ def merge_and_save_model():
     # make a copy of the CURRENT_MODEL_PATH
     os.makedirs(CURRENT_MODEL_PATH + '_backup', exist_ok=True)
     for file in os.listdir(CURRENT_MODEL_PATH):
-        shutil.copyfile(f'{CURRENT_MODEL_PATH}/{file}', f'{CURRENT_MODEL_PATH}_backup/{file}')
+        if os.path.isfile(f'{CURRENT_MODEL_PATH}/{file}'):
+            shutil.copyfile(f'{CURRENT_MODEL_PATH}/{file}', f'{CURRENT_MODEL_PATH}_backup/{file}')
 
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
