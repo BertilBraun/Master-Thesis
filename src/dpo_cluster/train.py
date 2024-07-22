@@ -48,26 +48,25 @@ def trace_gpu_usage(file_name: str):
     with open(file_name, 'w') as f:
         while True:
             for gpu in GPUtil.getGPUs():
-                f.write(f'GPU ID: {gpu.id}, Name: {gpu.name}')
-                f.write(f'Belastung: {gpu.load * 100:.1f}%')
-                f.write(f'Freier Speicher: {gpu.memoryFree:.2f} MB')
-                f.write(f'Verwendeter Speicher: {gpu.memoryUsed:.2f} MB')
-                f.write(f'Gesamtspeicher: {gpu.memoryTotal:.2f} MB')
-                f.write(f'Temperatur: {gpu.temperature:.2f} C')
-                f.write('-' * 40)
+                f.write(f'GPU ID: {gpu.id}, Name: {gpu.name}\n')
+                f.write(f'Belastung: {gpu.load * 100:.1f}%\n')
+                f.write(f'Freier Speicher: {gpu.memoryFree:.2f} MB\n')
+                f.write(f'Verwendeter Speicher: {gpu.memoryUsed:.2f} MB\n')
+                f.write(f'Gesamtspeicher: {gpu.memoryTotal:.2f} MB\n')
+                f.write(f'Temperatur: {gpu.temperature:.2f} C\n')
+                f.write('-' * 40 + '\n')
                 average_usage += gpu.load * 100
                 average_memory_free += gpu.memoryFree
                 average_memory_used += gpu.memoryUsed
                 average_memory_total += gpu.memoryTotal
                 average_temperature += gpu.temperature
                 total_num_samples += 1
-            f.write(f'Average usage: {average_usage / total_num_samples:.1f}%')
-            f.write(f'Average memory free: {average_memory_free / total_num_samples:.2f} MB')
-            f.write(f'Average memory used: {average_memory_used / total_num_samples:.2f} MB')
-            f.write(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB')
-            f.write(f'Average temperature: {average_temperature / total_num_samples:.2f} C')
-            f.write('-' * 40)
-            f.write('=' * 40)
+            f.write(f'Average usage: {average_usage / total_num_samples:.1f}%\n')
+            f.write(f'Average memory free: {average_memory_free / total_num_samples:.2f} MB\n')
+            f.write(f'Average memory used: {average_memory_used / total_num_samples:.2f} MB\n')
+            f.write(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB\n')
+            f.write(f'Average temperature: {average_temperature / total_num_samples:.2f} C\n')
+            f.write('=' * 40 + '\n')
             f.flush()
 
             sleep(2)
