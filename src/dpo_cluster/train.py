@@ -14,6 +14,7 @@ from typing import Any
 from torch import cuda, float16
 
 from datasets import Dataset
+from accelerate import Accelerator
 from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
@@ -34,7 +35,7 @@ CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
 
-NUMBER_OF_EPOCHS_TO_TRAIN = 2
+NUMBER_OF_EPOCHS_TO_TRAIN = 3
 
 
 def trace_gpu_usage(file_name: str):
@@ -276,7 +277,7 @@ def get_model_to_train():
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
         CURRENT_MODEL_PATH,
-        device_map='auto',
+        device_map={'': Accelerator().local_process_index},
         use_cache=False,
         attn_implementation='flash_attention_2',
         torch_dtype=float16,
