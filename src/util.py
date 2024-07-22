@@ -142,7 +142,7 @@ def cache_to_file(file_name: str, return_type_to_be_able_to_parse_from_file):
             else:
                 cache = {}
 
-            key = json.dumps((args, frozenset(kwargs.items())))
+            key = json.dumps((args, kwargs.items()))
             if key in cache:
                 return return_type_to_be_able_to_parse_from_file.from_json(cache[key])
 
