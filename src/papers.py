@@ -170,7 +170,7 @@ def get_random_english_authors_abstracts(
         .filter(affiliations={'institution': {'country_code': 'US'}})
         .filter(works_count=f'>{number_of_papers_per_author}')
         .sample(number_of_authors * 2)
-        .get(per_page=number_of_authors * 2)
+        .get(per_page=min(number_of_authors * 2, 200))
     ):
         author_name = author['display_name']  # type: ignore
         query = get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
