@@ -6,8 +6,10 @@ from dataclasses import dataclass
 import gc
 import os
 import json
+import GPUtil
 import shutil
 import multiprocessing
+from time import sleep
 from typing import Any
 from torch import cuda, float16
 
@@ -33,6 +35,42 @@ CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 2
+
+
+def trace_gpu_usage(file_name: str):
+    average_usage = 0
+    average_memory_free = 0
+    average_memory_used = 0
+    average_memory_total = 0
+    average_temperature = 0
+    total_num_samples = 0
+
+    with open(file_name, 'w') as f:
+        while True:
+            for gpu in GPUtil.getGPUs():
+                f.write(f'GPU ID: {gpu.id}, Name: {gpu.name}')
+                f.write(f'Belastung: {gpu.load * 100:.1f}%')
+                f.write(f'Freier Speicher: {gpu.memoryFree:.2f} MB')
+                f.write(f'Verwendeter Speicher: {gpu.memoryUsed:.2f} MB')
+                f.write(f'Gesamtspeicher: {gpu.memoryTotal:.2f} MB')
+                f.write(f'Temperatur: {gpu.temperature:.2f} C')
+                f.write('-' * 40)
+                average_usage += gpu.load * 100
+                average_memory_free += gpu.memoryFree
+                average_memory_used += gpu.memoryUsed
+                average_memory_total += gpu.memoryTotal
+                average_temperature += gpu.temperature
+                total_num_samples += 1
+            f.write(f'Average usage: {average_usage / total_num_samples:.1f}%')
+            f.write(f'Average memory free: {average_memory_free / total_num_samples:.2f} MB')
+            f.write(f'Average memory used: {average_memory_used / total_num_samples:.2f} MB')
+            f.write(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB')
+            f.write(f'Average temperature: {average_temperature / total_num_samples:.2f} C')
+            f.write('-' * 40)
+            f.write('=' * 40)
+            f.flush()
+
+            sleep(2)
 
 
 def get_preference_output_file_path(start_datetime: str) -> str:
@@ -189,8 +227,8 @@ def get_trainer(model) -> DPOTrainer:
     args = DPOConfig(
         output_dir=TRAINING_OUTPUT_DIR,  # directory to save and repository id
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
-        per_device_train_batch_size=4,  # batch size per device during training
-        per_device_eval_batch_size=4,  # batch size for evaluation
+        per_device_train_batch_size=8,  # batch size per device during training
+        per_device_eval_batch_size=2,  # batch size for evaluation
         gradient_accumulation_steps=2,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
@@ -198,11 +236,11 @@ def get_trainer(model) -> DPOTrainer:
         max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
-        logging_steps=25,  # log every 25 steps
-        save_steps=30,  # when to save checkpoint # approx every 30min
+        logging_steps=1,  # log every step
+        save_steps=150,  # when to save checkpoint # approx every 30min
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
-        eval_steps=120,  # when to evaluate # approx every 2hours
+        eval_steps=600,  # when to evaluate # approx every 2hours
         bf16=False,  # use bfloat16 precision
         fp16=True,  # use fp16 precision
         tf32=False,  # use tf32 precision
@@ -230,7 +268,7 @@ def get_trainer(model) -> DPOTrainer:
 def get_model_to_train():
     # BitsAndBytesConfig int-4 config
     # bnb_config = BitsAndBytesConfig(
-    #     load_in_8bit=True,
+    #     load_in_4bit=True,
     #     bnb_4bit_quant_type='nf4',
     #     bnb_4bit_use_double_quant=True,
     #     bnb_4bit_compute_dtype=bfloat16,
@@ -289,11 +327,19 @@ if __name__ == '__main__':
     with progress_status('Loading trainer'):
         trainer = get_trainer(model)
 
+    # start log_gpu_usage() here on a separate thread
+    thread = multiprocessing.Process(
+        target=trace_gpu_usage, args=(f'{OUTPUT_DIR}/GPU_usage_during_training_{START_DATETIME}.txt',)
+    )
+    thread.start()
+
     with cuda.amp.autocast():
         trainer.train()
 
     # save model at the end of training
     trainer.save_model()
+
+    thread.terminate()
 
     # free the memory again
     del model
