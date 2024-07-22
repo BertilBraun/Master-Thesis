@@ -14,7 +14,6 @@ from typing import Any
 from torch import cuda, float16
 
 from datasets import Dataset
-from accelerate import Accelerator
 from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenizer, PreTrainedTokenizerFast
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
@@ -277,7 +276,7 @@ def get_model_to_train():
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
         CURRENT_MODEL_PATH,
-        device_map={'': Accelerator().local_process_index},
+        device_map='auto',
         use_cache=False,
         attn_implementation='flash_attention_2',
         torch_dtype=float16,
@@ -334,7 +333,8 @@ if __name__ == '__main__':
     )
     thread.start()
 
-    trainer.train()
+    with cuda.amp.autocast():
+        trainer.train()
 
     # save model at the end of training
     trainer.save_model()

@@ -15,8 +15,8 @@
 source shared_slurm_setup.sh
 
 cd src/dpo_cluster
-accelerate launch train.py
-# python train.py
+# accelerate launch --num_processes=2 train.py
+python train.py
 
 
 if [ $? -eq 0 ]; then
