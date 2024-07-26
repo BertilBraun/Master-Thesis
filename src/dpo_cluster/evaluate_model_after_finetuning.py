@@ -52,7 +52,7 @@ def evaluate_is_profile1_preferred(profile1: Profile, profile2: Profile, abstrac
 
 def get_samples_for_fine_tuning_improvement_evaluation() -> list[SampleForFineTuningImprovementEvaluation]:
     tokenizer = get_tokenizer()
-    model = get_model()  # Load the currently finetuned model
+    model = get_model(load_in_8bit=True)  # Load the currently finetuned model
 
     samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation] = []
 

@@ -66,7 +66,7 @@ def load_samples_to_generate() -> list[SampleToGenerate]:
 
 def generate_sample(index: int, samples_to_generate: list[SampleToGenerate]) -> list[SampleToEvaluate]:
     tokenizer = get_tokenizer()
-    model = get_model(device=f'cuda:{index}')
+    model = get_model(device=f'cuda:{index}', load_in_8bit=True)
 
     samples_to_evaluate: list[SampleToEvaluate] = []
 
