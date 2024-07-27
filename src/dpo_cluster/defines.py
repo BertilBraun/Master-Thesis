@@ -174,10 +174,12 @@ def get_model(
     device='cuda',
     load_in_4bit: bool = False,
     load_in_8bit: bool = False,
-    use_flash_attention: bool = False,
 ) -> PreTrainedModel:
     gc.collect()
     cuda.empty_cache()
+
+    # use flash attention if the gpu is either A100 or H100
+    use_flash_attention = any(name in cuda.get_device_name(0).lower() for name in ['a100', 'h100'])
 
     quantized = load_in_4bit or load_in_8bit
 

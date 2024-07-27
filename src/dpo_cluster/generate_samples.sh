@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=generate                # job name
-#SBATCH --partition=gpu_4                  # mby GPU queue for the resource allocation.
+#SBATCH --partition=gpu_4_a100                  # mby GPU queue for the resource allocation.
 #SBATCH --time=02:00:00                    # wall-clock time limit
 #SBATCH --mem=100000                       # memory per node
 #SBATCH --nodes=1                          # number of nodes to be used
