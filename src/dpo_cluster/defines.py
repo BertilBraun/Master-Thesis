@@ -192,7 +192,7 @@ def get_model(
     print(f'Loading model from {name_or_path} on {device} with flash attention: {use_flash_attention}')
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
-        torch_dtype=float16 if not quantized else None,
+        torch_dtype='auto',
         device_map=device,
         quantization_config=bnb_config if quantized else None,
         trust_remote_code=True,
