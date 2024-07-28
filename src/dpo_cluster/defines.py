@@ -264,9 +264,11 @@ def generate(
 
     input_length = inputs.input_ids.shape[1]
 
-    # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
-
     output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+
+    with open('LLM_output.txt', 'a') as f:
+        f.write(f'\n\n\n\nPrompt: {prompt}\n\n\n\n')
+        f.write(f'Output: {output_strs}\n\n\n\n' + '-' * 100 + '\n\n\n\n')
 
     gc.collect()
     cuda.empty_cache()
@@ -301,9 +303,11 @@ def batched_generate(
 
     input_length = inputs.input_ids.shape[1]
 
-    # TODO really intricate logging -> check that all tokens are correct (including EOS token, etc.)
-
     output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
+
+    with open('LLM_output.txt', 'a') as f:
+        f.write(f'\n\n\n\nBatch Prompts: {prompts}\n\n\n\n')
+        f.write(f'Output: {output_strs}\n\n\n\n' + '-' * 100 + '\n\n\n\n')
 
     gc.collect()
     cuda.empty_cache()
