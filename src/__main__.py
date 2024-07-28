@@ -18,7 +18,7 @@ from src.display import (
     generate_html_file_for_tournament_evaluation,
     generate_html_file_for_tournament_ranking_result,
 )
-from src.papers import get_papers_by_author
+from src.papers import get_papers_by_author_cached
 from src.types import (
     AuthorResult,
     ExtractedProfile,
@@ -71,7 +71,7 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
     log(f'Processing Author: {name=} {number_of_papers=}')
     profiles: dict[int, ExtractedProfile] = {}
 
-    query = get_papers_by_author(name, number_of_papers=number_of_papers, KIT_only=True)
+    query = get_papers_by_author_cached(name, number_of_papers=number_of_papers, KIT_only=True)
 
     extracted_profile_log = f'logs/extracted_profiles/{name}_{datetime_str()}.log'
 

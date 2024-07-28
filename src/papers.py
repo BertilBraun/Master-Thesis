@@ -1,5 +1,5 @@
+from concurrent.futures import ThreadPoolExecutor
 import os
-from typing import Generator
 
 from pypdf import PdfReader
 from pyalex import Works, Authors
@@ -12,7 +12,6 @@ KIT_INSTITUTION_ID = 'i102335020'
 
 
 @timeit('Get Author by Name')
-@cache_to_file('author_cache.json', Author)
 def get_author_by_name(name: str, KIT_only: bool) -> Author | None:
     # Get the OpenAlex author by the author's display name
     request = Authors().search_filter(display_name=name)
@@ -116,8 +115,14 @@ def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None
     )
 
 
-@timeit('Get Papers by Author')
 @cache_to_file('papers_cache.json', Query)
+def get_papers_by_author_cached(
+    name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
+) -> Query:
+    return get_papers_by_author(name, number_of_papers, KIT_only, load_full_text)
+
+
+@timeit('Get Papers by Author')
 def get_papers_by_author(
     name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
 ) -> Query:
@@ -160,35 +165,31 @@ def get_papers_by_author(
 
 
 @timeit('Get Random English Authors Abstracts')
-def get_random_english_authors_abstracts(
-    number_of_authors: int, number_of_papers_per_author: int
-) -> Generator[Query, None, None]:
-    number_generated = 0
-
-    for author in (
+def get_random_english_authors_abstracts(number_of_authors: int, number_of_papers_per_author: int) -> list[Query]:
+    authors = (
         Authors()
         .filter(affiliations={'institution': {'country_code': 'US'}})
         .filter(works_count=f'>{number_of_papers_per_author}')
         .sample(number_of_authors * 2)
         .get(per_page=min(number_of_authors * 2, 200))
-    ):
-        author_name = author['display_name']  # type: ignore
-        query = get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
+    )
 
-        if len(query.abstracts) < number_of_papers_per_author:
-            log(f'Author {author_name} has less than {number_of_papers_per_author} papers', level=LogLevel.WARNING)
-            continue
+    # in parallel, get the papers for each author
+    with ThreadPoolExecutor() as executor:
 
-        yield query
-        number_generated += 1
+        def get_papers(author_name: str) -> Query:
+            return get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
 
-        if number_generated == number_of_authors:
-            break
+        futures = [executor.submit(get_papers, author['display_name']) for author in authors]  # type: ignore
 
-    if number_generated < number_of_authors:
-        yield from get_random_english_authors_abstracts(
-            number_of_authors - number_generated, number_of_papers_per_author
-        )
+        queries = [future.result() for future in futures]
+
+    queries = [query for query in queries if len(query.abstracts) >= number_of_papers_per_author]
+
+    if len(queries) < number_of_authors:
+        queries += get_random_english_authors_abstracts(number_of_authors - len(queries), number_of_papers_per_author)
+
+    return queries
 
 
 @timeit('Get Authors of KIT')
@@ -217,6 +218,6 @@ if __name__ == '__main__':
     log(get_author_by_name('Peter Sanders', KIT_only=True), use_pprint=True)
     log(get_author_by_name('Stiefelhagen', KIT_only=True), use_pprint=True)  # Fuzzy matching
 
-    papers_by_author = get_papers_by_author('Peter Sanders')
+    papers_by_author = get_papers_by_author_cached('Peter Sanders')
     log('We got', len(papers_by_author.full_texts), 'papers by Peter Sanders')
-    # log(get_papers_by_author('Peter Sanders'), use_pprint=True)
+    # log(get_papers_by_author_cached('Peter Sanders'), use_pprint=True)

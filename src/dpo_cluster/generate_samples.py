@@ -156,4 +156,4 @@ if __name__ == '__main__':
                     dumper(preference)
 
         trace_future.cancel()
-        executor.shutdown(wait=True)
+        executor.shutdown(wait=False)
