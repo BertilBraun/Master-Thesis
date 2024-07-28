@@ -17,7 +17,7 @@ from src.util import write_to_file
 
 CAS_OPENAI_API_KEY = 'sk-ce-service-account-OvzVRsc0DRXVJeCvxiQGT3BlbkFJmcquyYhxboiGGtFxshKi'
 
-NUM_SAMPLES_TO_GENERATE = 400
+NUM_SAMPLES_TO_GENERATE = 320  # Should be doable in 30 minutes on 4 GPUs
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 8
@@ -244,7 +244,7 @@ def generate(
 ) -> list[str]:
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
-    terminators = [tokenizer.eos_token_id]
+    terminators = [tokenizer.eos_token_id, tokenizer('<|end|>').input_ids[0], tokenizer('</s>').input_ids[0]]
 
     do_sample = do_sample and num_return_sequences == 1
 
