@@ -222,6 +222,7 @@ def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerF
 
 def clean_output(output: str, tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast) -> str:
     output = output.strip()
+    output = output.split('<|end|>')[0]
     output = output.replace(tokenizer.eos_token, '')
 
     output = output.strip()
@@ -245,6 +246,7 @@ def generate(
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [tokenizer.eos_token_id, tokenizer('<|end|>').input_ids[0], tokenizer('</s>').input_ids[0]]
+    print(f'{terminators=}')
 
     do_sample = do_sample and num_return_sequences == 1
 
@@ -292,7 +294,7 @@ def batched_generate(
     prompts = [tokenizer.eos_token + prompt for prompt in prompts]
     inputs = tokenizer(prompts, return_tensors='pt', padding=True).to(model.device)
 
-    terminators = [tokenizer.eos_token_id]
+    terminators = [tokenizer.eos_token_id, tokenizer('<|end|>').input_ids[0], tokenizer('</s>').input_ids[0]]
 
     outputs: Tensor = model.generate(
         **inputs,  # type: ignore
