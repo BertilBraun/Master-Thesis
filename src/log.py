@@ -28,7 +28,7 @@ class LogLevel(Enum):
 
 
 LOG_FOLDER = f'logs/{date_str()}'
-LOG_FILE = LOG_FOLDER + f'/log {time_str()}.log'
+LOG_FILE = LOG_FOLDER + f'/log_{time_str()}.log'
 LOG_LEVEL = LogLevel.INFO
 os.makedirs(LOG_FOLDER, exist_ok=True)
 GLOBAL_LOG_FILE = open(LOG_FILE, 'w')
