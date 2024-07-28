@@ -22,7 +22,7 @@ NUM_SAMPLES_TO_GENERATE = 400
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 8
 TEMPERATURE = 0.8  # Prefer more diverse samples so that all TOP_K are different
-NUM_EXAMPLES = 1  # TODO or 0?
+NUM_EXAMPLES = 1
 
 EVALUATION_BATCH_SIZE = 8
 
@@ -201,6 +201,7 @@ def get_model(
     )
     model = model.eval()
 
+    return model
     compiled_model = compile(model, mode='reduce-overhead', fullgraph=True)
 
     return compiled_model  # type: ignore
