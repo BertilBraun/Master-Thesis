@@ -189,7 +189,6 @@ def get_model(
         bnb_4bit_compute_dtype=float16 if not quantized else float32,
     )
 
-    print(f'Loading model from {name_or_path} on {device} with flash attention: {use_flash_attention}')
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
         torch_dtype='auto',
@@ -200,12 +199,8 @@ def get_model(
         low_cpu_mem_usage=True,
         local_files_only=name_or_path.startswith('./'),
     )
-    print(f'Model loaded from {name_or_path} on {device} with flash attention: {use_flash_attention}')
-    print('Setting model to eval mode')
     model = model.eval()
-    print('Model set to eval mode')
 
-    return model
     compiled_model = compile(model, mode='reduce-overhead', fullgraph=True)
 
     return compiled_model  # type: ignore
@@ -245,8 +240,14 @@ def generate(
 ) -> list[str]:
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
-    terminators = [tokenizer.eos_token_id, tokenizer('<|end|>').input_ids[0], tokenizer('</s>').input_ids[0]]
-    print(f'{terminators=}')
+    terminators = [
+        tokenizer.eos_token_id,
+        # The following are phi3 specific tokens
+        2,
+        32000,
+        32007,
+        32010,
+    ]
 
     do_sample = do_sample and num_return_sequences == 1
 
@@ -272,49 +273,7 @@ def generate(
         f.write(f'\n\n\n\nPrompt: {prompt}\n\n\n\n')
         f.write('Outputs:\n\n')
         for output_str in output_strs:
-            f.write(f'\n\n\n\n{output_str}\n\n\n\n' + '-' * 100)
-        f.write('\n\n\n\n' + '=' * 100 + '\n\n\n\n')
-
-    gc.collect()
-    cuda.empty_cache()
-
-    return [clean_output(output_str, tokenizer) for output_str in output_strs]
-
-
-def batched_generate(
-    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
-    model: PreTrainedModel,
-    prompts: list[str],
-    /,
-    do_sample: bool = True,
-    max_new_tokens: int = 300,
-    temperature: float = 0.2,
-    skip_special_tokens: bool = True,
-) -> list[str]:
-    prompts = [tokenizer.eos_token + prompt for prompt in prompts]
-    inputs = tokenizer(prompts, return_tensors='pt', padding=True).to(model.device)
-
-    terminators = [tokenizer.eos_token_id, tokenizer('<|end|>').input_ids[0], tokenizer('</s>').input_ids[0]]
-
-    outputs: Tensor = model.generate(
-        **inputs,  # type: ignore
-        do_sample=do_sample,
-        max_new_tokens=max_new_tokens,
-        eos_token_id=terminators,
-        pad_token_id=tokenizer.pad_token_id,
-        temperature=temperature if do_sample else None,
-        top_p=0.8 if do_sample else None,
-    )
-
-    input_length = inputs.input_ids.shape[1]
-
-    output_strs = tokenizer.batch_decode(outputs[:, input_length:], skip_special_tokens=skip_special_tokens)
-
-    with open('LLM_output.txt', 'a') as f:
-        f.write(f'\n\n\n\nBatch Prompts: {prompts}\n\n\n\n')
-        f.write('Outputs:\n\n')
-        for output_str in output_strs:
-            f.write(f'\n\n\n\n{output_str}\n\n\n\n' + '-' * 100)
+            f.write(f'\n\n\n\n{clean_output(output_str, tokenizer)}\n\n\n\n' + '-' * 100)
         f.write('\n\n\n\n' + '=' * 100 + '\n\n\n\n')
 
     gc.collect()
