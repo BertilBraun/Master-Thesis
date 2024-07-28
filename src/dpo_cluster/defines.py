@@ -196,6 +196,7 @@ def get_model(
         quantization_config=bnb_config if quantized else None,
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
+        low_cpu_mem_usage=True,
     )
     model = model.eval()
 
