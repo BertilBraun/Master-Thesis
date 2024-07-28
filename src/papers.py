@@ -120,18 +120,18 @@ def get_paper_by_title(title: str, load_full_text: bool = False) -> Query | None
 def get_papers_by_author_cached(
     name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
 ) -> Query:
-    return get_papers_by_author(name, number_of_papers, KIT_only, load_full_text)
-
-
-@timeit('Get Papers by Author')
-def get_papers_by_author(
-    name: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
-) -> Query:
     # Get the top number_of_papers most cited papers by the author with the given name
     author = get_author_by_name(name, KIT_only)
     assert author, f'Author {name} not found'
 
-    works = Works().filter(language='en').filter(author={'id': author.id}).filter(has_abstract=True)
+    return get_papers_by_author(author.name, author.id, number_of_papers, KIT_only, load_full_text)
+
+
+@timeit('Get Papers by Author')
+def get_papers_by_author(
+    author_name: str, author_id: str, number_of_papers: int = 5, KIT_only: bool = True, load_full_text: bool = True
+) -> Query:
+    works = Works().filter(language='en').filter(author={'id': author_id}).filter(has_abstract=True)
     if load_full_text:
         works = works.filter(has_fulltext=True).filter(open_access={'is_oa': True}).filter(fulltext_origin='pdf')
     papers = works.sort(cited_by_count='desc').get(per_page=number_of_papers * 2)
@@ -161,7 +161,7 @@ def get_papers_by_author(
         abstracts=abstracts,
         full_texts=full_texts,
         titles=titles,
-        author=author.name,
+        author=author_name,
     )
 
 
@@ -174,18 +174,21 @@ def get_random_english_authors_abstracts(number_of_authors: int, number_of_paper
         .sample(number_of_authors * 2)
         .get(per_page=min(number_of_authors * 2, 200))
     )
+    sleep(1)
 
     queries: list[Query] = []
 
     # in parallel, get the papers for each author
     with ThreadPoolExecutor() as executor:
 
-        def get_papers(author_name: str) -> Query:
-            return get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
+        def get_papers(author_name: str, author_id: str) -> Query:
+            return get_papers_by_author(
+                author_name, author_id, number_of_papers_per_author, load_full_text=False, KIT_only=False
+            )
 
-        for batch_start in range(0, len(authors), 5):
-            batch = authors[batch_start : batch_start + 5]
-            futures = [executor.submit(get_papers, author['display_name']) for author in batch]  # type: ignore
+        for batch_start in range(0, len(authors), 10):
+            batch = authors[batch_start : batch_start + 10]
+            futures = [executor.submit(get_papers, author['display_name'], author['id']) for author in batch]  # type: ignore
 
             queries += [future.result() for future in futures]
             sleep(1)
@@ -219,9 +222,6 @@ def get_authors_of_kit(count: int = 100) -> list[Author]:
 
 
 if __name__ == '__main__':
-    log(get_random_english_authors_abstracts(5, 5), use_pprint=True)
-    exit()
-
     log(get_authors_of_kit(), use_pprint=True)
 
     log(get_author_by_name('Peter Sanders', KIT_only=True), use_pprint=True)
