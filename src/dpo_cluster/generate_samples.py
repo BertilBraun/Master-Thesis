@@ -70,7 +70,7 @@ def generate_sample(index: int, samples_to_generate: list[SampleToGenerate]) -> 
         model = get_model(
             BASE_MODEL_ID,  # TODO This should be the current model but for some reason it is not loading (at least not within 30min)
             device=f'cuda:{index}',
-            # load_in_8bit=True,
+            load_in_8bit=True,
         )
 
     samples_to_evaluate: list[SampleToEvaluate] = []

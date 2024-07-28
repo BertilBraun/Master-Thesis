@@ -63,7 +63,7 @@ def log(
     else:
         print(timestamp, log_level, *args, **kwargs, file=log_file, flush=True)
         if level.value >= LOG_LEVEL.value:
-            print(timestamp, log_level, *args, **kwargs)
+            print(timestamp, log_level, *args, **kwargs, flush=True)
 
     if log_file_name != LOG_FILE:
         log_file.close()
