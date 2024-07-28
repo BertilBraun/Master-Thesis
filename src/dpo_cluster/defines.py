@@ -189,6 +189,7 @@ def get_model(
         bnb_4bit_compute_dtype=float16 if not quantized else float32,
     )
 
+    print(f'Loading model from {name_or_path} on {device} with flash attention: {use_flash_attention}')
     model = AutoModelForCausalLM.from_pretrained(
         name_or_path,
         torch_dtype=float16 if not quantized else None,
@@ -199,7 +200,10 @@ def get_model(
         low_cpu_mem_usage=True,
         local_files_only=name_or_path.startswith('./'),
     )
+    print(f'Model loaded from {name_or_path} on {device} with flash attention: {use_flash_attention}')
+    print('Setting model to eval mode')
     model = model.eval()
+    print('Model set to eval mode')
 
     return model
     compiled_model = compile(model, mode='reduce-overhead', fullgraph=True)
