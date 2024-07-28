@@ -1,5 +1,6 @@
 from concurrent.futures import ThreadPoolExecutor
 import os
+from time import sleep
 
 from pypdf import PdfReader
 from pyalex import Works, Authors
@@ -174,15 +175,20 @@ def get_random_english_authors_abstracts(number_of_authors: int, number_of_paper
         .get(per_page=min(number_of_authors * 2, 200))
     )
 
+    queries: list[Query] = []
+
     # in parallel, get the papers for each author
     with ThreadPoolExecutor() as executor:
 
         def get_papers(author_name: str) -> Query:
             return get_papers_by_author(author_name, number_of_papers_per_author, load_full_text=False, KIT_only=False)
 
-        futures = [executor.submit(get_papers, author['display_name']) for author in authors]  # type: ignore
+        for batch_start in range(0, len(authors), 5):
+            batch = authors[batch_start : batch_start + 5]
+            futures = [executor.submit(get_papers, author['display_name']) for author in batch]  # type: ignore
 
-        queries = [future.result() for future in futures]
+            queries += [future.result() for future in futures]
+            sleep(1)
 
     queries = [query for query in queries if len(query.abstracts) >= number_of_papers_per_author]
 
@@ -213,6 +219,9 @@ def get_authors_of_kit(count: int = 100) -> list[Author]:
 
 
 if __name__ == '__main__':
+    log(get_random_english_authors_abstracts(5, 5), use_pprint=True)
+    exit()
+
     log(get_authors_of_kit(), use_pprint=True)
 
     log(get_author_by_name('Peter Sanders', KIT_only=True), use_pprint=True)
