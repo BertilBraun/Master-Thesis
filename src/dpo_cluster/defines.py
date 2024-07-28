@@ -268,7 +268,10 @@ def generate(
 
     with open('LLM_output.txt', 'a') as f:
         f.write(f'\n\n\n\nPrompt: {prompt}\n\n\n\n')
-        f.write(f'Output: {output_strs}\n\n\n\n' + '-' * 100 + '\n\n\n\n')
+        f.write('Outputs:\n\n')
+        for output_str in output_strs:
+            f.write(f'\n\n\n\n{output_str}\n\n\n\n' + '-' * 100)
+        f.write('\n\n\n\n' + '=' * 100 + '\n\n\n\n')
 
     gc.collect()
     cuda.empty_cache()
@@ -307,7 +310,10 @@ def batched_generate(
 
     with open('LLM_output.txt', 'a') as f:
         f.write(f'\n\n\n\nBatch Prompts: {prompts}\n\n\n\n')
-        f.write(f'Output: {output_strs}\n\n\n\n' + '-' * 100 + '\n\n\n\n')
+        f.write('Outputs:\n\n')
+        for output_str in output_strs:
+            f.write(f'\n\n\n\n{output_str}\n\n\n\n' + '-' * 100)
+        f.write('\n\n\n\n' + '=' * 100 + '\n\n\n\n')
 
     gc.collect()
     cuda.empty_cache()

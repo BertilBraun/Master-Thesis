@@ -417,6 +417,7 @@ class HumanExampleMessage:
     content: str
 
     def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'role': 'user'}  # Phi3mini does not support the name field
         return {'content': self.content, 'name': 'example_user', 'role': 'system'}
 
 
@@ -425,6 +426,7 @@ class AIExampleMessage:
     content: str
 
     def to_dict(self) -> ChatCompletionMessageParam:
+        return {'content': self.content, 'role': 'assistant'}  # Phi3mini does not support the name field
         return {'content': self.content, 'name': 'example_assistant', 'role': 'system'}
 
 
