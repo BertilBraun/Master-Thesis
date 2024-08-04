@@ -17,7 +17,7 @@ from src.util import write_to_file
 
 CAS_OPENAI_API_KEY = 'sk-ce-service-account-OvzVRsc0DRXVJeCvxiQGT3BlbkFJmcquyYhxboiGGtFxshKi'
 
-NUM_SAMPLES_TO_GENERATE = 320  # Should be doable in 30 minutes on 4 GPUs
+NUM_SAMPLES_TO_GENERATE = 290  # Should be doable in 30 minutes on 4 GPUs
 
 PAPERS_PER_SAMPLE = 4
 TOP_K_TO_SAMPLE = 8

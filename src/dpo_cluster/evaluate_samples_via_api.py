@@ -104,7 +104,7 @@ if __name__ == '__main__':
     if EVALUATE:
         samples_to_evaluate = [
             SampleToEvaluate.from_json(sample)
-            for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\samples_to_evaluate.json')
+            for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\Cluster Logs\Samples\all_samples.json')
         ]
         log(f'Evaluating {len(samples_to_evaluate)} samples')
 
@@ -113,6 +113,7 @@ if __name__ == '__main__':
                 for preference in evaluate_sample(sample):
                     dumper(preference)
 
+    exit()
     number_of_samples, number_of_agreements = calculate_aggreement_of_preferences(
         R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\preferences\TEMPORARY_LOCAL_ONLY_dev-llama-3-large.json',
         R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\preferences\TEMPORARY_LOCAL_ONLY_gpt-4o-mini.json',

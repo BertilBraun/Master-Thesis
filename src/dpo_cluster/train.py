@@ -279,8 +279,9 @@ def get_model_to_train():
         device_map='auto',
         use_cache=False,
         attn_implementation='flash_attention_2',
-        torch_dtype=float16,
+        torch_dtype='auto',  # float16,
         # Quant config of the saved model is used.. quantization_config=bnb_config,
+        load_in_8bit=True,
     )
 
 
