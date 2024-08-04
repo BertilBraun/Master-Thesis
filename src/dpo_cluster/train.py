@@ -226,9 +226,9 @@ def get_trainer(model) -> DPOTrainer:
     args = DPOConfig(
         output_dir=TRAINING_OUTPUT_DIR,  # directory to save and repository id
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
-        per_device_train_batch_size=8,  # batch size per device during training
+        per_device_train_batch_size=4,  # batch size per device during training
         per_device_eval_batch_size=2,  # batch size for evaluation
-        gradient_accumulation_steps=2,  # number of steps before performing a backward/update pass
+        gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
         learning_rate=2e-5,  # 4x higher LR than QLoRA paper
@@ -240,8 +240,8 @@ def get_trainer(model) -> DPOTrainer:
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
         eval_steps=240,  # when to evaluate # approx every 2hours
-        bf16=False,  # use bfloat16 precision
-        fp16=True,  # use fp16 precision
+        bf16=True,  # use bfloat16 precision
+        fp16=False,  # use fp16 precision
         tf32=False,  # use tf32 precision
         # Currently crashes training group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub

@@ -44,6 +44,12 @@
             "type": "shell",
             "command": "python -m src.expert_evaluation_analysis",
             "problemMatcher": []
+        },
+        {
+            "label": "Plot GPU Usage",
+            "type": "shell",
+            "command": "python -m src.dpo_cluster.plot_gpu_usage",
+            "problemMatcher": []
         }
     ],
     "inputs": [
