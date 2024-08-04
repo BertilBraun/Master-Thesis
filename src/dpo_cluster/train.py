@@ -334,13 +334,14 @@ if __name__ == '__main__':
     )
     thread.start()
 
-    with cuda.amp.autocast():
-        trainer.train()
+    try:
+        with cuda.amp.autocast():
+            trainer.train()
 
-    # save model at the end of training
-    trainer.save_model()
-
-    thread.terminate()
+        # save model at the end of training
+        trainer.save_model()
+    finally:
+        thread.terminate()
 
     # free the memory again
     del model
