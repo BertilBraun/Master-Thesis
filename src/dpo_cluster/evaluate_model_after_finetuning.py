@@ -53,14 +53,12 @@ def evaluate_is_profile1_preferred(profile1: Profile, profile2: Profile, abstrac
 
 
 def get_samples_for_fine_tuning_improvement_evaluation(
-    old_samples: list[dict[str, str]],
+    samples: list[SampleForFineTuningImprovementEvaluation],
 ) -> Generator[SampleForFineTuningImprovementEvaluation, None, None]:
     tokenizer = get_tokenizer()
     model = get_model(load_in_8bit=True)  # Load the currently finetuned model
 
-    for element in tqdm(old_samples, desc='Evaluating samples'):
-        sample = SampleForFineTuningImprovementEvaluation.from_json(element)
-
+    for sample in tqdm(samples, desc='Evaluating samples'):
         response = generate(
             tokenizer,
             model,
@@ -91,25 +89,30 @@ def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuni
 
 
 def evaluate_model() -> bool:
-    # Make a backup of the old file
-    old_samples = load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
-
-    samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation] = []
-
+    # Load the samples to evaluate before creating the json_dumper, as the dumper will overwrite the file
+    old_samples = load_samples_for_fine_tuning_improvement_evaluation()
     with timeblock('Evaluating the model after fine-tuning'):
         with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
             for sample in get_samples_for_fine_tuning_improvement_evaluation(old_samples):
-                samples_for_fine_tuning_improvement_evaluation.append(sample)
                 dumper(sample)
 
     with timeblock('Comparing the current model to the baseline model'):
-        number_of_wins_current_model = get_number_of_wins_current_model(samples_for_fine_tuning_improvement_evaluation)
+        # reload the samples with the new profiles
+        new_samples = load_samples_for_fine_tuning_improvement_evaluation()
+        number_of_wins_current_model = get_number_of_wins_current_model(new_samples)
 
-    total_samples = len(samples_for_fine_tuning_improvement_evaluation)
+    total_samples = len(new_samples)
     log(f'The current model won {number_of_wins_current_model} times out of {total_samples} samples.')
 
     # Return whether the current model is preferred more than the last model
-    return number_of_wins_current_model > len(samples_for_fine_tuning_improvement_evaluation) * 0.5
+    return number_of_wins_current_model > total_samples * 0.5
+
+
+def load_samples_for_fine_tuning_improvement_evaluation():
+    return [
+        SampleForFineTuningImprovementEvaluation.from_json(sample)
+        for sample in load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
+    ]
 
 
 if __name__ == '__main__':
