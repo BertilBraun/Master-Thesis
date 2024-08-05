@@ -16,13 +16,15 @@
 
 import random
 import sys
+from typing import Generator
 from torch import cuda
+from tqdm import tqdm
 
 
 from src.log import log
 from src.dpo_cluster.defines import *
 from src.dpo_cluster.llm_util import parse_llm_from_sysargs
-from src.util import create_backup, dump_json, load_json, timeblock
+from src.util import create_backup, json_dumper, load_json, timeblock
 from src.database import get_retriever_getter
 from src.evaluation import prompt_for_ranking
 from src.types import EvaluationResult_from_invalid_response, Profile, Ranking
@@ -50,13 +52,13 @@ def evaluate_is_profile1_preferred(profile1: Profile, profile2: Profile, abstrac
     return profiles[preferred_profile_index] == profile1
 
 
-def get_samples_for_fine_tuning_improvement_evaluation() -> list[SampleForFineTuningImprovementEvaluation]:
+def get_samples_for_fine_tuning_improvement_evaluation() -> (
+    Generator[SampleForFineTuningImprovementEvaluation, None, None]
+):
     tokenizer = get_tokenizer()
     model = get_model(load_in_8bit=True)  # Load the currently finetuned model
 
-    samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation] = []
-
-    for element in load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE):
+    for element in tqdm(load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE), desc='Evaluating samples'):
         sample = SampleForFineTuningImprovementEvaluation.from_json(element)
 
         response = generate(
@@ -69,16 +71,12 @@ def get_samples_for_fine_tuning_improvement_evaluation() -> list[SampleForFineTu
             max_new_tokens=650,
         )[0]
 
-        samples_for_fine_tuning_improvement_evaluation.append(
-            sample.with_new_profiles(str(Profile.parse('Domain: "' + response))),
-        )
+        yield sample.with_new_profiles(str(Profile.parse('Domain: "' + response)))
 
     # free the memory again
     del model
     gc.collect()
     cuda.empty_cache()
-
-    return samples_for_fine_tuning_improvement_evaluation
 
 
 def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation]) -> int:
@@ -97,13 +95,12 @@ def evaluate_model() -> bool:
     log('Creating a backup of the samples for fine-tuning improvement evaluation')
     create_backup(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
 
+    samples_for_fine_tuning_improvement_evaluation: list[SampleForFineTuningImprovementEvaluation] = []
     with timeblock('Evaluating the model after fine-tuning'):
-        samples_for_fine_tuning_improvement_evaluation = get_samples_for_fine_tuning_improvement_evaluation()
-
-    dump_json(
-        samples_for_fine_tuning_improvement_evaluation,
-        SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE,
-    )
+        with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
+            for sample in get_samples_for_fine_tuning_improvement_evaluation():
+                samples_for_fine_tuning_improvement_evaluation.append(sample)
+                dumper(sample)
 
     with timeblock('Comparing the current model to the baseline model'):
         number_of_wins_current_model = get_number_of_wins_current_model(samples_for_fine_tuning_improvement_evaluation)
