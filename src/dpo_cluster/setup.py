@@ -47,6 +47,7 @@ if __name__ == '__main__':
             prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
 
             prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+            prompt += '\n<|assistant|>\nDomain: "'
 
             response = generate(
                 tokenizer,
@@ -59,7 +60,7 @@ if __name__ == '__main__':
             )[0]
 
             try:
-                profile = Profile.parse(response)
+                profile = Profile.parse('Domain: "' + response)
 
                 dumper(
                     SampleForFineTuningImprovementEvaluation(

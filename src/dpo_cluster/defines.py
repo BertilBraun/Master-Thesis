@@ -211,7 +211,7 @@ def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerF
         conversation=[message.to_dict() for message in messages],  # type: ignore
         tokenize=False,
     )
-    prompt = prompt.replace('<|endoftext|>', '').strip() + '\n<|assistant|>'
+    prompt = prompt.replace('<|endoftext|>', '').strip()
     return prompt
 
 

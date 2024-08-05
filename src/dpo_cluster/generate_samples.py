@@ -93,6 +93,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
     )
 
     prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+    prompt += '\n<|assistant|>\nDomain: "'
 
     responses = generate(
         tokenizer,
@@ -103,7 +104,7 @@ def process_sample_to_generate_into_sample_to_evaluate(
         max_new_tokens=650,
     )
 
-    profiles = [Profile.parse(response) for response in responses]
+    profiles = [Profile.parse('Domain: "' + response) for response in responses]
 
     # Filter out too similar profiles
     filtered_profiles: list[Profile] = []

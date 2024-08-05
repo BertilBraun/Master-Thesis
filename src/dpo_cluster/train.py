@@ -32,7 +32,7 @@ TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
-BASE_MODEL_ID = 'microsoft/Phi-3-mini-4k-instruct'
+BASE_MODEL_ID = 'microsoft/Phi-3-mini-128k-instruct'
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 3
 
@@ -309,18 +309,20 @@ if __name__ == '__main__':
         train_dataset, test_dataset = load_dataset(get_preference_output_file_path(START_DATETIME), tokenizer)
 
     # lets find the p95 length of the prompt
-    with progress_status('Finding p95 lengths'):
-        prompt_length, max_seq_length = find_p95_length(train_dataset)
-    print(f'p95 prompt length: {prompt_length}')
-    print(f'p95 prompt + chosen length: {max_seq_length}')
+    DO_FILTER_P95 = False
+    if DO_FILTER_P95:
+        with progress_status('Finding p95 lengths'):
+            prompt_length, max_seq_length = find_p95_length(train_dataset)
+        print(f'p95 prompt length: {prompt_length}')
+        print(f'p95 prompt + chosen length: {max_seq_length}')
 
-    # filter datasets to remove samples that are too long
-    with progress_status('Filtering datasets'):
-        old_len_train, old_len_test = len(train_dataset), len(test_dataset)
-        train_dataset = filter_by_max_length(train_dataset, max_seq_length)
-        test_dataset = filter_by_max_length(test_dataset, max_seq_length)
-    print(f'len(train_dataset): {len(train_dataset)} -> removed {old_len_train - len(train_dataset)}')
-    print(f'len(test_dataset): {len(test_dataset)} -> removed {old_len_test - len(test_dataset)}')
+        # filter datasets to remove samples that are too long
+        with progress_status('Filtering datasets'):
+            old_len_train, old_len_test = len(train_dataset), len(test_dataset)
+            train_dataset = filter_by_max_length(train_dataset, max_seq_length)
+            test_dataset = filter_by_max_length(test_dataset, max_seq_length)
+        print(f'len(train_dataset): {len(train_dataset)} -> removed {old_len_train - len(train_dataset)}')
+        print(f'len(test_dataset): {len(test_dataset)} -> removed {old_len_test - len(test_dataset)}')
 
     with progress_status('Loading model'):
         model = get_model_to_train()
