@@ -104,7 +104,10 @@ def process_sample_to_generate_into_sample_to_evaluate(
         max_new_tokens=650,
     )
 
-    profiles = [Profile.parse('Domain: "' + response) for response in responses]
+    profiles: list[Profile] = []
+    for response in responses:
+        with log_all_exceptions(f'Profile parsing failed for response: {response}'):
+            profiles.append(Profile.parse('Domain: "' + response))
 
     # Filter out too similar profiles
     filtered_profiles: list[Profile] = []
