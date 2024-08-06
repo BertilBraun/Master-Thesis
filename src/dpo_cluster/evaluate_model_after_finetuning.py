@@ -84,21 +84,27 @@ def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuni
             Profile.parse(sample.best_profile_from_original_model),
             sample.abstracts,
         )
-        for sample in samples_to_evaluate
+        for sample in tqdm(samples_to_evaluate, desc='Evaluating samples')
     )
 
 
 def evaluate_model() -> bool:
     # Load the samples to evaluate before creating the json_dumper, as the dumper will overwrite the file
-    old_samples = load_samples_for_fine_tuning_improvement_evaluation()
-    with timeblock('Evaluating the model after fine-tuning'):
-        with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
-            for sample in get_samples_for_fine_tuning_improvement_evaluation(old_samples):
-                dumper(sample)
+    DO_REEVALUATE_THE_SAMPLES = False
+    if DO_REEVALUATE_THE_SAMPLES:
+        old_samples = load_json(
+            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
+        )
+        with timeblock('Evaluating the model after fine-tuning'):
+            with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
+                for sample in get_samples_for_fine_tuning_improvement_evaluation(old_samples):
+                    dumper(sample)
 
     with timeblock('Comparing the current model to the baseline model'):
         # reload the samples with the new profiles
-        new_samples = load_samples_for_fine_tuning_improvement_evaluation()
+        new_samples = load_json(
+            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
+        )
         number_of_wins_current_model = get_number_of_wins_current_model(new_samples)
 
     total_samples = len(new_samples)
@@ -106,13 +112,6 @@ def evaluate_model() -> bool:
 
     # Return whether the current model is preferred more than the last model
     return number_of_wins_current_model > total_samples * 0.5
-
-
-def load_samples_for_fine_tuning_improvement_evaluation():
-    return [
-        SampleForFineTuningImprovementEvaluation.from_json(sample)
-        for sample in load_json(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
-    ]
 
 
 if __name__ == '__main__':

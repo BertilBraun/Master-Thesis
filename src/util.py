@@ -5,7 +5,7 @@ import json
 import os
 import re
 import time
-from typing import Any, Callable, Generator
+from typing import Any, Callable, Generator, Generic, Protocol, Type, TypeVar, overload
 import requests
 
 from enum import Enum
@@ -189,12 +189,49 @@ def dump_json(obj: Any, file_name: str) -> None:
     write_to_file(file_name, json.dumps(custom_asdict(obj), indent=4))
 
 
+T = TypeVar('T')
+
+
+class FromJsonProtocol(Protocol, Generic[T]):  # type: ignore
+    @classmethod
+    def from_json(cls: Any, data: dict) -> T:
+        ...
+
+
+@overload
 def load_json(file_name: str) -> Any:
+    ...
+
+
+@overload
+def load_json(file_name: str, obj_type: Type[FromJsonProtocol[T]]) -> list[T]:
+    ...
+
+
+def load_json(file_name: str, obj_type: Type[FromJsonProtocol[T]] | None = None) -> Any | list[T]:
     if not os.path.exists(file_name):
-        log(f'File does not exist: {file_name}', level=LogLevel.ERROR)
+        log(f'File not found: {file_name}', level=LogLevel.ERROR)
         exit(1)
+
+    # Datei lesen und JSON laden
     with open(file_name, 'r') as f:
-        return json.load(f)
+        json_data = json.load(f)
+
+    if obj_type is None:
+        return json_data
+
+    # Überprüfen, ob json_array eine Liste ist
+    if not isinstance(json_data, list):
+        raise ValueError('Das JSON-Objekt muss ein Array sein.')
+
+    # Liste der Objekte erstellen
+    obj_list = []
+    for entry in json_data:
+        # Erstellen einer Instanz des obj_type und Initialisieren mit den JSON-Daten
+        obj = obj_type.from_json(entry)
+        obj_list.append(obj)
+
+    return obj_list
 
 
 def create_backup(file_path: str) -> tuple[bool, str]:

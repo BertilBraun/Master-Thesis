@@ -19,7 +19,7 @@ def load_samples_to_evaluate() -> list[SampleToEvaluate]:
     # load samples to generate from the json files into the samples_to_evaluate queue
     file = get_profile_output_file_path(START_DATETIME)
     log(f'Loading samples to evaluate from {file}')
-    return [SampleToEvaluate.from_json(sample) for sample in load_json(file)]
+    return load_json(file, SampleToEvaluate)
 
 
 def evaluate_sample(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSample]:
@@ -102,10 +102,9 @@ def calculate_aggreement_of_preferences(preference_path: str, other_preference_p
 if __name__ == '__main__':
     EVALUATE = True
     if EVALUATE:
-        samples_to_evaluate = [
-            SampleToEvaluate.from_json(sample)
-            for sample in load_json(R'C:\Users\berti\OneDrive\Desktop\Cluster Logs\Samples\all_samples.json')
-        ]
+        samples_to_evaluate = load_json(
+            R'C:\Users\berti\OneDrive\Desktop\Cluster Logs\Samples\all_samples.json', SampleToEvaluate
+        )
         log(f'Evaluating {len(samples_to_evaluate)} samples')
 
         with json_dumper(get_preference_output_file_path(f'TEMPORARY_LOCAL_ONLY_{LLM.model}')) as dumper:
