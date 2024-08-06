@@ -198,6 +198,7 @@ def get_model(
         attn_implementation='flash_attention_2' if use_flash_attention else None,
         low_cpu_mem_usage=True,
         local_files_only=name_or_path.startswith('./'),
+        original_max_position_embeddings=8192 * 2,  # NOTE: This is a hack which seems to work for Phi3 to
     )
     model = model.eval()
 
