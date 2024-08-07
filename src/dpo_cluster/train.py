@@ -18,9 +18,6 @@ from transformers import AutoTokenizer, AutoModelForCausalLM, PreTrainedTokenize
 from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
 
-from rich.console import Console
-from rich.status import Status
-
 
 TEST_PERCENTAGE = 0.05
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
@@ -124,22 +121,11 @@ def load_json(file_name: str) -> Any:
         return json.load(f)
 
 
-def progress_status(message: str) -> Status:
-    # Can be use like this:
-    # with progress_status('Some message'):
-    #     something that happens for some time and the message gets displayed in the meantime with a loading indicator
-    return Console().status('[bold green]' + message)
-
-
 if __name__ == '__main__':
     START_DATETIME = get_previous_datetime_str()
 
 
-def load_dataset(
-    json_dataset_file: str,
-    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
-    test_percentage: float = TEST_PERCENTAGE,
-) -> tuple[Dataset, Dataset]:
+def load_dataset(json_dataset_file: str, test_percentage: float = TEST_PERCENTAGE) -> tuple[Dataset, Dataset]:
     """Load the dataset from the database and split it into training and test sets.
     The dataset is preprocessed using the tokenizer and contains the following columns:
     - prompt: list[str]
@@ -162,57 +148,39 @@ def load_dataset(
 
     ds = Dataset.from_dict({'prompt': prompts, 'chosen': chosens, 'rejected': rejecteds})
 
-    # def process(row):
-    #     return {
-    #         'prompt': row['prompt'],  # the prompt already has the chat template applied
-    #         'chosen': tokenizer.apply_chat_template(
-    #             [{'role': 'assistant', 'content': row['chosen']}],
-    #             tokenize=False,
-    #         ),
-    #         'rejected': tokenizer.apply_chat_template(
-    #             [{'role': 'assistant', 'content': row['rejected']}],
-    #             tokenize=False,
-    #         ),
-    #     }
-    #
-    # ds = ds.map(
-    #     process,
-    #     num_proc=multiprocessing.cpu_count(),
-    #     load_from_cache_file=False,
-    # )
-
     ds = ds.train_test_split(test_size=test_percentage, shuffle=True)
 
     return ds['train'], ds['test']
 
 
-tokenizer = get_tokenizer()
+def create_folder_backup(folder_path: str) -> tuple[bool, str]:
+    if not os.path.exists(folder_path):
+        print(f'No folder to backup found at {folder_path}')
+        return False, ''
+
+    backup_path = folder_path + '.bak'
+    if not os.path.exists(backup_path):
+        shutil.copytree(folder_path, backup_path)
+        return True, backup_path
+
+    for i in range(1, 1000):
+        backup_path = folder_path + f'.bak({i})'
+        if not os.path.exists(backup_path):
+            shutil.copytree(folder_path, backup_path)
+            return True, backup_path
+
+    print(f'Could not create backup for {folder_path}')
+    return False, ''
 
 
-def len_of_input(text) -> int:
-    return len(tokenizer(text)['input_ids'])  # type: ignore
-
-
-def find_p95_length(train_dataset: Dataset) -> tuple[int, int]:
-    from numpy import percentile
-
-    prompt_length = int(percentile([len_of_input(x) for x in train_dataset['prompt']], 95))
-    max_seq_length_chosen = int(percentile([len_of_input(x['prompt'] + x['chosen']) for x in train_dataset], 95))  # type: ignore
-    max_seq_length_rejected = int(percentile([len_of_input(x['prompt'] + x['rejected']) for x in train_dataset], 95))  # type: ignore
-    max_seq_length = max(max_seq_length_chosen, max_seq_length_rejected)
-
-    # Up the lengths to next multiple of 2, why 2? Don't know
-    prompt_length = ((prompt_length + 1) // 2) * 2
-    max_seq_length = ((max_seq_length + 1) // 2) * 2
-
-    return prompt_length, max_seq_length
-
-
-def filter_by_max_length(dataset: Dataset, max_length: int) -> Dataset:
-    return dataset.filter(lambda x: len_of_input(x['prompt'] + x['chosen']) <= max_length)
-
-
-def get_trainer(model) -> DPOTrainer:
+def get_trainer(
+    model,
+    tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
+    max_seq_length: int,
+    prompt_length: int,
+    train_dataset: Dataset,
+    test_dataset: Dataset,
+) -> DPOTrainer:
     # LoRA config based on QLoRA paper & Sebastian Raschka experiment
     peft_config = LoraConfig(
         r=8,
@@ -265,33 +233,18 @@ def get_trainer(model) -> DPOTrainer:
 
 
 def get_model_to_train():
-    # BitsAndBytesConfig int-4 config
-    # bnb_config = BitsAndBytesConfig(
-    #     load_in_4bit=True,
-    #     bnb_4bit_quant_type='nf4',
-    #     bnb_4bit_use_double_quant=True,
-    #     bnb_4bit_compute_dtype=bfloat16,
-    # )
-
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
         CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
         attn_implementation='flash_attention_2',
-        torch_dtype='auto',  # float16,
-        # Quant config of the saved model is used.. quantization_config=bnb_config,
+        torch_dtype='auto',
         load_in_8bit=True,
     )
 
 
 def merge_and_save_model():
-    # make a copy of the CURRENT_MODEL_PATH
-    os.makedirs(CURRENT_MODEL_PATH + '_backup', exist_ok=True)
-    for file in os.listdir(CURRENT_MODEL_PATH):
-        if os.path.isfile(f'{CURRENT_MODEL_PATH}/{file}'):
-            shutil.copyfile(f'{CURRENT_MODEL_PATH}/{file}', f'{CURRENT_MODEL_PATH}_backup/{file}')
-
     # Load PEFT model on CPU
     model = AutoPeftModelForCausalLM.from_pretrained(
         TRAINING_OUTPUT_DIR,
@@ -303,38 +256,42 @@ def merge_and_save_model():
     merged_model.save_pretrained(CURRENT_MODEL_PATH, safe_serialization=True, max_shard_size='2GB')
 
 
-if __name__ == '__main__':
+def main():
     # Load all the database datasets into one Dataset
-    with progress_status('Loading datasets'):
-        train_dataset, test_dataset = load_dataset(get_preference_output_file_path(START_DATETIME), tokenizer)
+    print('Loading datasets')
+    train_dataset, test_dataset = load_dataset(get_preference_output_file_path(START_DATETIME))
 
-    # lets find the p95 length of the prompt
-    with progress_status('Finding p95 lengths'):
-        prompt_length, max_seq_length = find_p95_length(train_dataset)
-    print(f'p95 prompt length: {prompt_length}')
-    print(f'p95 prompt + chosen length: {max_seq_length}')
+    tokenizer = get_tokenizer()
 
-    DO_FILTER_P95 = False
-    if DO_FILTER_P95:
-        # filter datasets to remove samples that are too long
-        with progress_status('Filtering datasets'):
-            old_len_train, old_len_test = len(train_dataset), len(test_dataset)
-            train_dataset = filter_by_max_length(train_dataset, max_seq_length)
-            test_dataset = filter_by_max_length(test_dataset, max_seq_length)
-        print(f'len(train_dataset): {len(train_dataset)} -> removed {old_len_train - len(train_dataset)}')
-        print(f'len(test_dataset): {len(test_dataset)} -> removed {old_len_test - len(test_dataset)}')
+    def len_of_input(text) -> int:
+        return len(tokenizer(text)['input_ids'])  # type: ignore
 
-    with progress_status('Loading model'):
-        model = get_model_to_train()
+    # lets find the max length of the prompt
+    print('Finding dataset lengths')
+    prompt_lengths = [len_of_input(x) for x in train_dataset['prompt']]
+    chosen_lengths = [len_of_input(x) for x in train_dataset['chosen']]
+    rejected_lengths = [len_of_input(x) for x in train_dataset['rejected']]
+    prompt_length = max(prompt_lengths)
+    max_seq_length = max(
+        max(prompt + chosen, prompt + rejected)
+        for prompt, chosen, rejected in zip(prompt_lengths, chosen_lengths, rejected_lengths)
+    )
+    print(f'max prompt length: {prompt_length}')
+    print(f'max prompt + chosen length: {max_seq_length}')
 
-    with progress_status('Loading trainer'):
-        trainer = get_trainer(model)
+    print('Loading model')
+    model = get_model_to_train()
+
+    print('Loading trainer')
+    trainer = get_trainer(model, tokenizer, max_seq_length, prompt_length, train_dataset, test_dataset)
 
     # start log_gpu_usage() here on a separate thread
     thread = multiprocessing.Process(
         target=trace_gpu_usage, args=(f'{OUTPUT_DIR}/GPU_usage_during_training_{START_DATETIME}.txt',)
     )
     thread.start()
+
+    create_folder_backup(CURRENT_MODEL_PATH)
 
     try:
         with cuda.amp.autocast():
@@ -353,3 +310,7 @@ if __name__ == '__main__':
     cuda.empty_cache()
 
     merge_and_save_model()
+
+
+if __name__ == '__main__':
+    main()
