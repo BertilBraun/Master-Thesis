@@ -24,7 +24,7 @@ def prompt_for_extract_from_abstracts_custom(abstracts: list[str], examples: lis
         SystemMessage(
             content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
 ```
-Domain: [Short Domain Description]
+Domain: "[Short Domain Description]"
 Competencies:
 - [Competency Name]: [Brief description of how Competency 1 is demonstrated across the abstracts]
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
@@ -43,7 +43,7 @@ Your analysis should be neutral, accurate, and solely based on the content of th
 
 Format the output as follows:
 ```
-Domain: [Short Domain Description]
+Domain: "[Short Domain Description]"
 Competencies:
 - [Competency Name]: [Brief description of how Competency 1 is demonstrated across the abstracts]
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the abstracts]
@@ -107,7 +107,7 @@ Please exclude redundant information such as authors, publication date, and loca
         SystemMessage(
             content="""You are a helpful research assistant tasked with extracting professional competencies from a set of summarized scientific papers. Review all the provided summaries comprehensively to create a unified professional profile that captures the overarching domain of expertise and specific competencies demonstrated across the texts. Format your consolidated findings as follows:
 ```
-Domain: [Short Domain Description]
+Domain: "[Short Domain Description]"
 Competencies:
 - [Competency Name]: [Brief description of how Competency 1 is demonstrated across the summaries]
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
@@ -117,7 +117,20 @@ The domain should succinctly summarize the general area of research. Identify an
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
-            content=f'Please analyze these {len(query.full_texts)} scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:\n\n{summaries}'
+            content=f"""Please analyze these {len(query.full_texts)} scientific paper summaries and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Here are the summaries:
+
+{summaries}
+
+
+The output should be formatted as follows:
+```
+Domain: "[Short Domain Description]"
+Competencies:
+- [Competency Name]: [Brief description of how Competency 1 is demonstrated across the summaries]
+- [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
+...
+```
+The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each.  Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
     ]
 
@@ -137,7 +150,7 @@ def _extract_from_full_texts_custom(
             SystemMessage(
                 content="""You are a helpful research assistant tasked with identifying and cataloging professional competencies from a scientific paper. Extract all relevant competencies demonstrated within the text, and organize them into a structured competency profile as follows:
 ```
-Domain: [Short Domain Description]
+Domain: "[Short Domain Description]"
 Competencies:
 - [Competency Name]: [Detailed explanation of how Competency 1 is demonstrated in the text]
 - [Competency Name]: [Detailed explanation of how Competency 2 is demonstrated in the text]
@@ -154,7 +167,7 @@ The domain should succinctly summarize the general area of research. The compete
 
 The domain should succinctly summarize the general area of research. The competencies should be specific skills or knowledge areas demonstrated in the document. This is the format:
 ```
-Domain: [Short Domain Description]
+Domain: "[Short Domain Description]"
 Competencies:
 - [Competency Name]: [Detailed explanation of how Competency 1 is demonstrated in the text]
 - [Competency Name]: [Detailed explanation of how Competency 2 is demonstrated in the text]
@@ -179,7 +192,7 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
         SystemMessage(
             content="""You are tasked with synthesizing individual competency profiles into a single comprehensive profile. This unified profile should integrate and encapsulate the essence of all the individual profiles provided, formatted as follows:
 ```
-Domain: [Short Consolidated Domain Description]
+Domain: "[Short Consolidated Domain Description]"
 Competencies:
 - [Integrated Competency 1]: [Consolidated description based on individual profiles]
 - [Integrated Competency 2]: [Consolidated description based on individual profiles]
@@ -189,7 +202,20 @@ The domain should succinctly summarize the general area of research over all pro
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f'Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:\n\n{profiles_str}'
+            content=f"""Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:
+
+{profiles_str}
+
+
+The output should be formatted as follows:
+```
+Domain: "[Short Consolidated Domain Description]"
+Competencies:
+- [Integrated Competency 1]: [Consolidated description based on individual profiles]
+- [Integrated Competency 2]: [Consolidated description based on individual profiles]
+...
+```
+The domain should succinctly summarize the general area of research over all profiles and competencies involved. Combine the competencies into 3 to at most 8 competencies to reflect overarching skills and expertise demonstrated across all profiles. Ensure your analysis is neutral and precise, based solely on the content of the profiles provided. Consider the entire set of profiles as one cohesive source for a comprehensive competency overview."""
         ),
     ]
 

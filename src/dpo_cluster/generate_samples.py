@@ -148,7 +148,7 @@ if __name__ == '__main__':
         NUM_THREADS_GENERATE = cuda.device_count()
 
         samples_processed = 0
-        samples_per_thread = min(len(samples_to_generate) // NUM_THREADS_GENERATE, 50)
+        samples_per_thread = min(ceil(len(samples_to_generate) / NUM_THREADS_GENERATE), 50)
 
         while samples_processed < len(samples_to_generate):
             eval_futures: list[Future[list[SampleToEvaluate]]] = []
