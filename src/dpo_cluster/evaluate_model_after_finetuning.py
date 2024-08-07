@@ -100,7 +100,7 @@ def evaluate_model() -> None:
 
 def compare_models() -> bool:
     # TODO remove
-    SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation.json'
+    SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_2.json'
 
     with timeblock('Comparing the current model to the baseline model'):
         # reload the samples with the new profiles

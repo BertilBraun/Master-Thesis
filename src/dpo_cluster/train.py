@@ -199,7 +199,7 @@ def get_trainer(
         gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
-        learning_rate=1e-5,  # 4x higher LR than QLoRA paper
+        learning_rate=5e-6,  # 4x higher LR than QLoRA paper
         max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
