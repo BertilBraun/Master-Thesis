@@ -156,7 +156,7 @@ def load_dataset(
 
     for element in load_json(json_dataset_file):
         sample = PreferenceSample.from_json(element)
-        prompts.append(sample.prompt)
+        prompts.append(sample.prompt.removesuffix('Domain: "'))
         chosens.append(sample.chosen)
         rejecteds.append(sample.rejected)
 
