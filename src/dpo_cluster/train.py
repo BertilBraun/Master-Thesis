@@ -162,24 +162,24 @@ def load_dataset(
 
     ds = Dataset.from_dict({'prompt': prompts, 'chosen': chosens, 'rejected': rejecteds})
 
-    def process(row):
-        return {
-            'prompt': row['prompt'],  # the prompt already has the chat template applied
-            'chosen': tokenizer.apply_chat_template(
-                [{'role': 'assistant', 'content': row['chosen']}],
-                tokenize=False,
-            ),
-            'rejected': tokenizer.apply_chat_template(
-                [{'role': 'assistant', 'content': row['rejected']}],
-                tokenize=False,
-            ),
-        }
-
-    ds = ds.map(
-        process,
-        num_proc=multiprocessing.cpu_count(),
-        load_from_cache_file=False,
-    )
+    # def process(row):
+    #     return {
+    #         'prompt': row['prompt'],  # the prompt already has the chat template applied
+    #         'chosen': tokenizer.apply_chat_template(
+    #             [{'role': 'assistant', 'content': row['chosen']}],
+    #             tokenize=False,
+    #         ),
+    #         'rejected': tokenizer.apply_chat_template(
+    #             [{'role': 'assistant', 'content': row['rejected']}],
+    #             tokenize=False,
+    #         ),
+    #     }
+    #
+    # ds = ds.map(
+    #     process,
+    #     num_proc=multiprocessing.cpu_count(),
+    #     load_from_cache_file=False,
+    # )
 
     ds = ds.train_test_split(test_size=test_percentage, shuffle=True)
 
