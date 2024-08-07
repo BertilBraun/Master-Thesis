@@ -156,9 +156,9 @@ def load_dataset(
 
     for element in load_json(json_dataset_file):
         sample = PreferenceSample.from_json(element)
-        prompts.append(sample.prompt.removesuffix('Domain: "'))
-        chosens.append(sample.chosen)
-        rejecteds.append(sample.rejected)
+        prompts.append(sample.prompt)
+        chosens.append(sample.chosen.removeprefix('Domain: "'))
+        rejecteds.append(sample.rejected.removeprefix('Domain: "'))
 
     ds = Dataset.from_dict({'prompt': prompts, 'chosen': chosens, 'rejected': rejecteds})
 
