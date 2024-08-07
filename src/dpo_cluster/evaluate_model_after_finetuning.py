@@ -15,13 +15,12 @@
 
 
 import random
-import sys
 from typing import Generator
 from torch import cuda
 from tqdm import tqdm
 
 
-from src.log import log
+from src.log import log, ratio
 from src.dpo_cluster.defines import *
 from src.dpo_cluster.llm_util import parse_llm_from_sysargs
 from src.util import json_dumper, load_json, timeblock
@@ -88,17 +87,20 @@ def get_number_of_wins_current_model(samples_to_evaluate: list[SampleForFineTuni
     )
 
 
-def evaluate_model() -> bool:
+def evaluate_model() -> None:
     # Load the samples to evaluate before creating the json_dumper, as the dumper will overwrite the file
-    DO_REEVALUATE_THE_SAMPLES = False
-    if DO_REEVALUATE_THE_SAMPLES:
-        old_samples = load_json(
-            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
-        )
-        with timeblock('Evaluating the model after fine-tuning'):
-            with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
-                for sample in get_samples_for_fine_tuning_improvement_evaluation(old_samples):
-                    dumper(sample)
+    old_samples = load_json(
+        SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
+    )
+    with timeblock('Evaluating the model after fine-tuning'):
+        with json_dumper(SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE) as dumper:
+            for sample in get_samples_for_fine_tuning_improvement_evaluation(old_samples):
+                dumper(sample)
+
+
+def compare_models() -> bool:
+    # TODO remove
+    SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation.json'
 
     with timeblock('Comparing the current model to the baseline model'):
         # reload the samples with the new profiles
@@ -108,13 +110,15 @@ def evaluate_model() -> bool:
         number_of_wins_current_model = get_number_of_wins_current_model(new_samples)
 
     total_samples = len(new_samples)
-    log(f'The current model won {number_of_wins_current_model} times out of {total_samples} samples.')
+    log(f'The current model won {ratio(number_of_wins_current_model, total_samples)}.')
 
     # Return whether the current model is preferred more than the last model
     return number_of_wins_current_model > total_samples * 0.5
 
 
 if __name__ == '__main__':
-    if not evaluate_model():
-        print('The current model is preferred less than the last model. Should keep the last model.')
-        sys.exit(1)  # exit with non-zero exit code to stop the iteration
+    if cuda.is_available():
+        evaluate_model()
+    else:
+        if not compare_models():
+            print('The current model is preferred less than the last model. Should keep the last model.')

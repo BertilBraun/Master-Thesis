@@ -1,8 +1,8 @@
 #!/bin/bash
 
 #SBATCH --job-name=train                   # job name
-#SBATCH --partition=gpu_4_a100 # TODO does that work without gpu_4_a100?             # mby GPU queue for the resource allocation.
-#SBATCH --time=02:00:00  # TODO: set to ~30sec * NUM_SAMPLES_TO_EVALUATE      # wall-clock time limit 
+#SBATCH --partition=gpu_4_a100             # mby GPU queue for the resource allocation.
+#SBATCH --time=08:00:00                    # wall-clock time limit 
 #SBATCH --mem=100000                       # memory per node
 #SBATCH --nodes=1                          # number of nodes to be used
 #SBATCH --cpus-per-task=4                  # number of CPUs required per MPI task
