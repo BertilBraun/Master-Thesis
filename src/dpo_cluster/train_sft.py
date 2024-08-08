@@ -209,6 +209,7 @@ model = AutoModelForCausalLM.from_pretrained(
     attn_implementation='flash_attention_2',  # loading the model with flash-attenstion support
     torch_dtype=torch.bfloat16,
     device_map=None,
+    load_in_8bit=True,
     original_max_position_embeddings=8192 * 2,
 )
 tokenizer = AutoTokenizer.from_pretrained(checkpoint_path)
