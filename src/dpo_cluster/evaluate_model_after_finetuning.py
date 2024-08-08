@@ -99,17 +99,23 @@ def evaluate_model() -> None:
 
 
 def compare_models() -> bool:
-    # TODO remove
-    SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_2.json'
+    baseline_run = load_json(
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_1.json',
+        SampleForFineTuningImprovementEvaluation,
+    )
+    run_to_compare = load_json(
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_3.json',
+        SampleForFineTuningImprovementEvaluation,
+    )
+
+    for sample in run_to_compare:
+        baseline_sample = next((s for s in baseline_run if s.prompt == sample.prompt))
+        sample.best_profile_from_original_model = baseline_sample.best_profile_from_last_model
 
     with timeblock('Comparing the current model to the baseline model'):
-        # reload the samples with the new profiles
-        new_samples = load_json(
-            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
-        )
-        number_of_wins_current_model = get_number_of_wins_current_model(new_samples)
+        number_of_wins_current_model = get_number_of_wins_current_model(run_to_compare)
 
-    total_samples = len(new_samples)
+    total_samples = len(run_to_compare)
     log(f'The current model won {ratio(number_of_wins_current_model, total_samples)}.')
 
     # Return whether the current model is preferred more than the last model

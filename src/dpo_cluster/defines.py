@@ -83,7 +83,7 @@ def get_preference_output_file_path(start_datetime: str) -> str:
     return f'{OUTPUT_DIR}/preferences/{start_datetime}.json'
 
 
-@dataclass(frozen=True)
+@dataclass
 class SampleForFineTuningImprovementEvaluation:
     prompt: str
     abstracts: list[str]

@@ -215,7 +215,11 @@ def load_json(file_name: str, obj_type: Type[FromJsonProtocol[T]] | None = None)
 
     # Datei lesen und JSON laden
     with open(file_name, 'r') as f:
-        json_data = json.load(f)
+        file_content = f.read()
+        try:
+            json_data = json.loads(file_content)
+        except json.JSONDecodeError:
+            json_data = json.loads(file_content + ']')
 
     if obj_type is None:
         return json_data
