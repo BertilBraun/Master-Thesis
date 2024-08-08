@@ -31,7 +31,7 @@ CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-128k-instruct'
 
-NUMBER_OF_EPOCHS_TO_TRAIN = 3
+NUMBER_OF_EPOCHS_TO_TRAIN = 4
 
 
 def trace_gpu_usage(file_name: str):
@@ -196,10 +196,10 @@ def get_trainer(
         num_train_epochs=NUMBER_OF_EPOCHS_TO_TRAIN,  # number of training epochs
         per_device_train_batch_size=4,  # batch size per device during training
         per_device_eval_batch_size=2,  # batch size for evaluation
-        gradient_accumulation_steps=4,  # number of steps before performing a backward/update pass
+        gradient_accumulation_steps=8,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
-        learning_rate=5e-6,  # 4x higher LR than QLoRA paper
+        learning_rate=1e-5,  # 4x higher LR than QLoRA paper
         max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
@@ -235,7 +235,7 @@ def get_trainer(
 def get_model_to_train():
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
-        CURRENT_MODEL_PATH,
+        BASE_MODEL_ID,  # TODO to continue training the current model, set back to CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
         attn_implementation='flash_attention_2',
