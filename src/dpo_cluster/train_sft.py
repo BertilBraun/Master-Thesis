@@ -264,7 +264,6 @@ trainer = SFTTrainer(
     max_seq_length=max_seq_length,
     dataset_text_field='text',
     tokenizer=tokenizer,
-    packing=True,
 )
 train_result = trainer.train()
 metrics = train_result.metrics
