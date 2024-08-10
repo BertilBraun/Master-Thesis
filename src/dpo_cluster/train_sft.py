@@ -24,7 +24,7 @@ from datasets import Dataset
 os.environ['WANDB_DISABLED'] = 'true'
 
 
-TEST_PERCENTAGE = 0.00
+TEST_PERCENTAGE = 0.0001
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
 OUTPUT_DIR = '../../dpo_output'
 
