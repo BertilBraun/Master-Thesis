@@ -200,7 +200,7 @@ def get_trainer(
         gradient_accumulation_steps=8,  # number of steps before performing a backward/update pass
         gradient_checkpointing=True,  # use gradient checkpointing to save memory
         optim='adamw_torch_fused',  # use fused adamw optimizer
-        learning_rate=1e-5,  # 4x higher LR than QLoRA paper
+        learning_rate=2e-5,  # 4x higher LR than QLoRA paper
         max_grad_norm=0.3,  # max gradient norm based on QLoRA paper
         warmup_ratio=0.1,  # warmup ratio based on QLoRA paper
         lr_scheduler_type='cosine',  # use cosine learning rate scheduler
@@ -208,7 +208,7 @@ def get_trainer(
         save_steps=60,  # when to save checkpoint # approx every 30min
         save_total_limit=2,  # limit the total amount of checkpoints
         evaluation_strategy='steps',  # evaluate every 1000 steps
-        eval_steps=240,  # when to evaluate # approx every 2hours
+        eval_steps=2400,  # when to evaluate # approx every 2hours
         bf16=True,  # use bfloat16 precision
         fp16=False,  # use fp16 precision
         tf32=False,  # use tf32 precision

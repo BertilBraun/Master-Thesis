@@ -50,6 +50,12 @@
             "type": "shell",
             "command": "python -m src.dpo_cluster.plot_gpu_usage",
             "problemMatcher": []
+        },
+        {
+            "label": "Evaluate after finetuning",
+            "type": "shell",
+            "command": "python -m src.dpo_cluster.evaluate_model_after_finetuning mlpc",
+            "problemMatcher": []
         }
     ],
     "inputs": [
