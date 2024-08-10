@@ -98,7 +98,7 @@ def evaluate_model() -> None:
                 dumper(sample)
 
 
-def compare_models() -> bool:
+def compare_models() -> None:
     baseline_run = load_json(
         R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_1.json',
         SampleForFineTuningImprovementEvaluation,
@@ -108,6 +108,12 @@ def compare_models() -> bool:
         SampleForFineTuningImprovementEvaluation,
     )
 
+    with timeblock('Comparing the current model to the original model'):
+        number_of_wins_current_model = get_number_of_wins_current_model(run_to_compare)
+
+    total_samples = len(run_to_compare)
+    log(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
+
     for sample in run_to_compare:
         baseline_sample = next((s for s in baseline_run if s.prompt == sample.prompt))
         sample.best_profile_from_original_model = baseline_sample.best_profile_from_last_model
@@ -115,16 +121,11 @@ def compare_models() -> bool:
     with timeblock('Comparing the current model to the baseline model'):
         number_of_wins_current_model = get_number_of_wins_current_model(run_to_compare)
 
-    total_samples = len(run_to_compare)
-    log(f'The current model won {ratio(number_of_wins_current_model, total_samples)}.')
-
-    # Return whether the current model is preferred more than the last model
-    return number_of_wins_current_model > total_samples * 0.5
+    log(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the baseline model')
 
 
 if __name__ == '__main__':
     if cuda.is_available():
         evaluate_model()
     else:
-        if not compare_models():
-            print('The current model is preferred less than the last model. Should keep the last model.')
+        compare_models()

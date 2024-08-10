@@ -19,7 +19,7 @@ from peft import AutoPeftModelForCausalLM, LoraConfig
 from trl import DPOTrainer, DPOConfig
 
 
-TEST_PERCENTAGE = 0.05
+TEST_PERCENTAGE = 0.00
 # WARNING there is a copy of this variable in src/dpo_cluster/train.py
 OUTPUT_DIR = '../../dpo_output'
 
