@@ -1,8 +1,9 @@
+import gc
 import sys
 import logging
 
 import datasets
-from peft import LoraConfig
+from peft import LoraConfig, AutoPeftModelForCausalLM
 import torch
 import transformers
 from trl import SFTTrainer, SFTConfig
@@ -151,8 +152,8 @@ train_conf = SFTConfig(
     seed=0,
     gradient_checkpointing=True,
     gradient_checkpointing_kwargs={'use_reentrant': False},
-    gradient_accumulation_steps=1,
-    warmup_ratio=0.2,
+    gradient_accumulation_steps=4,
+    warmup_ratio=0.1,
     report_to=['tensorboard'],  # report metrics to tensorboard
 )
 peft_conf = LoraConfig(
@@ -196,11 +197,11 @@ logger.info(f'PEFT parameters {peft_conf}')
 checkpoint_path = 'microsoft/Phi-3-mini-128k-instruct'
 model = AutoModelForCausalLM.from_pretrained(
     checkpoint_path,
-    use_cache=False,
     trust_remote_code=True,
-    attn_implementation='flash_attention_2',  # loading the model with flash-attenstion support
-    torch_dtype=torch.bfloat16,
-    device_map=None,
+    device_map='auto',
+    use_cache=False,
+    attn_implementation='flash_attention_2',
+    torch_dtype='auto',
     load_in_8bit=True,
     original_max_position_embeddings=8192 * 2,
 )
@@ -266,23 +267,26 @@ trainer = SFTTrainer(
     tokenizer=tokenizer,
 )
 train_result = trainer.train()
-metrics = train_result.metrics
-trainer.log_metrics('train', metrics)
-trainer.save_metrics('train', metrics)
-trainer.save_state()
-
-
-#############
-# Evaluation
-#############
-# tokenizer.padding_side = 'left'
-# metrics = trainer.evaluate()
-# metrics['eval_samples'] = len(processed_test_dataset)
-# trainer.log_metrics('eval', metrics)
-# trainer.save_metrics('eval', metrics)
 
 
 # ############
 # # Save model
 # ############
 trainer.save_model(train_conf.output_dir)
+
+# free the memory again
+del model
+del trainer
+
+gc.collect()
+torch.cuda.empty_cache()
+
+# Load PEFT model on CPU
+model = AutoPeftModelForCausalLM.from_pretrained(
+    train_conf.output_dir,
+    torch_dtype=torch.float16,
+    low_cpu_mem_usage=True,
+)
+# Merge LoRA and base model and save
+merged_model = model.merge_and_unload()
+merged_model.save_pretrained(train_conf.output_dir + '/merged', safe_serialization=True, max_shard_size='2GB')

@@ -236,7 +236,7 @@ def get_trainer(
 def get_model_to_train():
     # Load model and tokenizer
     return AutoModelForCausalLM.from_pretrained(
-        BASE_MODEL_ID,  # TODO to continue training the current model, set back to CURRENT_MODEL_PATH,
+        CURRENT_MODEL_PATH,
         device_map='auto',
         use_cache=False,
         attn_implementation='flash_attention_2',
