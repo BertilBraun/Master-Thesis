@@ -1,6 +1,8 @@
 import gc
+import multiprocessing
 import sys
 import logging
+from time import sleep
 
 import datasets
 from peft import LoraConfig, AutoPeftModelForCausalLM
@@ -13,6 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 # The script is then responsible to train the current model 'current-finetuned-model' on the Dataset
 # - apparently 3+ epochs are possible (https://x.com/rm_rafailov/status/1751738917613912086)
 
+import GPUtil
 
 from dataclasses import dataclass
 import os
@@ -38,6 +41,41 @@ CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
 BASE_MODEL_ID = 'microsoft/Phi-3-mini-128k-instruct'
 
 NUMBER_OF_EPOCHS_TO_TRAIN = 4
+
+
+def trace_gpu_usage(file_name: str):
+    average_usage = 0
+    average_memory_free = 0
+    average_memory_used = 0
+    average_memory_total = 0
+    average_temperature = 0
+    total_num_samples = 0
+
+    with open(file_name, 'w') as f:
+        while True:
+            for gpu in GPUtil.getGPUs():
+                f.write(f'GPU ID: {gpu.id}, Name: {gpu.name}\n')
+                f.write(f'Belastung: {gpu.load * 100:.1f}%\n')
+                f.write(f'Freier Speicher: {gpu.memoryFree:.2f} MB\n')
+                f.write(f'Verwendeter Speicher: {gpu.memoryUsed:.2f} MB\n')
+                f.write(f'Gesamtspeicher: {gpu.memoryTotal:.2f} MB\n')
+                f.write(f'Temperatur: {gpu.temperature:.2f} C\n')
+                f.write('-' * 40 + '\n')
+                average_usage += gpu.load * 100
+                average_memory_free += gpu.memoryFree
+                average_memory_used += gpu.memoryUsed
+                average_memory_total += gpu.memoryTotal
+                average_temperature += gpu.temperature
+                total_num_samples += 1
+            f.write(f'Average usage: {average_usage / total_num_samples:.1f}%\n')
+            f.write(f'Average memory free: {average_memory_free / total_num_samples:.2f} MB\n')
+            f.write(f'Average memory used: {average_memory_used / total_num_samples:.2f} MB\n')
+            f.write(f'Average memory total: {average_memory_total / total_num_samples:.2f} MB\n')
+            f.write(f'Average temperature: {average_temperature / total_num_samples:.2f} C\n')
+            f.write('=' * 40 + '\n')
+            f.flush()
+
+            sleep(2)
 
 
 def get_preference_output_file_path(start_datetime: str) -> str:
@@ -266,7 +304,20 @@ trainer = SFTTrainer(
     dataset_text_field='text',
     tokenizer=tokenizer,
 )
-train_result = trainer.train()
+
+# start log_gpu_usage() here on a separate thread
+thread = multiprocessing.Process(
+    target=trace_gpu_usage, args=(f'{OUTPUT_DIR}/GPU_usage_during_sft_training_{START_DATETIME}.txt',)
+)
+thread.start()
+
+try:
+    train_result = trainer.train()
+except Exception:
+    thread.terminate()
+    exit()
+finally:
+    thread.terminate()
 
 
 # ############
