@@ -215,6 +215,7 @@ def get_trainer(
         # Currently crashes training group_by_length=True,  # group samples by length for faster training
         push_to_hub=False,  # push model to hub
         report_to=['tensorboard'],  # report metrics to tensorboard
+        log_level='info',
         max_length=max_seq_length,
         max_prompt_length=prompt_length,
         remove_unused_columns=False,
