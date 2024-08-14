@@ -9,11 +9,16 @@ MAX_RETRIES = 1
 
 LOCAL_AI_LOCALHOST = 'http://localhost:8080'
 LOCAL_AI_CODER = 'http://coder.aifb.kit.edu:8080'
-LOCAL_AI_ML_PC = 'http://aifb-bis-gpu01.aifb.kit.edu:8080'  # 'http://mlpc.coder.aifb.kit.edu:8080'
+LOCAL_AI_ML_PC = 'http://mlpc.coder.aifb.kit.edu:8080'
+LOCAL_AI_ML_PC = 'http://aifb-bis-gpu01.aifb.kit.edu:8080'
 
 # LOCAL_AI_ML_PC = LOCAL_AI_CODER  # = LOCAL_AI_LOCALHOST  # TODO temporary until coder is back up
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-...')
+
+CAS_OPENAI_API_KEY = 'sk-ce-service-account-OvzVRsc0DRXVJeCvxiQGT3BlbkFJmcquyYhxboiGGtFxshKi'
+OPENAI_API_KEY = CAS_OPENAI_API_KEY
+
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
 # BASE_URL_* = None # When using the OpenAI API instead of the Local AI
