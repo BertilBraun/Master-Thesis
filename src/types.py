@@ -27,6 +27,23 @@ class Competency:
         match = _COMPETENCY_PATTERN.match(text)
         if match:
             prefix, name, description = match.groups()
+            name = (
+                name.strip()
+                .replace('**', '')
+                .replace('"', '')
+                .replace('“', '')
+                .replace('”', '')
+                .replace('’', '')
+                .replace('‘', '')
+                .replace('[', '')
+                .replace(']', '')
+                .replace('(', '')
+                .replace(')', '')
+                .replace('—', '')
+                .replace('–', '')
+                .replace('•', '')
+                .replace('·', '')
+            )
             return Competency(name=name, description=description)
         log(f'Invalid competency format: {text}.', level=LogLevel.DEBUG)
         return Competency(name=text, description='')
@@ -81,14 +98,14 @@ Competencies:
     def _parse_competencies(text: str) -> list[Competency]:
         # Returns the list of competencies after the first occurrence of 'Competencies:\n' while the competencies are not empty and the line matches the pattern '- [COMPETENCY]: [DESCRIPTION]'
         text = text.replace('\n\n', '\n').replace('**', '')
-        assert 'Competencies:' in text, f'Competencies not found in text: {text}'
-
-        text = text.split('Competencies:')[1]
+        assert 'Domain:' in text, f'Competencies not found in text: {text}'
 
         competencies: list[Competency] = []
-        for line in text.split('\n'):
+        # Find the first line after 'Domain:.*?\n'
+        for line in text.split('Domain:')[1].split('\n')[1:]:
             competency = Competency.parse(line)
-            if competency.name.strip():
+            name_len = len(competency.name.strip())
+            if 6 < name_len < 150 and not competency.name.strip().startswith('Competencies'):
                 competencies.append(competency)
             elif competencies:
                 # If the line doesn't match the pattern and we have already found competencies, we break
@@ -532,6 +549,16 @@ class ExtractedProfile:
             extraction_time=0.0,
         )
 
+    @staticmethod
+    def from_json(data: dict) -> ExtractedProfile:
+        return ExtractedProfile(
+            profile=Profile.from_json(data['profile']),
+            model=data['model'],
+            number_of_examples=data['number_of_examples'],
+            extraction_function=data['extraction_function'],
+            extraction_time=data['extraction_time'],
+        )
+
 
 @dataclass(frozen=True)
 class RankingResult:
@@ -574,6 +601,9 @@ class TournamentNode:
     def all_profiles_in_loser_subtree(self) -> list[int]:
         if not self.children:
             return [self.match.loser]
+
+        if len(self.children) != 2:
+            return []
 
         loser_child = self.children[1 - self.match.preferred_profile_index]
         profiles: list[int] = []

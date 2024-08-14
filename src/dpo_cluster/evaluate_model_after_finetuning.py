@@ -104,7 +104,7 @@ def compare_models() -> None:
         SampleForFineTuningImprovementEvaluation,
     )
     run_to_compare = load_json(
-        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_4.json',
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\dpo_output\samples_for_fine_tuning_improvement_evaluation_after_run_7.json',
         SampleForFineTuningImprovementEvaluation,
     )
 

@@ -93,7 +93,7 @@
         /* Modal Content/Box */
         .modal-content {
             background-color: #fefefe;
-            margin: 15% auto;
+            margin: 5% auto;
             /* 15% from the top and centered */
             padding: 20px;
             border: 1px solid #888;
@@ -142,18 +142,42 @@
     <div id="container"></div>
     <div id="startModal" class="modal" style="display: block;">
         <div class="modal-content">
-            <h1 id="startModalHeading"></h1>
+            <p><strong id="startModalHeading"></strong></p>
 
-            <p>As part of my Master's thesis, we want to evaluate the
-                performance of different extraction systems based on expert evaluations. We performed automatic
-                competence extraction with different methods to extract different profiles of your competencies, which
-                are based on these papers:</p>
+            <p>As part of my Master's thesis, we are evaluating the performance of different extraction systems based on
+                the competencies derived from your research papers. We have automatically extracted different competency
+                profiles using various methods, and we would greatly appreciate your help in evaluating these profiles.
+            </p>
+
+            <h3>Overview</h3>
+            <p>For this evaluation, we have generated several competency profiles based on five of your published
+                papers. These profiles consist of:</p>
+            <ul>
+                <li><strong>Domain:</strong> A concise summary of your general research area.</li>
+                <li><strong>Competencies:</strong> A list of <strong>3</strong> to <strong>8</strong> specific skills or
+                    knowledge areas demonstrated in your papers. Each competency is identified by a name, with a more
+                    detailed description available if needed (which is initially hidden).</li>
+            </ul>
+            <p>Below, you can see the list of papers that we have analyzed to generate these profiles:</p>
             <ul id="titlesList"></ul>
-            <p>You'll be presented with two competency profiles. Please <strong>click on the profile</strong> which you
-                think best represents your competencies. You can click on the dropdown next to each competency for more
-                information, if needed.</p>
 
-            <p>The evaluation should only take about 5 minutes. Your feedback is invaluable and greatly appreciated.</p>
+            <h3>Evaluation Process</h3>
+            <p>You will be guided through an evaluation tree where two competency profiles are compared at each step. We
+                kindly ask you to select the profile that you believe best represents your competencies.</p>
+            <ul>
+                <li><strong>Selection:</strong> Simply click on the profile that you think most accurately reflects your
+                    competencies as well as the format described above.</li>
+                <li><strong>Details:</strong> While the descriptions of the competencies are available, it is typically
+                    sufficient to compare the domain and competency names. If the profiles seem very similar or if you
+                    find it difficult to decide, you may review the detailed descriptions to help form a preference.
+                </li>
+            </ul>
+
+            <h3>Time Commitment</h3>
+            <p>The entire evaluation should take no more than five minutes of your time. Your feedback is invaluable and
+                will significantly contribute to the improvement of our extraction methods.</p>
+
+            <p>Thank you so much for your assistance and your thoughtful feedback!</p>
 
             <button class="button" onclick="startEvaluation()">Start Evaluation</button>
         </div>
@@ -163,6 +187,8 @@
         <!-- Modal content -->
         <div class="modal-content">
             <h2>Submitting Your Evaluations</h2>
+
+            <p><strong>DO NOT CLOSE THIS TAB UNTIL YOU HAVE SUBMITTED YOUR EVALUATIONS.</strong></p>
 
             <p>Thank you for participating in the evaluation.</p>
             <p>If you have any additional comments or feedback, please feel free to include them in the text box below:
@@ -185,11 +211,15 @@
     <script>
         const authorData = "{{authorData}}"; // Replace with actual JSON data
         const isDebug = false;
-        const rankingResults = authorData.ranking_results;
 
-        document.getElementById('startModalHeading').textContent = `Welcome ${authorData.author}!`;
+        document.getElementById('startModalHeading').textContent = `Dear ${authorData.author},`;
         document.getElementById('titlesList').innerHTML = authorData.titles.map(title => `<li>${title}</li>`).join('');
 
+        // Find the element with href="https://tiiny.host?ref=free-site", get its parent, and remove it (if it exists)
+        setInterval(() => {
+            const element = document.querySelector('a[href="https://tiiny.host?ref=free-site"]');
+            if (element) element.parentElement.remove();
+        }, 100);
 
         window.addEventListener('beforeunload', function (e) {
             const evaluationStarted = document.getElementById('startModal').style.display === 'none';
@@ -351,6 +381,8 @@
 
             // Set the leaves as ready
             leaves.forEach(leaf => leaf.is_ready = true);
+            leaves.forEach(leaf => leaf.was_evaluated = leaf.match.profiles[0] === leaf.match.profiles[1]);
+            leaves.forEach(leaf => leaf.match.preferred_profile_index = (leaf.match.profiles[0] === leaf.match.profiles[1]) ? 0 : -1);
 
             function positionNodes(node) {
                 if (node.x !== -1 && node.y !== -1) {

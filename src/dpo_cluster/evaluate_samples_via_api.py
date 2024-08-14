@@ -26,6 +26,7 @@ def evaluate_sample(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSamp
     with log_all_exceptions(f'evaluate for {sample_to_evaluate.author} failed'):
         with timeblock(f'Evaluating sample for {sample_to_evaluate.author}'):
             return process_sample_to_evaluate(sample_to_evaluate)
+    return []
 
 
 def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[PreferenceSample]:
@@ -39,7 +40,7 @@ def process_sample_to_evaluate(sample_to_evaluate: SampleToEvaluate) -> list[Pre
         profile2 = sample_to_evaluate.profiles[profile2_index]
 
         prompt = prompt_for_ranking(profile1, profile2, examples, sample_to_evaluate.abstracts)
-        response = LLM.invoke(prompt, stop=['\n\n\n\n'], temperature=0.2)
+        response = LLM.invoke(prompt, temperature=0.1)
 
         # The output almost never contains a valid JSON, so we need to parse it manually
         return EvaluationResult_from_invalid_response(response)

@@ -77,6 +77,16 @@ Be specific and detailed in your reasoning and provide the number of the preferr
     ]
 
 
+def pseudo_tournament_ranking(
+    extractions: dict[int, ExtractedProfile],
+    do_shuffle: bool = True,
+) -> TournamentNode:
+    def evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
+        return EvaluationResult(reasoning='Pseudo evaluation', preferred_profile=1)
+
+    return run_tournament_ranking(list(extractions.keys()), default_round_evaluator(evaluator), do_shuffle=do_shuffle)
+
+
 def tournament_ranking(
     model: str,
     query: Query,

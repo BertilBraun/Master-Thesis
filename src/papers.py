@@ -73,8 +73,14 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
     for page in reader.pages:
         page_text = page.extract_text()
 
+        # Clean up the text
+
         # Remove the line breaks
         page_text = page_text.replace('-\n', '').replace('\n', ' ')
+
+        # Remove multiple spaces
+        while '  ' in page_text:
+            page_text = page_text.replace('  ', ' ')
 
         # if references are found case insensitive, break the loop
         if 'references' in page_text.lower():
@@ -134,7 +140,7 @@ def get_papers_by_author(
     works = Works().filter(language='en').filter(author={'id': author_id}).filter(has_abstract=True)
     if load_full_text:
         works = works.filter(has_fulltext=True).filter(open_access={'is_oa': True}).filter(fulltext_origin='pdf')
-    papers = works.sort(cited_by_count='desc').get(per_page=number_of_papers * 2)
+    papers = works.sort(cited_by_count='desc').get(per_page=number_of_papers * 10)
 
     full_texts: list[str] = []
     abstracts: list[str] = []
@@ -156,6 +162,8 @@ def get_papers_by_author(
             full_texts.append(paper['abstract'])  # type: ignore
         abstracts.append(paper['abstract'])  # type: ignore
         titles.append(paper['title'])  # type: ignore
+
+    assert len(abstracts) >= number_of_papers, f'Not enough papers found for author {author_name}'
 
     return Query(
         abstracts=abstracts,

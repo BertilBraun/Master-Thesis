@@ -106,9 +106,9 @@ def download(url: str, extension: str = '') -> tuple[bool, str]:
         return True, file_name
 
     try:
-        result = requests.get(url)
-    except:  # noqa
-        log(f'Failed to download file from {url}')
+        result = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'}, timeout=15)
+    except Exception as e:
+        log(f'Failed to download file from {url}: {e}')
         return False, ''
 
     if result.status_code != 200:

@@ -144,6 +144,9 @@ if __name__ == '__main__':
         print()
 
     total_number_of_evaluations = sum(result.total_preference_comparisons for result in results.values()) // 2
+    total_number_of_direct_evaluations = (
+        sum(result.total_direct_preference_comparisons for result in results.values()) // 2
+    )
 
     def get_stats(getter: Callable[[EvaluationIdentifier], Any]):
         unique_criteria = set(getter(key) for key in results.keys())
@@ -153,8 +156,9 @@ if __name__ == '__main__':
     def print_preference_stats(getter: Callable[[EvaluationIdentifier], Any], description: str) -> None:
         for criterion, filtered_results in get_stats(getter):
             total_times_preferred = sum(result.num_times_preferred for result in filtered_results)
+            total_times_directly_preferred = sum(result.num_times_directly_preferred for result in filtered_results)
             print(
-                f'{description}: "{criterion}" - Total Times Preferred: {ratio(total_times_preferred, total_number_of_evaluations)}'
+                f'{description}: "{criterion}" - Total Times Preferred: {ratio(total_times_preferred, total_number_of_evaluations)} - Total Times Directly Preferred: {ratio(total_times_directly_preferred, total_number_of_direct_evaluations)}'
             )
 
     # Print section header

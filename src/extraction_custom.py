@@ -15,6 +15,7 @@ from src.database import (
     get_combination_messages,
     get_example_messages,
 )
+from src.util import log_all_exceptions
 
 
 def prompt_for_extract_from_abstracts_custom(abstracts: list[str], examples: list[Example]) -> list[Message]:
@@ -113,7 +114,7 @@ Competencies:
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
 ...
 ```
-The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each.  Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
         *get_example_messages(summaries, retriever(Example)),
         HumanMessage(
@@ -130,7 +131,7 @@ Competencies:
 - [Competency Name]: [Brief description of how Competency 2 is demonstrated across the summaries]
 ...
 ```
-The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each.  Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
+The domain should succinctly summarize the general area of research. Identify and list 3 to at most 8 competencies, providing concise descriptions for each. Ensure your analysis is neutral and precise, based solely on the content of the summaries provided. Consider the entire set of summaries as one cohesive source for a comprehensive competency overview."""
         ),
     ]
 
@@ -182,7 +183,10 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
     llm_profiles = llm.batch(prompts, stop=['\n\n\n\n'])
 
     # Assuming conversion of profiles to string format and joining them happens here.
-    profiles = [Profile.parse(profile) for profile in llm_profiles]
+    profiles: list[Profile] = []
+    for profile_str in llm_profiles:
+        with log_all_exceptions('Error parsing profile in _extract_from_full_texts_custom'):
+            profiles.append(Profile.parse(profile_str))
     profiles_str = '\n\n'.join(str(profile) for profile in profiles)
 
     # Second Stage: Combining Individual Profiles into a Comprehensive Profile
