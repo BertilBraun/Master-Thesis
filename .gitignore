@@ -20,3 +20,9 @@ results/**
 **/jsonbin_cache/**
 
 dpo_output/**
+
+papers_cache.json
+authors.csv
+src/dpo_cluster/plot_gpu_usage.py
+
+**test**
