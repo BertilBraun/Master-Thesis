@@ -1,5 +1,6 @@
 import gc
 import os
+import time
 from torch import cuda
 from tqdm import tqdm
 
@@ -95,6 +96,8 @@ def evaluate_authors() -> None:
             temperature=0.2,
             max_new_tokens=650,
         )[0]
+
+        time.sleep(10)  # Sleep to avoid CUDA OOM errors
 
         gc.collect()
         cuda.empty_cache()
