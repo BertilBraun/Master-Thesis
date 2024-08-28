@@ -1,8 +1,9 @@
-from itertools import product
 import os
-from time import sleep
 import urllib.parse
+from itertools import product
+from time import sleep
 
+from src.dpo_cluster.extract_from_finetuned_model import get_queries_from_evaluation_folder
 from src.defines import OPENAI_API_KEY
 from src.language_model import OpenAILanguageModel
 from src.evaluation import pseudo_tournament_ranking, tournament_ranking
@@ -22,7 +23,7 @@ from src.display import (
     generate_html_file_for_tournament_evaluation,
     generate_html_file_for_tournament_ranking_result,
 )
-from src.papers import extract_text_from_pdf, get_papers_by_author_cached
+from src.papers import get_papers_by_author_cached
 from src.types import (
     AuthorResult,
     ExtractedProfile,
@@ -342,59 +343,6 @@ if __name__ == '__main__2':
         for i in range(1, 6):
             write_to_file(f'evaluation/{name}/paper{i}.abstract.txt', '')
             write_to_file(f'evaluation/{name}/paper{i}.txt', '')
-
-
-def get_queries_from_evaluation_folder() -> tuple[dict[str, Query], dict[str, str]]:
-    queries: dict[str, Query] = {}
-    emails: dict[str, str] = {}
-
-    for folder in os.listdir('evaluation'):
-        if not os.path.isdir(os.path.join('evaluation', folder)) or 'TODO' in folder:
-            continue
-
-        data = load_json(os.path.join('evaluation', folder, 'data.json'))
-        name = data['name']
-        emails[name] = data['email']
-
-        abstracts = []
-        full_texts = []
-
-        for i in range(1, 6):
-            pdf_path = os.path.join('evaluation', folder, f'paper{i}.pdf')
-            full_text_path = os.path.join('evaluation', folder, f'paper{i}.txt')
-
-            if os.path.exists(pdf_path):
-                # Extract text from PDF
-                full_texts.append(extract_text_from_pdf(pdf_path))
-            elif os.path.exists(full_text_path):
-                with open(full_text_path) as f:
-                    full_texts.append(f.read())
-            else:
-                raise Exception(f'No full text found for {name} paper {i}')
-
-            with open(os.path.join('evaluation', folder, f'paper{i}.abstract.txt')) as f:
-                abstracts.append(f.read())
-
-        abstracts = [a for a in abstracts if a]
-        full_texts = [t for t in full_texts if t]
-        titles = [t for t in data['titles'] if t]
-
-        queries[name] = Query(
-            author=name,
-            titles=titles,
-            abstracts=abstracts,
-            full_texts=full_texts,
-        )
-
-        # assert all(abstracts), f'Empty abstracts found for author {name}'
-        # assert all(full_texts), f'Empty full texts found for author {name}'
-        # assert all(data['titles']), f'Empty titles found for author {name}'
-        #
-        # assert len(queries[name].abstracts) == 5, f'Not enough abstracts found for author {name}'
-        # assert len(queries[name].full_texts) == 5, f'Not enough full texts found for author {name}'
-        # assert len(queries[name].titles) == 5, f'Not enough titles found for author {name}'
-
-    return queries, emails
 
 
 if __name__ == '__main__':
