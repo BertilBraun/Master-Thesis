@@ -197,7 +197,7 @@ def get_model(
         trust_remote_code=True,
         attn_implementation='flash_attention_2' if use_flash_attention else None,
         low_cpu_mem_usage=True,
-        local_files_only=name_or_path.startswith('./'),
+        # local_files_only=name_or_path.startswith('./'),
         # NOTE: This is a hack which seems to work for Phi3 to avoid a bug when the context size crosses 4096 tokens during generation
         original_max_position_embeddings=8192 * 2,
     )

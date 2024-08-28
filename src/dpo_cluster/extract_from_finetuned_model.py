@@ -1,6 +1,7 @@
+import gc
 import os
+from torch import cuda
 from tqdm import tqdm
-
 
 from src.papers import extract_text_from_pdf
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
@@ -94,6 +95,9 @@ def evaluate_authors() -> None:
             temperature=0.2,
             max_new_tokens=650,
         )[0]
+
+        gc.collect()
+        cuda.empty_cache()
 
         with log_all_exceptions(f'Failed to extract profile from response {author=}: {response=}'):
             profile = ExtractedProfile(
