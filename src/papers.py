@@ -62,6 +62,10 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
         with open(full_text_file_name, 'r') as f:
             return verify_is_text(f.read())
 
+    return extract_text_from_pdf(file_name, full_text_file_name)
+
+
+def extract_text_from_pdf(file_name: str, full_text_file_name: str | None = None) -> str | None:
     # Extract the full text from the PDF
     try:
         reader = PdfReader(file_name)
@@ -91,8 +95,9 @@ def load_paper_full_text(paper_oa_url: str) -> str | None:
             full_text += page_text
 
     # Save the full text to a file to avoid re-extraction
-    with open(full_text_file_name, 'w') as f:
-        f.write(full_text)
+    if full_text_file_name:
+        with open(full_text_file_name, 'w') as f:
+            f.write(full_text)
 
     return verify_is_text(full_text)
 

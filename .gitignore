@@ -4,6 +4,7 @@ build/**
 logs/**
 data/**
 downloads/**
+evaluation/**
 .venv/**
 
 **.cache

@@ -23,7 +23,7 @@ def prompt_for_extract_from_abstracts_custom(abstracts: list[str], examples: lis
 
     return [
         SystemMessage(
-            content="""You are a helpful research assistant tasked with analyzing scientific abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated by the author. Format your findings as follows:
+            content="""You are a helpful research assistant tasked with analyzing abstracts to extract professional competencies. For each abstract, identify the primary domain of expertise and list specific competencies demonstrated. Format your findings as follows:
 ```
 Domain: "[Short Domain Description]"
 Competencies:
@@ -37,7 +37,7 @@ Your analysis should be neutral, accurate, and solely based on the content of th
         ),
         *format_example_messages(examples),
         HumanMessage(
-            content=f"""Please analyze these scientific abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.
+            content=f"""Please analyze these abstracts and extract a single professional profile that reflects the competencies and domain of expertise demonstrated throughout. Consider the entire set of abstracts as one cohesive source for a comprehensive competency overview.
             
 {str_abstracts}
 
@@ -138,9 +138,9 @@ The domain should succinctly summarize the general area of research. Identify an
     return llm.invoke_profile_custom(prompt)
 
 
-def _extract_from_full_texts_custom(
+def extract_profiles_from_full_texts_custom(
     query: Query, retriever: RetrieverGetter, llm: LanguageModel
-) -> tuple[list[Profile], Profile]:
+) -> list[Profile]:
     # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
     # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
 
@@ -187,6 +187,21 @@ Ensure your analysis is neutral and precise, based solely on the content of the 
     for profile_str in llm_profiles:
         with log_all_exceptions('Error parsing profile in _extract_from_full_texts_custom'):
             profiles.append(Profile.parse(profile_str))
+
+    return profiles
+
+
+def combine_profiles_into_one(
+    profiles: list[Profile],
+    retriever: RetrieverGetter,
+    llm: LanguageModel,
+) -> Profile:
+    # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
+
+    # First Stage: Extraction of Individual Competency Profiles
+
+    # Assuming conversion of profiles to string format and joining them happens here.
     profiles_str = '\n\n'.join(str(profile) for profile in profiles)
 
     # Second Stage: Combining Individual Profiles into a Comprehensive Profile
@@ -206,7 +221,7 @@ The domain should succinctly summarize the general area of research over all pro
         ),
         *get_combination_messages(profiles_str, retriever(Combination)),
         HumanMessage(
-            content=f"""Please synthesize these {len(query.full_texts)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:
+            content=f"""Please synthesize these {len(profiles)} individual profiles into one comprehensive profile of 3 to at most 8 competencies which reflects the overarching skills and expertise demonstrated across all profiles:
 
 {profiles_str}
 
@@ -223,7 +238,19 @@ The domain should succinctly summarize the general area of research over all pro
         ),
     ]
 
-    return profiles, llm.invoke_profile_custom(prompt)
+    return llm.invoke_profile_custom(prompt)
+
+
+def _extract_from_full_texts_custom(
+    query: Query, retriever: RetrieverGetter, llm: LanguageModel
+) -> tuple[list[Profile], Profile]:
+    # We are summarizing one Paper per Prompt, afterwards combining the extracted competences
+    # NOTE: Throws AssertionError if the model is not able to generate a valid Profile from the papers
+
+    # First Stage: Extraction of Individual Competency Profiles
+    profiles = extract_profiles_from_full_texts_custom(query, retriever, llm)
+
+    return profiles, combine_profiles_into_one(profiles, retriever, llm)
 
 
 def extract_from_full_texts_custom(query: Query, retriever: RetrieverGetter, llm: LanguageModel) -> Profile:

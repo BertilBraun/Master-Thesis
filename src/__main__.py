@@ -22,7 +22,7 @@ from src.display import (
     generate_html_file_for_tournament_evaluation,
     generate_html_file_for_tournament_ranking_result,
 )
-from src.papers import get_papers_by_author_cached
+from src.papers import extract_text_from_pdf, get_papers_by_author_cached
 from src.types import (
     AuthorResult,
     ExtractedProfile,
@@ -30,7 +30,7 @@ from src.types import (
     Instance,
     Query,
 )
-from src.util import load_json, log_all_exceptions, timeblock, timeit
+from src.util import dump_json, load_json, log_all_exceptions, timeblock, timeit, write_to_file
 from src.log import LogLevel, datetime_str, log
 
 
@@ -43,13 +43,13 @@ REFERENCE_GENERATION_MODEL = 'alias-fast-instruct'
 EVALUATION_MODEL = 'alias-large-instruct'
 
 DO_SHUFFLE_DURING_EVALUATION = True
-RUN_EVALUATION = False
+RUN_EVALUATION = True
 
 MODELS = [
     'dev-phi-3-mini',  # 3.8B parameters
-    # TODO reactivate 'dev-phi-3-medium',  # 14B parameters
+    'dev-phi-3-medium',  # 14B parameters
     'alias-large-instruct',  # mixtral 8x7B parameters
-    'alias-fast-instruct',  # TODO deactivate
+    # 'alias-fast-instruct',  # TODO deactivate
     # 'dev-llama-3-large',  # 70B parameters
     # 'dev-llama-3-small',  # 8B parameters
     # 'dev-gemma-large',  # 27B parameters
@@ -161,12 +161,17 @@ def process_author(name: str, number_of_papers: int = 5) -> AuthorResult:
 
 @timeit('Processing Author list')
 def process_author_list(names: list[str], number_of_papers: int = 5) -> list[AuthorResult]:
-    log(f'Processing Authors: {names=} {number_of_papers=}')
-    profiles: dict[str, dict[int, ExtractedProfile]] = {name: {} for name in names}
-
     queries = {
         name: get_papers_by_author_cached(name, number_of_papers=number_of_papers, KIT_only=True) for name in names
     }
+
+    return process_author_map(queries)
+
+
+@timeit('Processing Author list')
+def process_author_map(queries: dict[str, Query]) -> list[AuthorResult]:
+    log(f'Processing Authors: {list(queries.keys())}')
+    profiles: dict[str, dict[int, ExtractedProfile]] = {name: {} for name in queries.keys()}
 
     for model in MODELS:
         for name, query in queries.items():
@@ -191,7 +196,7 @@ def process_author_list(names: list[str], number_of_papers: int = 5) -> list[Aut
             pass  # sleep(120)
 
     # Load profile from finetuned model based on author name
-    for name in names:
+    for name in queries.keys():
         if os.path.exists(f'finetuned_profile_{name}.json'):
             finetuned_profile = ExtractedProfile.from_json(load_json(f'finetuned_profile_{name}.json'))
         else:
@@ -257,8 +262,10 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
         return instance.extract(query, retriever_getter, llm)
 
 
-def generate_mail_for_author_result(result: AuthorResult) -> None:
-    MAIL_TEMPLATE = """**Subject:** Request for Participation in Competency Profile Evaluation
+def generate_mail_for_author_result(result: AuthorResult, email: str, output_folder: str = 'results') -> None:
+    MAIL_TEMPLATE = """
+**Email:** [EMAIL]
+**Subject:** Request for Participation in Competency Profile Evaluation
 
 ---  
     
@@ -291,16 +298,103 @@ Link to the Research Project Kompetenznetzwerk: https://www.for.kit.edu/kompeten
     # Link will be https://evaluation.tiiny.site/Christof%20W%C3%B6ll.evaluation.html for example for Christof Wöll
     link = f'https://evaluation.tiiny.site/{result.author.replace(" ", "%20")}.evaluation.html'
 
-    mail = MAIL_TEMPLATE.replace('[NAME]', result.author).replace('[LINK]', link)
+    mail = MAIL_TEMPLATE.replace('[NAME]', result.author).replace('[LINK]', link).replace('[EMAIL]', email)
 
     base_url = 'https://www.digitalocean.com/community/markdown#?md='
     encoded_content = urllib.parse.quote(mail)
 
     render_link = base_url + encoded_content
 
-    with open(f'results/{result.author}.mail.txt', 'w') as f:
+    with open(f'{output_folder}/{result.author}.mail.txt', 'w') as f:
         f.write(f'Render link: {render_link}\n\n\n\n')
         f.write(mail)
+
+
+if __name__ == '__main__2':
+    ALL_TO_EVALUATE = [
+        ('Jeneesh Kariyottukuniyil', 'muhammed.kariyottukuniyil@kit.edu'),
+        ('Sonia Sonia', 'sonia.sonia@partner.kit.edu'),
+        ('Jia Gao', 'jia.gao3@kit.edu'),
+        ('Oliver Petkau', 'oliver.petkau@pertner.kit.edu'),
+        ('Fabian Li', 'fabian.li2@student.kit.edu'),
+        ('Helmy Pacheco Hernandez', 'helmy.hernandez@kit.edu'),
+        ('Wolfgang Wenzel', 'wolfgang.wenzel@kit.edu'),
+        ('Anna Mauri', 'anna.mauri@kit.edu'),
+        ('Robert Ruprecht', 'robert.ruprecht@kit.edu'),
+        ('Michael Kirsten', 'kirsten@kit.edu'),
+        ('Johannes Schneider', 'johannes.schneider@kit.edu'),
+        ('Marcel Tiepelt', 'marcel.tiepelt@kit.edu'),
+        ('Till Riedel', 'till.riedel@kit.edu'),
+        ('Alexander Welle', 'alexander.welle@kit.edu'),
+        ('Jürgen Pfeil', 'juergen.pfeil@kit.edu'),
+    ]
+
+    for name, email in ALL_TO_EVALUATE:
+        os.makedirs(f'evaluation/{name}', exist_ok=True)
+        dump_json(
+            {
+                'name': name,
+                'email': email,
+                'titles': ['', '', '', '', ''],
+            },
+            f'evaluation/{name}/data.json',
+        )
+        for i in range(1, 6):
+            write_to_file(f'evaluation/{name}/paper{i}.abstract.txt', '')
+            write_to_file(f'evaluation/{name}/paper{i}.txt', '')
+
+
+def get_queries_from_evaluation_folder() -> tuple[dict[str, Query], dict[str, str]]:
+    queries: dict[str, Query] = {}
+    emails: dict[str, str] = {}
+
+    for folder in os.listdir('evaluation'):
+        if not os.path.isdir(os.path.join('evaluation', folder)) or 'TODO' in folder:
+            continue
+
+        data = load_json(os.path.join('evaluation', folder, 'data.json'))
+        name = data['name']
+        emails[name] = data['email']
+
+        abstracts = []
+        full_texts = []
+
+        for i in range(1, 6):
+            pdf_path = os.path.join('evaluation', folder, f'paper{i}.pdf')
+            full_text_path = os.path.join('evaluation', folder, f'paper{i}.txt')
+
+            if os.path.exists(pdf_path):
+                # Extract text from PDF
+                full_texts.append(extract_text_from_pdf(pdf_path))
+            elif os.path.exists(full_text_path):
+                with open(full_text_path) as f:
+                    full_texts.append(f.read())
+            else:
+                raise Exception(f'No full text found for {name} paper {i}')
+
+            with open(os.path.join('evaluation', folder, f'paper{i}.abstract.txt')) as f:
+                abstracts.append(f.read())
+
+        abstracts = [a for a in abstracts if a]
+        full_texts = [t for t in full_texts if t]
+        titles = [t for t in data['titles'] if t]
+
+        queries[name] = Query(
+            author=name,
+            titles=titles,
+            abstracts=abstracts,
+            full_texts=full_texts,
+        )
+
+        # assert all(abstracts), f'Empty abstracts found for author {name}'
+        # assert all(full_texts), f'Empty full texts found for author {name}'
+        # assert all(data['titles']), f'Empty titles found for author {name}'
+        #
+        # assert len(queries[name].abstracts) == 5, f'Not enough abstracts found for author {name}'
+        # assert len(queries[name].full_texts) == 5, f'Not enough full texts found for author {name}'
+        # assert len(queries[name].titles) == 5, f'Not enough titles found for author {name}'
+
+    return queries, emails
 
 
 if __name__ == '__main__':
@@ -326,9 +420,31 @@ if __name__ == '__main__':
 
     if sys.argv[1] == 'author':
         authors_list = ['Sanders', 'Oberweis', 'Stiefelhagen'] if sys.argv[2] == 'all' else [sys.argv[2]]
+
         for result in process_author_list(authors_list):
             log('-' * 50)
             dump_author_result_to_json(result)
             generate_html_file_for_tournament_evaluation(result)
             generate_html_file_for_tournament_ranking_result(result)
-            generate_mail_for_author_result(result)
+            generate_mail_for_author_result(result, result.author + '@kit.edu')
+
+    if sys.argv[1] == 'evaluation':
+        # for each folder in evaluation, process the author
+        # The name and email are stored in the data.json file
+        # There should be 5 papers for each author
+        # Each paper should have an abstract and a full text
+        # The full text should be stored in a files named paper1.txt, paper2.txt, etc. or paper1.pdf, paper2.pdf, etc.
+        # The abstract should be stored in a files named paper1.abstract.txt, paper2.abstract.txt, etc.
+        # In case the full text is a PDF, the first step is to extract the text from the PDF
+        # Then setup a query for each author with the abstracts and full texts
+        # Assert that each query has 5 abstracts and 5 full texts
+
+        queries, emails = get_queries_from_evaluation_folder()
+
+        for result in process_author_map(queries):
+            log('-' * 50)
+            output_folder = f'evaluation/{result.author}'
+            dump_author_result_to_json(result, output_folder)
+            generate_html_file_for_tournament_evaluation(result, output_folder)
+            generate_html_file_for_tournament_ranking_result(result, output_folder)
+            generate_mail_for_author_result(result, emails[result.author], output_folder)

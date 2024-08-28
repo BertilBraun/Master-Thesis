@@ -1,29 +1,27 @@
 from tqdm import tqdm
 
 
-from src.papers import get_papers_by_author_cached
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.dpo_cluster.defines import generate, get_model, get_tokenizer, CURRENT_MODEL_PATH, prompt_messages_to_str
 from src.util import json_dumper, log_all_exceptions
 from src.database import get_retriever_getter
 from src.types import Example, ExtractedProfile, Profile
+from src.__main__ import get_queries_from_evaluation_folder
 
 
-AUTHORS = [
-    'Björn Schwarz',
-]
 NUM_EXAMPLES = 1
 
 
-def evaluate_authors(authors: list[str]) -> None:
+def evaluate_authors() -> None:
     tokenizer = get_tokenizer()
     model = get_model(
         CURRENT_MODEL_PATH + '_run_3',
         load_in_8bit=True,
     )  # Load the currently finetuned model
 
-    for author in tqdm(authors, desc='Evaluating authors'):
-        query = get_papers_by_author_cached(author, load_full_text=False)
+    queries, mails = get_queries_from_evaluation_folder()
+
+    for author, query in tqdm(queries.items(), desc='Evaluating authors'):
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(
             '\n\n'.join(query.abstracts)
         )
@@ -57,4 +55,4 @@ def evaluate_authors(authors: list[str]) -> None:
 
 
 if __name__ == '__main__':
-    evaluate_authors(AUTHORS)
+    evaluate_authors()

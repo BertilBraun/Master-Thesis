@@ -17,30 +17,30 @@ def generate_html_file_for_extraction_result(author_result: AuthorResult):
     _write_and_display(html_content, output_file_path)
 
 
-def generate_html_file_for_tournament_evaluation(author_result: AuthorResult):
+def generate_html_file_for_tournament_evaluation(author_result: AuthorResult, output_folder: str = 'results'):
     json_data = json.dumps(custom_asdict(author_result), indent=4)
     with open('src/template_tournament_evaluation.html', 'r') as file:
         html_template = file.read()
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
 
-    output_file_path = os.path.abspath(f'results/{author_result.author}.evaluation.html')
+    output_file_path = os.path.abspath(f'{output_folder}/{author_result.author}.evaluation.html')
     _write_and_display(html_content, output_file_path)
 
 
-def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult):
+def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult, output_folder: str = 'results'):
     json_data = json.dumps(custom_asdict(author_result), indent=4)
     with open('src/template_tournament_ranking_result.html', 'r') as file:
         html_template = file.read()
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
 
-    output_file_path = os.path.abspath(f'results/{author_result.author}.tournament.html')
+    output_file_path = os.path.abspath(f'{output_folder}/{author_result.author}.tournament.html')
     _write_and_display(html_content, output_file_path)
 
 
-def dump_author_result_to_json(author_result: AuthorResult):
-    output_file_path = os.path.abspath(f'results/{author_result.author}.json')
+def dump_author_result_to_json(author_result: AuthorResult, output_folder: str = 'results'):
+    output_file_path = os.path.abspath(f'{output_folder}/{author_result.author}.json')
     with open(output_file_path, 'w') as file:
         json.dump(custom_asdict(author_result), file, indent=4)
 

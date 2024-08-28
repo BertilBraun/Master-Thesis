@@ -128,6 +128,8 @@ def text_similarity(a: str, b: str) -> float:
     # count the words in a that are in b including the number of times they appear -> all words of a are in b -> 1
     c = Counter(a.split())
     d = Counter(b.split())
+    if len(c) == 0:
+        return 0
     return sum((c & d).values()) / sum(c.values())
 
 
@@ -162,7 +164,7 @@ def write_to_file(file_name: str, content: str) -> None:
     dir_name = os.path.dirname(file_name)
     if dir_name:
         os.makedirs(dir_name, exist_ok=True)
-    with open(file_name, 'w') as f:
+    with open(file_name, 'w', encoding='utf8') as f:
         f.write(content)
 
 
@@ -186,7 +188,7 @@ def custom_asdict(obj):
 
 
 def dump_json(obj: Any, file_name: str) -> None:
-    write_to_file(file_name, json.dumps(custom_asdict(obj), indent=4))
+    write_to_file(file_name, json.dumps(custom_asdict(obj), indent=4, ensure_ascii=False))
 
 
 T = TypeVar('T')
@@ -302,3 +304,15 @@ def log_all_exceptions(message: str = ''):
         import traceback
 
         traceback.print_exc()
+
+
+def chunked_iterate(data: list[T], chunk_size: int) -> Generator[list[T], None, None]:
+    assert chunk_size >= 1
+    chunk: list[T] = []
+    for element in data:
+        chunk.append(element)
+        if len(chunk) == chunk_size:
+            yield chunk
+            chunk = []
+    if chunk:
+        yield chunk
