@@ -1,7 +1,12 @@
+from collections import Counter
 import os
 from dataclasses import dataclass
 from typing import Any, Callable
 
+import numpy as np
+import pandas as pd
+
+from src.dpo_cluster.extract_from_finetuned_model import get_queries_from_evaluation_folder
 from src.log import ratio
 from src.evaluation import get_all_preferences
 from src.types import AuthorResult, ExtractedProfile
@@ -81,6 +86,8 @@ def process_tournament(author_result: AuthorResult) -> dict[EvaluationIdentifier
             )
 
     for node in author_result.tournament.all_nodes:
+        if len(node.match.profiles) < 2 or node.match.profiles[0] == node.match.profiles[1]:
+            continue
         for i, profile in enumerate(node.match.profiles):
             results[EvaluationIdentifier.from_profile(author_result.profiles[profile])] += EvaluationResult(
                 num_times_directly_preferred=1 if i == node.match.preferred_profile_index else 0,
@@ -94,16 +101,73 @@ def get_all_json_files(directory: str) -> list[str]:
     return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.json')]
 
 
-def get_all_jsons():
-    for file_path in get_all_json_files('results'):
-        yield load_json(file_path)
+def _get_all_jsons():
+    import src.defines
+    from src.old_dpo.jsonbin import JsonBin
 
-    # TODO: Re-enable this
-    # import src.defines
-    # from src.dpo.jsonbin import JsonBin
-    # jsonbin = JsonBin(src.defines.JSONBIN_API_KEY)
-    # for bin_id in jsonbin.bins():
-    #     yield jsonbin.bin(bin_id)
+    jsonbin = JsonBin(src.defines.JSONBIN_API_KEY)
+    all_jsons_from_manual = [jsonbin.bin(bin_id) for bin_id in jsonbin.bins()]
+
+    queries, emails = get_queries_from_evaluation_folder('evaluation/_DONE')
+
+    all_jsons_from_automatic = [load_json(f'evaluation/_DONE/{author}/{author}.json') for author in queries.keys()]
+
+    authors = Counter(
+        [AuthorResult.from_json(data).author for data in all_jsons_from_manual + all_jsons_from_automatic]
+    )
+
+    manuals, automatics = [], []
+    for author, count in authors.items():
+        if count > 1:
+            for data in all_jsons_from_manual:
+                if AuthorResult.from_json(data).author == author:
+                    manuals.append(data)
+            for data in all_jsons_from_automatic:
+                if AuthorResult.from_json(data).author == author:
+                    automatics.append(data)
+
+    return manuals, automatics
+
+
+def get_all_manual_jsons():
+    manuals, automatics = _get_all_jsons()
+
+    return manuals
+
+
+def get_all_automatic_jsons():
+    manuals, automatics = _get_all_jsons()
+
+    return automatics
+
+
+def get_evaluation_results(all_jsons: list) -> tuple[dict[EvaluationIdentifier, EvaluationResult], int, int]:
+    results: dict[EvaluationIdentifier, EvaluationResult] = {}
+    total_times_profile1_preferred = 0
+    total_nodes = 0
+
+    for data in all_jsons:
+        author_result = AuthorResult.from_json(data)
+        for evaluation_identifier, evaluation_result in process_tournament(author_result).items():
+            if evaluation_identifier in results:
+                results[evaluation_identifier] += evaluation_result
+            else:
+                results[evaluation_identifier] = evaluation_result
+
+        total_times_profile1_preferred += sum(
+            1
+            for node in author_result.tournament.all_nodes
+            if node.match.preferred_profile_index == 0
+            and len(node.match.profiles) == 2
+            and node.match.profiles[0] != node.match.profiles[1]
+        )
+        total_nodes += sum(
+            1
+            for node in author_result.tournament.all_nodes
+            if len(node.match.profiles) == 2 and node.match.profiles[0] != node.match.profiles[1]
+        )
+
+    return results, total_times_profile1_preferred, total_nodes
 
 
 if __name__ == '__main__':
@@ -117,22 +181,7 @@ if __name__ == '__main__':
     # - For number of examples - how often was it preferred
     # - For each extraction method and model - how long did extraction take
 
-    results: dict[EvaluationIdentifier, EvaluationResult] = {}
-    total_times_profile1_preferred = 0
-    total_nodes = 0
-
-    for data in get_all_jsons():
-        author_result = AuthorResult.from_json(data)
-        for evaluation_identifier, evaluation_result in process_tournament(author_result).items():
-            if evaluation_identifier in results:
-                results[evaluation_identifier] += evaluation_result
-            else:
-                results[evaluation_identifier] = evaluation_result
-
-        total_times_profile1_preferred += sum(
-            1 for node in author_result.tournament.all_nodes if node.match.preferred_profile_index == 0
-        )
-        total_nodes += len(author_result.tournament.all_nodes)
+    results, total_times_profile1_preferred, total_nodes = get_evaluation_results(get_all_manual_jsons())
 
     for evaluation_identifier, evaluation_result in results.items():
         print(
@@ -148,10 +197,10 @@ if __name__ == '__main__':
         sum(result.total_direct_preference_comparisons for result in results.values()) // 2
     )
 
-    def get_stats(getter: Callable[[EvaluationIdentifier], Any]):
-        unique_criteria = set(getter(key) for key in results.keys())
+    def get_stats(getter: Callable[[EvaluationIdentifier], Any], data=results):
+        unique_criteria = set(getter(key) for key in data.keys())
         for criterion in sorted(unique_criteria):
-            yield criterion, [value for key, value in results.items() if getter(key) == criterion]
+            yield criterion, [value for key, value in data.items() if getter(key) == criterion]
 
     def print_preference_stats(getter: Callable[[EvaluationIdentifier], Any], description: str) -> None:
         for criterion, filtered_results in get_stats(getter):
@@ -196,3 +245,87 @@ if __name__ == '__main__':
     print_preference_stats(lambda x: (x.model, x.extraction_method), 'Model, Method')
 
     print(f'\nTotal Times Profile 1 Preferred: {ratio(total_times_profile1_preferred,total_nodes)}')
+
+    automatic_eval_results, automatic_total_times_profile1_preferred, automatic_total_nodes = get_evaluation_results(
+        get_all_automatic_jsons()
+    )
+    automatic_total_number_of_evaluations = (
+        sum(result.total_preference_comparisons for result in automatic_eval_results.values()) // 2
+    )
+    automatic_total_number_of_direct_evaluations = (
+        sum(result.total_direct_preference_comparisons for result in automatic_eval_results.values()) // 2
+    )
+
+    def print_correlation_stats(getter: Callable[[EvaluationIdentifier], Any], description: str) -> None:
+        mp = {criterion: filtered_results for criterion, filtered_results in get_stats(getter, automatic_eval_results)}
+
+        results = []
+
+        for criterion, filtered_results in get_stats(getter):
+            automatic_filtered_results = mp[criterion]
+            total_times_preferred = sum(result.num_times_preferred for result in filtered_results)
+            automatic_total_times_preferred = sum(result.num_times_preferred for result in automatic_filtered_results)
+            total_times_directly_preferred = sum(result.num_times_directly_preferred for result in filtered_results)
+            automatic_total_times_directly_preferred = sum(
+                result.num_times_directly_preferred for result in automatic_filtered_results
+            )
+
+            mean_preferred = np.mean(
+                [
+                    total_times_preferred / total_number_of_evaluations,
+                    automatic_total_times_preferred / automatic_total_number_of_evaluations,
+                ]
+            )
+            mean_directly_preferred = np.mean(
+                [
+                    total_times_directly_preferred / total_number_of_direct_evaluations,
+                    automatic_total_times_directly_preferred / automatic_total_number_of_direct_evaluations,
+                ]
+            )
+            std_preferred = np.std(
+                [
+                    total_times_preferred / total_number_of_evaluations,
+                    automatic_total_times_preferred / automatic_total_number_of_evaluations,
+                ]
+            )
+            std_directly_preferred = np.std(
+                [
+                    total_times_directly_preferred / total_number_of_direct_evaluations,
+                    automatic_total_times_directly_preferred / automatic_total_number_of_evaluations,
+                ]
+            )
+
+            if (
+                total_times_preferred / total_number_of_evaluations
+                < automatic_total_times_preferred / automatic_total_number_of_evaluations
+            ):
+                std_preferred = -std_preferred
+            if (
+                total_times_directly_preferred / total_number_of_direct_evaluations
+                < automatic_total_times_directly_preferred / automatic_total_number_of_direct_evaluations
+            ):
+                std_directly_preferred = -std_directly_preferred
+
+            results.append(
+                {
+                    description: criterion,
+                    'Mean': f'{mean_preferred:.2f}',
+                    'STD': f'{std_preferred:.2f}',
+                    'DMean': f'{mean_directly_preferred:.2f}',
+                    'DSTD': f'{std_directly_preferred:.2f}',
+                    'TTP': f'{ratio(total_times_preferred, total_number_of_evaluations)}',
+                    'TTDP': f'{ratio(total_times_directly_preferred, total_number_of_direct_evaluations)}',
+                }
+            )
+
+        df_results = pd.DataFrame(results)
+        df_results.set_index([description], inplace=True)
+        print(df_results)
+
+    print_correlation_stats(lambda x: x.model, 'Model')
+    print_correlation_stats(lambda x: x.extraction_method, 'Method')
+    print_correlation_stats(lambda x: (x.model, x.extraction_method), 'Model, Method')
+
+    print(
+        '\n\nSTD is positive if the manual evaluation is preferred more than the automatic evaluation. F.e. the automatic evaluation is preferred in 60% of the cases and the manual evaluation in 40% of the cases. The STD is then -0.1 with a mean of 0.5.'
+    )

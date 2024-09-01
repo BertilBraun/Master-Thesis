@@ -198,8 +198,8 @@ def process_author_map(queries: dict[str, Query]) -> list[AuthorResult]:
 
     # Load profile from finetuned model based on author name
     for name in queries.keys():
-        if os.path.exists(f'finetuned_profile_{name}.json'):
-            finetuned_profile = ExtractedProfile.from_json(load_json(f'finetuned_profile_{name}.json'))
+        if os.path.exists(f'evaluation/finetuned_profile_{name}.json'):
+            finetuned_profile = ExtractedProfile.from_json(load_json(f'evaluation/finetuned_profile_{name}.json'))
         else:
             finetuned_profile = ExtractedProfile.from_profile(Profile('None Existant Finetuning Extraction', []))
 
@@ -265,14 +265,14 @@ def run_query_for_instance(instance: Instance, query: Query) -> Profile | None:
 
 def generate_mail_for_author_result(result: AuthorResult, email: str, output_folder: str = 'results') -> None:
     MAIL_TEMPLATE = """
-**Email:** [EMAIL]
+**Email:** [[EMAIL]](mailto:[EMAIL])  
 **Subject:** Request for Participation in Competency Profile Evaluation
 
 ---  
     
 Dear [NAME],
 
-I hope this mail finds you well. As part of my Master's thesis and the research project [Kompetenznetzwerk](https://www.for.kit.edu/kompetenznetzwerk.php) of the KIT, I am conducting a study to evaluate the accuracy of various methods for automatically extracting competency profiles from research papers. Your expertise and feedback would be immensely valuable to this research.
+I hope this mail finds you well. As part of my Master's thesis and the research project [Kompetenznetzwerk](https://bis.aifb.kit.edu/317_389.php) of the KIT, I am conducting a study to evaluate the accuracy of various methods for automatically extracting competency profiles from research papers. Your expertise and feedback would be immensely valuable to this research.
 
 The evaluation involves comparing personalized competency profiles that have been generated based on your five most cited papers. Since these profiles are derived from your own work, your input is crucial in determining which profile best reflects your competencies. The process should take no more than five minutes of your time, and detailed instructions are provided directly on the webpage to guide you through each step.
 
@@ -294,10 +294,9 @@ KIT - Karlsruhe Institute of Technology
 ---
 
 Link to the evaluation page: [LINK]  
-Link to the Research Project Kompetenznetzwerk: https://www.for.kit.edu/kompetenznetzwerk.php"""
+Link to the Research Project Kompetenznetzwerk: https://bis.aifb.kit.edu/317_389.php"""
 
-    # Link will be https://evaluation.tiiny.site/Christof%20W%C3%B6ll.evaluation.html for example for Christof Wöll
-    link = f'https://evaluation.tiiny.site/{result.author.replace(" ", "%20")}.evaluation.html'
+    link = f'https://evaluation.tiiny.site/{result.author.replace(" ", "%20")}/{result.author.replace(" ", "%20")}.evaluation.html'
 
     mail = MAIL_TEMPLATE.replace('[NAME]', result.author).replace('[LINK]', link).replace('[EMAIL]', email)
 
@@ -396,3 +395,14 @@ if __name__ == '__main__':
             generate_html_file_for_tournament_evaluation(result, output_folder)
             generate_html_file_for_tournament_ranking_result(result, output_folder)
             generate_mail_for_author_result(result, emails[result.author], output_folder)
+
+    if sys.argv[1] == 'regenerate':
+        base_folder = 'evaluation/_DONE'
+        queries, emails = get_queries_from_evaluation_folder(base_folder)
+
+        for name in queries.keys():
+            output_folder = f'{base_folder}/{name}'
+            result = AuthorResult.from_json(load_json(f'{output_folder}/{name}.json'))
+            generate_mail_for_author_result(result, emails[result.author], output_folder)
+            generate_html_file_for_tournament_evaluation(result, output_folder)
+            generate_html_file_for_tournament_ranking_result(result, output_folder)

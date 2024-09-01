@@ -7,7 +7,7 @@ from tqdm import tqdm
 from src.papers import extract_text_from_pdf
 from src.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.dpo_cluster.defines import generate, get_model, get_tokenizer, CURRENT_MODEL_PATH, prompt_messages_to_str
-from src.util import json_dumper, load_json, log_all_exceptions
+from src.util import dump_json, load_json, log_all_exceptions
 from src.database import get_retriever_getter
 from src.types import Example, ExtractedProfile, Profile, Query
 
@@ -15,15 +15,15 @@ from src.types import Example, ExtractedProfile, Profile, Query
 NUM_EXAMPLES = 1
 
 
-def get_queries_from_evaluation_folder() -> tuple[dict[str, Query], dict[str, str]]:
+def get_queries_from_evaluation_folder(base_folder: str = 'evaluation') -> tuple[dict[str, Query], dict[str, str]]:
     queries: dict[str, Query] = {}
     emails: dict[str, str] = {}
 
-    for folder in os.listdir('evaluation'):
-        if not os.path.isdir(os.path.join('evaluation', folder)) or 'TODO' in folder:
+    for folder in os.listdir(base_folder):
+        if not os.path.isdir(os.path.join(base_folder, folder)) or 'TODO' in folder or 'DONE' in folder:
             continue
 
-        data = load_json(os.path.join('evaluation', folder, 'data.json'))
+        data = load_json(os.path.join(base_folder, folder, 'data.json'))
         name = data['name']
         emails[name] = data['email']
 
@@ -31,8 +31,8 @@ def get_queries_from_evaluation_folder() -> tuple[dict[str, Query], dict[str, st
         full_texts = []
 
         for i in range(1, 6):
-            pdf_path = os.path.join('evaluation', folder, f'paper{i}.pdf')
-            full_text_path = os.path.join('evaluation', folder, f'paper{i}.txt')
+            pdf_path = os.path.join(base_folder, folder, f'paper{i}.pdf')
+            full_text_path = os.path.join(base_folder, folder, f'paper{i}.txt')
 
             if os.path.exists(pdf_path):
                 # Extract text from PDF
@@ -43,7 +43,7 @@ def get_queries_from_evaluation_folder() -> tuple[dict[str, Query], dict[str, st
             else:
                 raise Exception(f'No full text found for {name} paper {i}')
 
-            with open(os.path.join('evaluation', folder, f'paper{i}.abstract.txt')) as f:
+            with open(os.path.join(base_folder, folder, f'paper{i}.abstract.txt')) as f:
                 abstracts.append(f.read())
 
         abstracts = [a for a in abstracts if a]
@@ -111,8 +111,7 @@ def evaluate_authors() -> None:
                 extraction_time=0,
             )
 
-            with json_dumper(f'finetuned_profile_{author}.json') as dumper:
-                dumper(profile)
+            dump_json(profile, f'finetuned_profile_{author}.json')
 
 
 if __name__ == '__main__':
