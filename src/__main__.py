@@ -194,7 +194,7 @@ def process_author_map(queries: dict[str, Query]) -> list[AuthorResult]:
                     profiles[name][len(profiles[name]) + 1] = extracted_profile
 
         if model != MODELS[-1]:
-            pass  # sleep(120)
+            sleep(120)
 
     # Load profile from finetuned model based on author name
     for name in queries.keys():

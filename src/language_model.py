@@ -177,7 +177,14 @@ class OpenAILanguageModel(LanguageModel):
         if response_format == 'json_object':
             # result = result from first { to last } inclusive
             # result = result[result.find('{') : result.rfind('}') + 1]
-            result = JSONParser().parse(result)
+            try:
+                result = JSONParser().parse(result)
+            except Exception as e:
+                log(
+                    f'Error: Failed to parse JSON response for model {self.model} with debug context {self.debug_context_name}: {e}',
+                    level=LogLevel.WARNING,
+                )
+                return False, 'Error: Failed to parse JSON response'
 
         log(f'Response: {result}', level=LogLevel.DEBUG)
 

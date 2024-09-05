@@ -171,6 +171,77 @@ def get_evaluation_results(all_jsons: list) -> tuple[dict[EvaluationIdentifier, 
 
 
 if __name__ == '__main__':
+    from src.evaluation import tournament_ranking
+
+    results = [AuthorResult.from_json(data) for data in get_all_automatic_jsons()]
+    queries, emails = get_queries_from_evaluation_folder('evaluation/_DONE')
+    EVALUATION_MODEL = 'dev-llama-3-large'  # 'alias-large-instruct'  #
+
+    # evaluate self consistency of the leafes
+    missmatches = 0
+    profile_1_preferred = 0
+    times_missmatched_and_profile_1_preferred = 0
+    times_missmatched_and_profile_2_preferred = 0
+    evaluations = 0
+    for result in results:
+        query = queries[result.author]
+        for node in result.tournament.all_leafes:
+            if node.match.profiles[0] == node.match.profiles[1]:
+                continue
+            print(f'Evaluating {result.author} for {node.match.profiles}')
+
+            res1 = tournament_ranking(
+                EVALUATION_MODEL,
+                query,
+                {
+                    node.match.profiles[0]: result.profiles[node.match.profiles[0]],
+                    node.match.profiles[1]: result.profiles[node.match.profiles[1]],
+                },
+                do_shuffle=False,
+            )
+
+            res2 = tournament_ranking(
+                EVALUATION_MODEL,
+                query,
+                {
+                    node.match.profiles[1]: result.profiles[node.match.profiles[1]],
+                    node.match.profiles[0]: result.profiles[node.match.profiles[0]],
+                },
+                do_shuffle=False,
+            )
+
+            print('Res1:', res1.match.winner, 'Res2:', res2.match.winner)
+            print('Reasoning1:', res1.match.reasoning)
+            print('Reasoning2:', res2.match.reasoning)
+            print('\n\n\n\n')
+
+            profile_1_preferred += res1.match.preferred_profile_index == 0
+            profile_1_preferred += res2.match.preferred_profile_index == 0
+            missmatches += res1.match.winner != res2.match.winner
+            if res1.match.winner != res2.match.winner:
+                if res1.match.preferred_profile_index == 0:
+                    times_missmatched_and_profile_1_preferred += 1
+                else:
+                    times_missmatched_and_profile_2_preferred += 1
+                if res2.match.preferred_profile_index == 0:
+                    times_missmatched_and_profile_1_preferred += 1
+                else:
+                    times_missmatched_and_profile_2_preferred += 1
+            evaluations += 1
+
+    print(f'Missmatches: {missmatches} / {evaluations} ({missmatches / evaluations * 100:.2f}%)')
+    print(
+        f'Profile 1 preferred: {profile_1_preferred} / {evaluations * 2} ({profile_1_preferred / evaluations * 50:.2f}%)'
+    )
+    print(
+        f'Times missmatched and profile 1 preferred: {times_missmatched_and_profile_1_preferred} / {missmatches * 2} ({times_missmatched_and_profile_1_preferred / missmatches * 50:.2f}%)'
+    )
+    print(
+        f'Times missmatched and profile 2 preferred: {times_missmatched_and_profile_2_preferred} / {missmatches * 2} ({times_missmatched_and_profile_2_preferred / missmatches * 50:.2f}%)'
+    )
+
+
+if __name__ == '__main__2':
     # load the evaluation results
     # get all the preferences from the tournaments
 
@@ -202,8 +273,8 @@ if __name__ == '__main__':
         for criterion in sorted(unique_criteria):
             yield criterion, [value for key, value in data.items() if getter(key) == criterion]
 
-    def print_preference_stats(getter: Callable[[EvaluationIdentifier], Any], description: str) -> None:
-        for criterion, filtered_results in get_stats(getter):
+    def print_preference_stats(getter: Callable[[EvaluationIdentifier], Any], description: str, data=results) -> None:
+        for criterion, filtered_results in get_stats(getter, data=data):
             total_times_preferred = sum(result.num_times_preferred for result in filtered_results)
             total_times_directly_preferred = sum(result.num_times_directly_preferred for result in filtered_results)
             print(
@@ -329,3 +400,11 @@ if __name__ == '__main__':
     print(
         '\n\nSTD is positive if the manual evaluation is preferred more than the automatic evaluation. F.e. the automatic evaluation is preferred in 60% of the cases and the manual evaluation in 40% of the cases. The STD is then -0.1 with a mean of 0.5.'
     )
+
+    def X(x):
+        if x.extraction_method in ('finetuning', 'extract_from_abstracts_custom'):
+            return x.model
+        return ''
+
+    print_preference_stats(X, 'Model, Method')
+    print_preference_stats(X, 'Model, Method', automatic_eval_results)
