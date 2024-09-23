@@ -310,6 +310,52 @@ Link to the Research Project Kompetenznetzwerk: https://bis.aifb.kit.edu/317_389
         f.write(mail)
 
 
+def generate_follow_up_mail_for_author_result(result: AuthorResult, email: str, output_folder: str = 'results') -> None:
+    MAIL_TEMPLATE = """
+**Email:** [[EMAIL]](mailto:[EMAIL])  
+**Subject:** Reminder: Competency Profile Evaluation for Research Project
+
+---  
+    
+Dear [NAME],
+
+
+I hope you're doing well. I wanted to send a quick follow-up regarding the evaluation for my Master’s thesis, which is part of the research project [Kompetenznetzwerk](https://bis.aifb.kit.edu/317_389.php) at KIT.
+
+If you haven’t had the chance yet to complete the evaluation, I would greatly appreciate your participation. It involves reviewing personalized competency profiles generated from your five most cited papers and should take no more than five minutes. Your feedback is crucial to the success of this research.
+
+The evaluation period ends this Friday, and your input would be extremely valuable.
+
+**[Start the Evaluation]([LINK])**
+
+Thank you very much for your time and consideration. Please feel free to reach out if you have any questions.
+
+Best regards,  
+Bertil Braun  
+
+KIT - Karlsruhe Institute of Technology  
+[bertil.braun@student.kit.edu](mailto:bertil.braun@student.kit.edu)  
++49 1525 3810140
+
+---
+
+Link to the evaluation page: [LINK]  
+Link to the Research Project Kompetenznetzwerk: https://bis.aifb.kit.edu/317_389.php"""
+
+    link = f'https://evaluation.tiiny.site/{result.author.replace(" ", "%20")}/{result.author.replace(" ", "%20")}.evaluation.html'
+
+    mail = MAIL_TEMPLATE.replace('[NAME]', result.author).replace('[LINK]', link).replace('[EMAIL]', email)
+
+    base_url = 'https://www.digitalocean.com/community/markdown#?md='
+    encoded_content = urllib.parse.quote(mail)
+
+    render_link = base_url + encoded_content
+
+    with open(f'{output_folder}/{result.author}.follow_up_mail.txt', 'w') as f:
+        f.write(f'Render link: {render_link}\n\n\n\n')
+        f.write(mail)
+
+
 if __name__ == '__main__2':
     ALL_TO_EVALUATE = [
         ('Jeneesh Kariyottukuniyil', 'muhammed.kariyottukuniyil@kit.edu'),
@@ -404,5 +450,6 @@ if __name__ == '__main__':
             output_folder = f'{base_folder}/{name}'
             result = AuthorResult.from_json(load_json(f'{output_folder}/{name}.json'))
             generate_mail_for_author_result(result, emails[result.author], output_folder)
+            generate_follow_up_mail_for_author_result(result, emails[result.author], output_folder)
             generate_html_file_for_tournament_evaluation(result, output_folder)
             generate_html_file_for_tournament_ranking_result(result, output_folder)

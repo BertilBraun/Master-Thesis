@@ -102,5 +102,5 @@ if __name__ == '__main__':
 
         accumulated_df = pd.concat([accumulated_df, df], ignore_index=True)
 
-    plot_correlations(df)
+        plot_correlations(df)
     plot_correlations(accumulated_df)

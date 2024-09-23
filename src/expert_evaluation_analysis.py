@@ -5,6 +5,8 @@ from typing import Any, Callable
 
 import numpy as np
 import pandas as pd
+from tqdm import tqdm
+
 
 from src.dpo_cluster.extract_from_finetuned_model import get_queries_from_evaluation_folder
 from src.log import ratio
@@ -108,9 +110,9 @@ def _get_all_jsons():
     jsonbin = JsonBin(src.defines.JSONBIN_API_KEY)
     all_jsons_from_manual = [jsonbin.bin(bin_id) for bin_id in jsonbin.bins()]
 
-    queries, emails = get_queries_from_evaluation_folder('evaluation/_DONE')
+    queries, emails = get_queries_from_evaluation_folder('evaluation/_DONE_DONE')
 
-    all_jsons_from_automatic = [load_json(f'evaluation/_DONE/{author}/{author}.json') for author in queries.keys()]
+    all_jsons_from_automatic = [load_json(f'evaluation/_DONE_DONE/{author}/{author}.json') for author in queries.keys()]
 
     authors = Counter(
         [AuthorResult.from_json(data).author for data in all_jsons_from_manual + all_jsons_from_automatic]
@@ -125,6 +127,10 @@ def _get_all_jsons():
             for data in all_jsons_from_automatic:
                 if AuthorResult.from_json(data).author == author:
                     automatics.append(data)
+
+    for data in all_jsons_from_manual:
+        if data['feedback']:
+            print(f'Feedback from {AuthorResult.from_json(data).author}: {data["feedback"]}')
 
     return manuals, automatics
 
@@ -170,7 +176,7 @@ def get_evaluation_results(all_jsons: list) -> tuple[dict[EvaluationIdentifier, 
     return results, total_times_profile1_preferred, total_nodes
 
 
-if __name__ == '__main__':
+if __name__ == '__main__2':
     from src.evaluation import tournament_ranking
 
     results = [AuthorResult.from_json(data) for data in get_all_automatic_jsons()]
@@ -241,7 +247,7 @@ if __name__ == '__main__':
     )
 
 
-if __name__ == '__main__2':
+if __name__ == '__main__':
     # load the evaluation results
     # get all the preferences from the tournaments
 
@@ -327,6 +333,14 @@ if __name__ == '__main__2':
         sum(result.total_direct_preference_comparisons for result in automatic_eval_results.values()) // 2
     )
 
+    print('Preference Rate Per Model Automatic:')
+
+    # Analyze by model, extraction method, and number of examples using lambdas
+    print_preference_stats(lambda x: x.model, 'Model', automatic_eval_results)
+    print_preference_stats(lambda x: x.extraction_method, 'Method', automatic_eval_results)
+    print_preference_stats(lambda x: x.num_examples, 'Examples', automatic_eval_results)
+    print_preference_stats(lambda x: (x.model, x.extraction_method), 'Model, Method', automatic_eval_results)
+
     def print_correlation_stats(getter: Callable[[EvaluationIdentifier], Any], description: str) -> None:
         mp = {criterion: filtered_results for criterion, filtered_results in get_stats(getter, automatic_eval_results)}
 
@@ -392,6 +406,9 @@ if __name__ == '__main__2':
         df_results = pd.DataFrame(results)
         df_results.set_index([description], inplace=True)
         print(df_results)
+        # print mean  of the stds
+        print(f'Mean of the STDs: {np.mean([abs(float(x)) for x in df_results["STD"]]):.2f}')
+        print(f'Median of the STDs: {np.median([abs(float(x)) for x in df_results["STD"]]):.2f}')
 
     print_correlation_stats(lambda x: x.model, 'Model')
     print_correlation_stats(lambda x: x.extraction_method, 'Method')
@@ -404,7 +421,91 @@ if __name__ == '__main__2':
     def X(x):
         if x.extraction_method in ('finetuning', 'extract_from_abstracts_custom'):
             return x.model
-        return ''
+        return 'Other Models and Extraction Methods'
 
+    print('Manual Evaluation')
     print_preference_stats(X, 'Model, Method')
+    print('Automatic Evaluation')
     print_preference_stats(X, 'Model, Method', automatic_eval_results)
+
+
+if __name__ == '__main__2':
+    """Die Evaluation der Biases:
+Für Mixtral 7x8B
+
+Missmatches: 12 / 36 (33.33%)
+Profile 1 preferred: 46 / 72 (63.89%)
+Times missmatched and profile 1 preferred: 11 / 12 (91.66%)
+Times missmatched and profile 2 preferred: 1 / 12 (8.33%)
+
+Für LLama3 70B
+
+Missmatches: 10 / 29 (34.48%)
+Profile 1 preferred: 39 / 58 (67.24%)
+Times missmatched and profile 1 preferred: 10 / 10 (100.00%)
+Times missmatched and profile 2 preferred: 0 / 10 (0.00%)
+
+Und GPT-4o
+
+Missmatches: 11 / 36 (30.56%)
+Profile 1 preferred: 39 / 72 (54.17%)
+Times missmatched and profile 1 preferred: 7 / 11 (63.64%)
+Times missmatched and profile 2 preferred: 4 / 11 (36.36%)
+
+Calculations:
+
+Vermuteter Fehler durch Positional Bias = (Profile 1 preferred - 50) * 2
+Inconsistency = Missmatches Percentage - Fehler durch Positional Bias
+Consistency = 1 - Inconsistency
+Number of expected missmatches = Inconsistency / 100 * Number of comparisons
+
+Mixtral 7x8B:
+
+Vermuteter Fehler durch Positional Bias = (63.89 - 50) * 2 = 27.78
+Inconsistency = 33.33 - 27.78 = 5.55
+Consistency = 1 - 0.0555 = 0.9445
+Number of expected missmatches = 5.55 / 100 * 36 = 1.998
+
+LLama3:
+
+Vermuteter Fehler durch Positional Bias = (67.24 - 50) * 2 = 34.48
+Inconsistency = 34.48 - 34.48 = 0
+Consistency = 1 - 0 = 1
+Number of expected missmatches = 0 / 100 * 29 = 0
+
+GPT-4o:
+
+Vermuteter Fehler durch Positional Bias = (54.17 - 50) * 2 = 8.34
+Inconsistency = 30.56 - 8.34 = 22.22
+Consistency = 1 - 0.2222 = 0.7778
+Number of expected missmatches = 22.22 / 100 * 36 = 7.9992"""
+    from tqdm import tqdm
+
+    # I want to simulate that.
+
+    positional_bias = 0.6389
+    consistency = 0.9445
+
+    samples_positional = []
+    samples_consistency = []
+    for _ in tqdm(range(100000000)):
+        chosen_profile_in_run_1 = np.random.rand() < positional_bias
+        probability_of_choosing_profile_1 = (
+            np.random.rand() < positional_bias
+            if chosen_profile_in_run_1 and np.random.rand() < consistency
+            else np.random.rand() < (1 - positional_bias)
+        )
+        probability_of_choosing_profile_2 = (
+            np.random.rand() < (1 - positional_bias)
+            if not chosen_profile_in_run_1 and np.random.rand() < consistency
+            else np.random.rand() < positional_bias
+        )
+
+        chosen_profile_in_run_2 = probability_of_choosing_profile_1 > probability_of_choosing_profile_2
+
+        # samples.append(chosen_profile_in_run_1 != chosen_profile_in_run_2)
+        samples_positional.append(chosen_profile_in_run_1 != (np.random.rand() < (1 - positional_bias)))
+        samples_consistency.append(np.random.rand() < consistency)
+
+    print(np.mean(samples_positional))
+    print(np.mean(samples_consistency))

@@ -1,7 +1,9 @@
 import json
+import os
+import re
 import time
 import pyperclip
-from pyautogui import press, hotkey, sleep, typewrite, locateOnScreen
+from pyautogui import press, hotkey, sleep, typewrite, locateOnScreen, click
 from tqdm import tqdm
 
 
@@ -10,23 +12,64 @@ def load_file(file: str) -> str:
         return f.read()
 
 
+def write_file(file: str, content: str) -> None:
+    os.makedirs(os.path.dirname(file), exist_ok=True)
+    with open(file, 'w') as f:
+        f.write(content)
+
+
 FOLDER = R'C:\Users\berti\OneDrive\Desktop\Masterarbeit schreiben'
 DATA = 'MA komplett-Beschreibung.txt'
 
 STRUKTUR = load_file(f'{FOLDER}\\Struktur.txt')
 
+
 SECTIONS = [
-    'Einleitung / Motivation',
-    'Theoretischer Hintergrund',
+    'Introduction / Motivation',
+    'Theoretical Background',
     'Current State of Research',
-    'Methodologie',
-    'Entwicklung',
+    'Methodology',
+    'Development',
     'Evaluation',
-    'Zusammenfassung und Ausblick',
+    'Summary and Outlook',
 ]
 SECTION_FILES = [f'{FOLDER}\\Gliederung\\0{section_number}.txt' for section_number in range(1, len(SECTIONS) + 1)]
+ACRONYM_FILE = f'{FOLDER}\\Acronyms.txt'
+CONVERSATION_PATH = R'C:\Users\berti\Downloads\conversations.json'
 
-GENERATING_ICON = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\generating.png'
+MAX_REVISION_ITERATIONS = 3
+ON_BIG_SCREEN = False
+
+if ON_BIG_SCREEN:
+    CAN_SEND_ICON = (
+        R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\can send big screen.png'
+    )
+    REGION = (600, 250, 1700, 1050)
+    CLICK_TO_FOCUS_MESSAGE_BOX = (800, 970)
+    raise NotImplementedError('Not implemented for big screen: CLICK_TO_SCROLL_DOWN')
+    CLICK_TO_SCROLL_DOWN = ()
+else:
+    CAN_SEND_ICON = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\can send.png'
+    USAGE_ICON = R'C:\Users\berti\OneDrive\Docs\Studium\Semester 8\Masterarbeit\Master-Thesis\usage.png'
+    REGION = (300, 300, 2600, 1700)
+    CLICK_TO_FOCUS_MESSAGE_BOX = (1000, 1450)
+    CLICK_TO_SCROLL_DOWN = (1550, 1300)
+
+
+INHALTLICHE_ANFORDERUNGEN = """---
+Content Requirements:
+1. Target Audience: The target audience are individuals who have basic knowledge but are not deeply involved in the subject (e.g., supervisors).
+2. Comprehensive Coverage: Ensure that all information specified in the notes is included in the elaboration. If information is repeated, it does not need to be mentioned multiple times, but nothing from the notes should be omitted.
+3. TODO Entries: If a graphic is missing or there is still a TODO in the notes, insert a "TODO: todo text" at this point. Example: "TODO: Insert graphic to illustrate the system architecture."
+---
+Formal Requirements:
+1. Consistent Terminology: Use uniform terminology for the same concept. For example, the term “system” should always be used instead of substituting it with terms like “computer” or “server”.
+2. Clarity and Precision: Avoid amplifiers like “very” and similar words. Justify, qualify, or avoid the use of superlatives and absolute/factual statements.
+3. Avoid Filler Words: Avoid filler words that do not advance the content, such as “often”, “frequently”, “regularly”, “typically”, “just”, “only”, “so”, “therefore”, “finally”, etc.
+4. Writing Style: Preferably write in the third person or passive voice to maintain academic formality. For example, use “the work” instead of “our work”.
+5. Consistency in Style: Maintain consistency in writing style throughout the section."""
+
+PAPER_SEARCH_PROMPT = """Make a call to the paper quick search tool. Ensure, that the query contains EVERYTHING relevant to this prompt. Do not supply a year_min and also no year_max, no study_types, no human, no sample_size_min and also no sjr_max in your request."""
 
 
 def open_browser(browser: str = 'chrome'):
@@ -37,32 +80,68 @@ def open_browser(browser: str = 'chrome'):
     sleep(2)
 
 
-def new_tab():
+def click_icon(icon: str):
+    try:
+        box = locateOnScreen(icon, region=REGION)
+        if box:
+            box_center_x = box.left + box.width / 2
+            box_center_y = box.top + box.height / 2
+            click(box_center_x, box_center_y)
+    except Exception:
+        pass
+
+
+def new_tab(url: str = 'https://chatgpt.com'):
     hotkey('ctrl', 't')
     sleep(0.5)
-    typewrite('chatgpt.com')
-    press('a')
-    press('backspace')
+    typewrite(url)
     press('enter')
     sleep(5)
 
 
-def query_chat(query: str):
+def query_chat(query: str, min_query_time: float = 15) -> tuple[str, str]:
     pyperclip.copy(query)
-    sleep(0.1)
+    click(*CLICK_TO_FOCUS_MESSAGE_BOX)
     hotkey('ctrl', 'v')
     press('enter')
 
-    sleep(2)
+    start_time = time.time()
+
+    sleep(3)
+    press('a')  # start writing a message to make the can send icon black
 
     while True:
         try:
-            locateOnScreen(GENERATING_ICON)
-            sleep(1)
+            locateOnScreen(CAN_SEND_ICON, region=REGION, confidence=0.9)
+            if min_query_time < time.time() - start_time:
+                click(*CLICK_TO_SCROLL_DOWN)
+                check_usage_limit()
+                click(*CLICK_TO_FOCUS_MESSAGE_BOX)
+                press('backspace')  # remove the "a" from the message box
+                break
         except Exception:
-            break
+            sleep(0.1)
 
-    sleep(2)
+        check_usage_limit()
+
+    click(*CLICK_TO_FOCUS_MESSAGE_BOX)
+    sleep(0.1)
+    hotkey('ctrl', 'shift', 'c')
+    sleep(0.1)
+    full_response_content = pyperclip.paste()
+    hotkey('ctrl', 'shift', ';')
+    sleep(0.1)
+    code_block_content = pyperclip.paste()
+    return full_response_content, code_block_content
+
+
+def check_usage_limit():
+    try:
+        locateOnScreen(USAGE_ICON, region=REGION, confidence=0.9)
+        print('WARNING: Usage limit reached')
+        exit()
+    except Exception:
+        pass
 
 
 def chunked_file(file: str, delimiter: str = '\n\n\n') -> list[str]:
@@ -76,7 +155,7 @@ def chunked_file(file: str, delimiter: str = '\n\n\n') -> list[str]:
 
 def get_additional_information(section_name: str, subsection: str) -> str | None:
     if section_name == SECTIONS[0]:
-        return R"""Das folgende ist eine alte Version der Einleitung, die als Referenz für die Erstellung der neuen Einleitung dienen kann. Die Zitierungen und Referenzen können gerne übernommen werden, aber die Struktur und der Inhalt sollten an die spezifischen Anforderungen der Arbeit angepasst werden.
+        return R"""The following is an old version of the introduction that can serve as a reference for creating the new introduction. The citations and references can be adopted, but the structure and content should be adjusted to the specific requirements of the work.
 
 \section{Introduction and Motivation}
 
@@ -101,7 +180,7 @@ In essence, the Kompetenzpool enables researchers to find and collaborate with c
 
 While existing research has made significant strides in this area, the current state of competency extraction is still inadequate for the precision required by the Kompetenzpool. The primary goal of this thesis is to enhance the competency extraction process, resulting in more accurate identification of researchers' skills. This improvement is expected to significantly bolster the functionality of the Kompetenzpool, thereby supporting the broader goals of the research project.
 
-For a detailed review of existing research in this area, see \todo{Insert references to relevant research here}.
+For a detailed review of existing research in this area, see "TODO: Insert references to relevant research here".
 
 
 \subsection{Research Objectives} 
@@ -306,99 +385,174 @@ Quantization:
 Quantization is a technique that is helpful in reducing the size of the model by converting high precision data to low precision. In simple terms, it converts datatype of high bits to fewer bits. For example, converting FP32 to 8-bit Integers is a quantization technique."""
 
 
-if __name__ == '__main__':
-    total_subsections = sum(len(chunked_file(file)) for file in SECTION_FILES)
-    print(f'Total number of subsections: {total_subsections}')
-    print('Evaluating all the subsections will take approximately', total_subsections * 2, 'minutes.')
+def create_acronym_list() -> None:
+    open_browser()
+    new_tab()
 
-    for name, file in zip(SECTIONS, SECTION_FILES):
-        open_browser()
+    all_acronyms = ''
+    for file in tqdm(SECTION_FILES, desc='Processing sections'):
+        query = get_abbreviation_query(load_file(file))
+        all_acronyms += query_chat(query)[0]
 
-        section_overview = load_file(file)
-
-        for subsection in tqdm(chunked_file(file), desc=f'Processing {name}'):
-            description = load_file(f'{FOLDER}\\{DATA}')
-            additional_information = get_additional_information(name, subsection)
-            additional_information_text = (
-                f'\n\nZusätzliche Informationen die für die Bearbeitung des Abschnitts hilfreich sein könnten:\n{additional_information}'
-                if additional_information
-                else ''
-            )
-
-            # Wenn die komplett Projekt beschreibung noch drinnen sein soll, dann uncomment this query = f"""Beschreibung des Projekts: {description}
-            query_write = f"""{additional_information_text}
+    write_file(ACRONYM_FILE, all_acronyms)
 
 
-Struktur der Arbeit:  
+def process_section(section_index: int, name: str, file: str, next_subsection_to_process: int = 0) -> None:
+    open_browser()
+
+    section_overview = load_file(file)
+    subsections = chunked_file(file)[next_subsection_to_process - 1 :]
+
+    for subsection_index, subsection in enumerate(
+        tqdm(subsections, desc=f'Processing {name}'), start=next_subsection_to_process
+    ):
+        content, citations = process_subsection(name, section_overview, subsection)
+
+        write_file(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.tex', content)
+        write_file(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.cite', citations)
+
+
+def process_subsection(name: str, section_overview: str, subsection: str) -> tuple[str, str]:
+    acronym_list = load_file(ACRONYM_FILE)
+    query_write = get_write_query(name, section_overview, subsection)
+    query_check_and_improve = get_check_and_improve_query(subsection)
+    query_latex = get_latex_query(acronym_list)
+    query_citation = get_citation_query()
+    query_apply_citation = get_apply_citation_query()
+
+    new_tab('https://chatgpt.com/g/g-bo0FiWLY7-consensus')
+    write_response = query_chat(query_write)
+
+    if 'issue with retrieving' in write_response:
+        print(f'WARNING: Issue with retrieving the chatbot for the write query for {name} - {subsection}')
+
+    query_chat(query_check_and_improve)
+    query_chat(query_latex)
+    query_chat(query_citation)
+    response, code = query_chat(query_apply_citation)
+
+    if 'issue with retrieving' in response:
+        print(f'WARNING: Issue with retrieving the chatbot for the apply citation query for {name} - {subsection}')
+
+    # find the index in the lowercase response, of 'list of papers' and split the response at that index
+    index = response.lower().find('list of papers')
+    _, citations = response[:index], response[index:]
+    return code, citations
+
+
+def get_abbreviation_query(section: str) -> str:
+    return f"""Extrahiere alle Abkürzungen und deren vollständige Bezeichnungen aus dem folgenden Abschnitt. Wenn die Abkürzung vorhanden ist, extrahiere sie und gib die vollständige Bezeichnung auf Englisch an. Wenn nur die vollständige Bezeichnung vorhanden ist, leite die übliche Abkürzung ab. Das Ergebnis sollte im Format [Abkürzung]: [Vollständige Bezeichnung] ausgegeben werden. Verarbeite den Abschnitt sorgfältig, um die Genauigkeit sicherzustellen. Hier ist der Abschnitt:
+---
+{section}
+---
+Gib die Ergebnisse als Liste von Abkürzungen mit den entsprechenden vollständigen Bezeichnungen aus.
+
+Beispiel:
+
+Textabschnitt:
+"Recent advances in Natural Language Processing and LLMs have greatly improved conversational AI systems. Reinforcement Learning from Human Feedback and GANs are also impactful."
+
+Ergebnis:
+- NLP: Natural Language Processing
+- LLM: Large Language Model
+- RLHF: Reinforcement Learning from Human Feedback
+- GAN: Generative Adversarial Network
+- AI: Artificial Intelligence"""
+
+
+def get_write_query(name: str, section_overview: str, subsection: str) -> str:
+    additional_information = get_additional_information(name, subsection)
+    additional_information_text = (
+        f'\n\nAdditional information that could be helpful for processing the section:\n{additional_information}'
+        if additional_information
+        else ''
+    )
+
+    return f"""{additional_information_text}
+Structure of the work:  
 {STRUKTUR}
-
-Wir bearbeiten nun das Kapitel {name}:  
+We are now working on Chapter {name}:  
 {section_overview}
-
 ---
-
-Deine Aufgabe:  
-Bearbeite ausschließlich den folgenden Abschnitt basierend auf den bereitgestellten Stichpunkten und Informationen:
-
-Unterabschnitt:  
+Your task:  
+Process exclusively the following section based on the provided information:
+Subsection:  
 {subsection}
-
+---
+Your task is to formulate the subsection scientifically precisely and understandably. Make sure that all relevant information from the bullet points is included in the elaboration. Critically address the results and their significance. Add graphics or tables if they contribute to the illustration. Pay attention to the formal and content quality of the elaboration.
+The subsection is only a part of the entire chapter. It is important that the text fits content-wise and stylistically with the rest of the chapter. Ensure consistent terminology and structure. Do not include a summary at the end of the subsection.
+{INHALTLICHE_ANFORDERUNGEN}
 ---
 
-Inhaltliche Anforderungen:
+As the very first step, make a tool search for the terms and concepts that you are not 100% familiar with. This will help you to understand the content better and to formulate it more precisely. {PAPER_SEARCH_PROMPT}"""
 
-1. Zielgruppe: Die Zielgruppe sind Personen, die über grundlegende Kenntnisse verfügen, aber nicht tief im Thema stecken (z. B. Betreuende).
-2. Umfassende Abdeckung: Stelle sicher, dass alle in den Notizen angegebenen Informationen in der Ausarbeitung vorkommen. Sollten sich Informationen wiederholen, müssen diese nicht mehrfach erwähnt werden, aber es darf nichts aus den Notizen fehlen.
-3. Kritische Reflexion: Gehe kritisch auf die Ergebnisse und deren Bedeutung ein.
-4. TODO-Einträge: Falls eine Grafik fehlt oder in den Notizen noch ein TODO steht, dann füge an dieser Stelle ein `\\todo{{}}` ein. Beispiel: `\\todo{{Grafik zur Veranschaulichung der Systemarchitektur einfügen}}`.
 
----
-
-Formale Anforderungen:
-
-1. LaTeX-Formatierung: Alle Antworten werden in deutscher Sprache und LaTeX formatiert, um den akademischen Standards zu entsprechen.
-2. Konsistente Terminologie: Verwende eine einheitliche Terminologie für dasselbe Konzept. Beispielsweise sollte das Wort „System“ immer verwendet werden, anstatt es durch Begriffe wie „Computer“ oder „Server“ auszutauschen.
-3. Klarheit und Präzision: Vermeide Verstärker wie „sehr“ und ähnliche Wörter. Begründe, relativiere oder vermeide die Verwendung von Superlativen und absoluten/faktischen Aussagen.
-4. Vermeidung von Füllwörtern: Verzichte auf Füllwörter, die den Inhalt nicht voranbringen, wie z. B. „oft“, „häufig“, „regelmäßig“, „typischerweise“, „gerade“, „nur“, „so“, „daher“, „schließlich“ usw.
-5. Schreibstil: Schreibe vorzugsweise in der dritten Person oder im Passiv, um die akademische Formalität zu wahren. Verwende z. B. „die Arbeit“ anstelle von „unsere Arbeit“.
-6. Konsistenz im Stil: Halte den Schreibstil im gesamten Abschnitt konsistent."""
-
-            query_check = f"""Prüfe die folgende wissenschaftliche Ausarbeitung für die Subsection meiner Thesis. Achte darauf, dass ALLE, wirklich ALLE Informationen aus den Notizen in die Ausarbeitung integriert sind. Wenn Informationen fehlen, liste diese vollständig auf und begründe, warum sie fehlen. Wenn alles enthalten ist, bestätige dies mit "Ja, alles enthalten". Falls etwas fehlt, antworte mit "Nein, folgende Informationen fehlen: [Liste an fehlenden Informationen hier]".
-
-Hier sind die Informationen zur Subsection:
+def get_check_and_improve_query(subsection: str) -> str:
+    return f"""Check the scientific paper for the subsection of my thesis. Make sure that ALL, really ALL information from the notes is integrated into the paper. For each point in the notes, there must be a corresponding place in the paper. Go through this point by point in writing and compare the notes with the paper. After you have checked in writing whether each point is included in the paper and is scientifically precise and understandable, confirm that all information is included. If information is missing, list it completely and explain why it is missing.
+Here is the information for the subsection:
 ---
 {subsection}
 ---
-Stelle sicher, dass alle Punkte, die in den Notizen definiert sind, mindestens einmal vorkommen und alle relevanten Aspekte wissenschaftlich präzise behandelt werden. Verwende präzise Begründungen für eventuelle Lücken in der Ausarbeitung."""
-            new_tab()
-            query_chat(query_write)
-            query_chat(query_check)
+Ensure that all points defined in the notes appear at least once and all relevant aspects are treated scientifically precisely. Use precise justifications for any gaps in the paper. After checking, if some information is missing, improve all missing information. If you do not have enough information to edit a missing part, write a "TODO: the todo to add" instead. Ensure that ALL, really ALL information from the notes is integrated into the paper. Continue to pay attention to the other requirements:\n{INHALTLICHE_ANFORDERUNGEN}"""
 
 
-# TODO future - Führen Sie Abkürzungen einmal ein und verwenden Sie sie konsequent mit den Befehlen \gls{} und \glspl{}.
-# TODO future - Fügen Sie die Quellenangaben in die Fußzeile ein, um die Arbeit wissenschaftlich korrekt zu zitieren.
-# TODO future - Adherence to the Wissenschaftliches_Arbeiten.pdf guidelines
-"""
-Output-Spezifikationen:
-Alle Antworten werden in Deutesch verfasst und in LaTeX formatiert, um den akademischen Standards zu entsprechen und den Inhalt korrekt wiederzugeben.
+def get_latex_query(acronym_list: str) -> str:
+    return f"""If there are open changes requested by the last message, please also implement them in this step. In addition, format the section in LaTeX. Use `\\subsection{{}}` and `\\subsubsection{{}}` for headings respectively. Use LaTeX to format lists, tables and general text style as needed. Ensure that the content is correctly formatted and follows the academic standards. Use the LaTeX commands `\\gls{{}}` for singular and `\\glspl{{}}` for plural forms of acronyms. The command will automatically insert the full form of the acronym the first time it is used and the short form for all subsequent uses. Use the acronym list below to correctly insert them. If you find any other acronyms in the text which are not in the list, please simply use the acronym you found without explanation. I will manually check them. For TODOs, use `\\todo{{}}` to mark them in the text. The content itself should not be adjusted, only the formatting. Here is the list of acronyms:
 
-- Vermeiden Sie die Verwendung von Verstärkern wie „sehr“ und ähnlichen Wörtern.
-- Begründen, relativieren oder vermeiden Sie die Verwendung von Superlativen und absoluten/faktischen Aussagen.
-- Vermeiden Sie Füllwörter, die den Inhalt der Sätze nicht beeinflussen, wie z. B. „oft“, „häufig“, „regelmäßig“, „typischerweise“, „gerade“, „nur“, „so“, „daher“, „schließlich“ usw.
-- Verwenden Sie eine einheitliche Terminologie für ein und dasselbe Konzept, auch wenn dies eintönig erscheinen mag; sprechen Sie immer von „dem System“ und nicht austauschbar mit „Computer“, „Server“, usw.
-- Schreiben Sie vorzugsweise in der dritten Person oder im Passiv, um die akademische Formalität zu wahren (z. B. „die Arbeit“ statt „unsere Arbeit“).
+Acronym List:
+{acronym_list}
 
-"""
+Apply the formatting to the entire previously formulated section in the above output.
+
+Example:
+
+Before:
+"Recent advances in natural language processing and LLMs have greatly improved AI systems."
+
+After (LaTeX):
+```latex
+Recent advances in \\gls{{NLP}} and \\glspl{{LLM}} have greatly improved \\gls{{AI}} systems.
+```"""
 
 
-def get_assistant_response(conv: dict) -> str:
+def get_citation_query() -> str:
+    return """Analyze the text section found in the previous output and identify all places where citations are required. This could be the case, for example, when literature is referenced, or when statements are made that should be supported by scientific papers. List these places."""
+
+
+def get_apply_citation_query() -> str:
+    return f"""Use a research tool to find relevant scientific papers for this section. {PAPER_SEARCH_PROMPT} Insert these papers in LaTeX format as citations (`\\cite{{}}`) into the text. After the revision, the section with the inserted citations should be output. Finally, list the papers that were used for the citations.
+
+The list of papers should be in the following form:
+1. "Shorthand" Author(s) (Year). "Title" Journal/Conference.
+
+Example:
+
+Input:
+---
+Recent advances in Natural Language Processing have improved AI systems.
+---
+
+Output:
+---
+```latex
+Recent advances in \\gls{{NLP}} have improved \\gls{{AI}} systems \\cite{{author2020paper}}.
+```
+
+List of papers:
+- "author2020paper" Smith et al. (2020). "Advances in NLP" Journal of Artificial Intelligence.
+---"""
+
+
+def get_messages(conv: dict, role: str = 'assistant') -> str:
     messages: list[tuple[float, str]] = [
         (message['message']['create_time'], message['message']['content']['parts'][0])
         for message in conv['mapping'].values()
-        if message['message'] and message['message']['author']['role'] == 'assistant'
+        if message['message']
+        and message['message']['author']['role'] == role
+        and isinstance(message['message']['content']['parts'][0], str)
     ]
 
-    assert messages, f'No assistant response found in conversation: {conv}'
+    # assert messages, f'No {role} response found in conversation: {conv}'
 
     # return a string with newlines between each message, sorted by oldest to newest
     return '\n\n\n\n\n\n'.join(part for time, part in sorted(messages, key=lambda x: x[0]))
@@ -412,18 +566,392 @@ def extract_response_if_matches(section_overview: str, subsection: str, conv) ->
         if section_overview in message_content:
             filtered_message_content = message_content.replace(section_overview, '')
             if subsection in filtered_message_content:
-                return get_assistant_response(conv)
+                return get_messages(conv)
+
+
+def get_assistant_response_by_message_content(message_content: str, conversations_path: str) -> str:
+    conversations = json.loads(load_file(conversations_path))
+
+    all_responses = ''
+    for conv in conversations:
+        if message_content in get_messages(conv, 'user'):
+            all_responses += get_messages(conv) + '\n\n\n\n\n\n\n\n\n\n\n\n'
+
+    return all_responses
+
+
+def get_assistant_response_of_conversation(converstaion_id: str, conversations_path: str) -> str:
+    conversations = json.loads(load_file(conversations_path))
+    write_file(conversations_path, json.dumps(conversations, indent=4, ensure_ascii=False))
+
+    for conv in conversations:
+        if conv['conversation_id'] == converstaion_id:
+            return get_messages(conv)
+
+    assert False, f'Conversation with id {converstaion_id} not found in {conversations_path}'
 
 
 if __name__ == '__main__2':
-    CONVERSATION_PATH = R'C:\Users\berti\Downloads\conversations.json'
-    conversations = json.loads(load_file(CONVERSATION_PATH))
-    # with open(CONVERSATION_PATH, 'w') as f:
-    #     json.dump(conversations, f, indent=4, ensure_ascii=False)
+    # continuously print the mouse position
+    import pyautogui
 
-    # filter out conversations which are not from today by the create_time timestamp
-    today_timestamp = time.time() - 24 * 60 * 60
+    while True:
+        print(pyautogui.position())
+
+
+if __name__ == '__main__2':
+    create_acronym_list()
+
+if __name__ == '__main__2':
+    # print the total number of subsections
+    total_subsections = sum(len(list(chunked_file(file))) for file in SECTION_FILES)
+    print(f'Total subsections: {total_subsections}')
+
+if __name__ == '__main__2':
+    os.makedirs(f'{FOLDER}\\Thesis', exist_ok=True)
+    for section_index, (file, name) in enumerate(zip(SECTION_FILES, SECTIONS), start=1):
+        for subsection_index in range(1, len(list(chunked_file(file))) + 1):
+            if os.path.exists(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.tex'):
+                continue
+            write_file(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.tex', '')
+            write_file(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.cite', '')
+
+        section_file_content = f'\\section{{{name}}}\n\n'
+        for subsection_index in range(1, len(list(chunked_file(file))) + 1):
+            section_file_content += f'\\include{{Thesis/{section_index:02d}.{subsection_index:02d}.clean}}\n'
+        write_file(f'{FOLDER}\\Thesis\\{section_index:02d}.tex', section_file_content)
+
+    exit()
+
+if __name__ == '__main__':
+    # combine all the citations into one file
+    all_citations = ''
+    for file in os.listdir(f'{FOLDER}\\Thesis'):
+        if file.endswith('.cite'):
+            all_citations += load_file(f'{FOLDER}\\Thesis\\{file}') + '\n\n'
+
+    filtered_citations = [
+        # replace '**' with nothing and remove any leading enumeration like "\d+. "
+        re.sub(r'^\d+\. ', '', citation.replace('**', ''))
+        for citation in all_citations.split('\n')
+        # if "(XXXX)" where X is a digit is present in the citation
+        if re.search(r'\(\d{4}\)', citation)
+    ]
+
+    print(f'Total citations: {len(filtered_citations)}')
+    filtered_citations = list(sorted(set(filtered_citations)))
+
+    CITATION_REGEX = re.compile(r'"(.+?)" .+? \(\d{4}\)\. ".+?" .+?')
+
+    cleaned_citations = [citation for citation in filtered_citations if not CITATION_REGEX.match(citation)]
+
+    citations_to_clean = [
+        citation.strip().split(' ', 1) for citation in filtered_citations if CITATION_REGEX.match(citation)
+    ]
+
+    from difflib import SequenceMatcher
+
+    processed = set()
+    mp = {}
+
+    for i, (id, rest) in enumerate(citations_to_clean):
+        if id in processed:
+            continue
+
+        processed.add(id)
+        mp[id] = []
+        for j, (id2, rest2) in enumerate(citations_to_clean[i + 1 :], start=1):
+            if id2 in processed:
+                continue
+            similarity = SequenceMatcher(
+                None,
+                rest.replace('*', '').replace('.', ''),
+                rest2.replace('*', '').replace('.', ''),
+            ).ratio()
+            if similarity > 0.85:
+                print('Merge:', id, id2, similarity, rest, rest2)
+                mp[id].append((id2, similarity))
+                processed.add(id2)
+
+    for id, ids in mp.items():
+        if not ids:
+            continue
+        print('Main:', [c for c in filtered_citations if id in c][0])
+        for sub_id, sim in ids:
+            print(sim, 'Sub:', [c for c in filtered_citations if sub_id in c][0])
+        print('---' * 10)
+
+    for section_index, file in enumerate(SECTION_FILES, start=1):
+        for subsection_index, subsection in enumerate(chunked_file(file), start=1):
+            file_name = f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.clean.tex'
+            if not os.path.exists(file_name):
+                continue
+
+            subsection_content = load_file(file_name)
+
+            for id, ids in mp.items():
+                for sub_id, sim in ids:
+                    subsection_content = subsection_content.replace(sub_id.replace('"', ''), id.replace('"', ''))
+
+            write_file(file_name, subsection_content)
+
+    print(len(mp))
+    print(sum(len(ids) for ids in mp.values()))
+
+    for id in mp.keys():
+        cleaned_citations.append([citation for citation in filtered_citations if id in citation][0])
+
+    citations_str = '\n'.join(cleaned_citations)
+
+    write_file(f'{FOLDER}\\Thesis\\citations.bib', citations_str)
+
+    bibtex_citations = ''
+    for citation in cleaned_citations:
+        # regex to extract the id, the author(s), the year, the title, and the journal/conference
+        # Actually: authors and journal are optional but the id may not contain any spaces
+        match = re.match(r'"([^\s]+)":? (.*?)\((\d{4})\)\. "(.+?)"(.*?)\.', citation)
+        if not match:
+            print('Citation not matching:', citation)
+            continue
+        # generate a bibtex article entry
+        id = match.group(1).strip()
+        authors = match.group(2).strip()
+        year = match.group(3).strip()
+        title = match.group(4).strip()
+        journal = match.group(5).strip()
+
+        bibtex_citations += f"""@article{{{id},
+    author = {{{authors}}},
+    title = {{{title}}},
+    journal = {{{journal}}},
+    year = {{{year}}},
+}}\n\n"""
+
+    write_file(f'{FOLDER}\\Thesis\\bibtex.bib', bibtex_citations)
+
+    exit()
+
+if __name__ == '__main__2':
+    # Translate all the sections into English
+    open_browser()
+    new_tab('https://chatgpt.com/?model=gpt-4o-mini')
+
+    SECTIONS_TO_SKIP = 5
+
+    for file, name in zip(SECTION_FILES[SECTIONS_TO_SKIP:], SECTIONS[SECTIONS_TO_SKIP:]):
+        with open(file + 'translated', 'w') as f:
+            for subsection in tqdm(chunked_file(file), desc=f'Processing {name}'):
+                f.write(
+                    query_chat(
+                        f"""Translate the folowing absolutly exactly, word by word, into English. Do not rephrase or change ANYTHING. The translation should be as accurate as possible. Here is the text:
+---
+{subsection}
+---
+Now translate this text word for word into English. Output nothing except the translated text.""",
+                        min_query_time=3,
+                    )[0]
+                    + '\n\n\n'
+                )
+
+
+def find_subsection_to_process(section_index: int) -> int:
+    for subsection_index, _ in enumerate(chunked_file(SECTION_FILES[section_index - 1]), start=1):
+        if not os.path.exists(f'{FOLDER}\\Thesis\\{section_index:02d}.{subsection_index:02d}.tex'):
+            return subsection_index
+    return -1
+
+
+if __name__ == '__main__2':
+    SUBSECTIONS_TO_PROCESS = [1, 2, 3, 4, 5, 6, 7]
+    for section_to_process in SUBSECTIONS_TO_PROCESS:
+        next_subsection_to_process = find_subsection_to_process(section_to_process)
+        if next_subsection_to_process == -1:
+            continue
+        process_section(
+            section_to_process,
+            SECTIONS[section_to_process - 1],
+            SECTION_FILES[section_to_process - 1],
+            next_subsection_to_process,
+        )
+
+
+if __name__ == '__main__2':
+    # postprocess the extracted sections
+    open_browser()
+    new_tab('https://chatgpt.com/?model=gpt-4o-mini')
+    for file in tqdm(os.listdir(f'{FOLDER}\\Thesis'), desc='Processing files'):
+        # if it is not a tex file or not a section.subsection.tex file, skip
+
+        file_content = load_file(f'{FOLDER}\\Thesis\\{file}')
+        if len(file_content) < 5:
+            os.remove(f'{FOLDER}\\Thesis\\{file}')
+            continue
+
+        clean_file_name = file.replace('.tex', '.clean.tex')
+        if not re.match(r'\d{2}\.\d{2}\.tex', file) or os.path.exists(f'{FOLDER}\\Thesis\\{clean_file_name}'):
+            continue
+
+        if False:
+            text, code = query_chat(
+                f"""You are tasked with restructuring and editing subsections in a document. All sections in the document have been generated by GPT and may contain unnecessary artifacts. These artifacts, such as introductory phrases or summary sentences placed outside of the main content, need to be removed. The content itself must not be altered in any way. Your job is only to clean up the GPT artifacts while preserving all the technical and academic details and ensuring, that the proper section and subsection structure is used. 
+
+#### Input Example:
+```latex
+\\section{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities. Various definitions of competencies have emerged in the literature, with some models focusing more on technical skills and others on personal and social abilities \\cite{{takey2015competency,zlatkin2015state}}. For this work, a definition of competencies is central that considers both technical expertise and the ability to generate and apply knowledge in specific contexts. This definition allows for competencies to be seen not only as static abilities but as dynamic processes that evolve through learning and experience.
+
+\\subsection{{Differences Between Various Competence Definitions}}
+Some more content here.
+
+---
+
+This section provides a precise and well-founded basis for the definition of competence profiles, which serves as the foundation for the methods of competence extraction applied in the remainder of this work. Concepts such as the distinction between explicit and implicit knowledge play a central role in the implementation and evaluation of the proposed models and approaches.
+
+\\todo{{Insert graphic illustrating the difference between explicit and implicit competencies}}
+```
+
+#### Output Example:
+```latex
+\\subsection{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsubsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities. Various definitions of competencies have emerged in the literature, with some models focusing more on technical skills and others on personal and social abilities \\cite{{takey2015competency,zlatkin2015state}}. For this work, a definition of competencies is central that considers both technical expertise and the ability to generate and apply knowledge in specific contexts. This definition allows for competencies to be seen not only as static abilities but as dynamic processes that evolve through learning and experience.
+
+\\subsubsection{{Differences Between Various Competence Definitions}}
+Some more content here.
+
+\\todo{{Insert graphic illustrating the difference between explicit and implicit competencies}}
+```
+
+Your task is now to clean up the following section. Make sure to remove any unnecessary artifacts and ensure that the content is correctly formatted in LaTeX. Here is the section that needs to be cleaned up:
+
+```latex
+{file_content}
+```
+
+
+Instructions:
+1. No content changes: Do not change the core meaning or the technical content of the section. The focus is purely on removing unnecessary GPT-generated phrases or artifacts.
+   
+2. Determine if a section is a Subsection or Subsubsection:
+   - If there was a \\section{{}} defined in the text, replace it with \\subsection{{}}, and all \\subsection{{}} in the original text with \\subsubsection{{}}.
+
+3. Remove any surrounding artifacts or phrases:
+   - Eliminate phrases such as introductory sentences by a GPT before the actual content starts, or summary sentences by a GPT after the content concludes. These are not in the style of a scientific document and mostly something like: "The following is a detailed explanation of the topic." and "This section provides a precise and well-founded basis for...". Remove only these sentences.
+   - Retain any `\\todo{{}}` commands that are part of the section.
+
+4. Output: The revised section should be returned as a code block in clean LaTeX format. Ensure all the formatting is correct.""",
+                min_query_time=10,
+            )
+
+        query_chat(
+            f"""1: Removing Unnecessary Text (Introductory/Concluding GPT Artifacts)
+
+**Instruction:**
+Focus solely on cleaning the content by removing any unnecessary introductory or concluding GPT-generated sentences. These sentences usually add no value to the core technical content, such as phrases like "This section provides a well-founded basis..." or "The following is a detailed explanation...".
+
+---
+
+#### Input Example:
+```latex
+\\section{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities. Various definitions of competencies have emerged in the literature, with some models focusing more on technical skills and others on personal and social abilities \\cite{{takey2015competency,zlatkin2015state}}. For this work, a definition of competencies is central that considers both technical expertise and the ability to generate and apply knowledge in specific contexts. This definition allows for competencies to be seen not only as static abilities but as dynamic processes that evolve through learning and experience.
+
+\\subsection{{Differences Between Various Competence Definitions}}
+Some more content here.
+
+---
+
+This section provides a precise and well-founded basis for the definition of competence profiles, which serves as the foundation for the methods of competence extraction applied in the remainder of this work. Concepts such as the distinction between explicit and implicit knowledge play a central role in the implementation and evaluation of the proposed models and approaches.
+
+\\todo{{Insert graphic illustrating the difference between explicit and implicit competencies}}
+```
+
+---
+
+#### Output Example:
+```latex
+\\section{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities. Various definitions of competencies have emerged in the literature, with some models focusing more on technical skills and others on personal and social abilities \\cite{{takey2015competency,zlatkin2015state}}. For this work, a definition of competencies is central that considers both technical expertise and the ability to generate and apply knowledge in specific contexts. This definition allows for competencies to be seen not only as static abilities but as dynamic processes that evolve through learning and experience.
+
+\\subsection{{Differences Between Various Competence Definitions}}
+Some more content here.
+
+\\todo{{Insert graphic illustrating the difference between explicit and implicit competencies}}
+```
+
+---
+The content to be cleaned up is as follows:
+
+```latex
+{file_content}
+```""",
+            min_query_time=10,
+        )
+        text, code = query_chat(
+            """2: Restructuring Sections and Subsections
+
+**Instruction:**
+After cleaning up the content, restructure the sections and subsections. Replace all `\\section{}` with `\\subsection{}`, and all `\\subsection{}` with `\\subsubsection{}` based on the hierarchy rules.
+
+---
+
+#### Input Example:
+```latex
+\\section{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities.
+```
+
+---
+
+#### Output Example:
+```latex
+\\subsection{{Introduction to Competence Extraction}}
+
+Some introductory text here.
+
+\\subsubsection{{Definition of Competence Profiles}}
+Competencies represent a combination of abilities, knowledge, and skills that individuals possess in specific domains and are capable of applying in practice \\cite{{cimatti2016definition,fareri2020industry}}. They are therefore essential for evaluating and understanding capabilities within organizations, teams, or scientific communities.
+```""",
+            min_query_time=10,
+        )
+
+        write_file(f'{FOLDER}\\Thesis\\{clean_file_name}', code)
+
+if __name__ == '__main__2':
+    for section_index, (name, file) in enumerate(zip(SECTIONS, SECTION_FILES), start=1):
+        process_section(section_index, name, file)
+
+if __name__ == '__main__2':
+    LOOK_BACK_TIME_IN_HOURS = 3
+    conversations = json.loads(load_file(CONVERSATION_PATH))
+    # write_file(CONVERSATION_PATH, json.dumps(conversations, indent=4, ensure_ascii=False))
+
+    # filter out conversations which are not from the last LOOK_BACK_TIME_IN_HOURS by the create_time timestamp
+    today_timestamp = time.time() - LOOK_BACK_TIME_IN_HOURS * 60 * 60
     conversations = [conv for conv in conversations if conv['create_time'] > today_timestamp]
+
+    os.makedirs(f'{FOLDER}\\Stichpunkte', exist_ok=True)
+
+    sections: dict[tuple[int, int], tuple[str, float]] = {}
 
     for name, file, section_index in zip(SECTIONS, SECTION_FILES, range(1, len(SECTIONS) + 1)):
         section_overview = load_file(file)
@@ -431,8 +959,14 @@ if __name__ == '__main__2':
         for subsection_index, subsection in enumerate(tqdm(chunked_file(file), desc=f'Processing {name}'), start=1):
             for conv in conversations:
                 if response := extract_response_if_matches(section_overview, subsection, conv):
-                    with open(f'{FOLDER}\\Stichpunkte\\{section_index:02d}.{subsection_index:02d}.txt', 'w') as f:
-                        f.write(response)
-                    break
+                    if sections.get((section_index, subsection_index), ('', 0.0))[1] > conv['create_time']:
+                        continue
+                    sections[(section_index, subsection_index)] = (response, conv['create_time'])
             else:
                 print('No response found for')
+
+    for (section_index, subsection_index), (response, _) in sections.items():
+        write_file(
+            f'{FOLDER}\\Stichpunkte\\{section_index:02d}.{subsection_index:02d}.txt',
+            response.split('\n\n\n\n\n\n')[-2],
+        )
