@@ -8,7 +8,7 @@ This repository hosts the implementation of the Master's Thesis titled "Domain-A
 
 The competency extraction system is built on a multi-phase approach that includes selecting, fine-tuning, and evaluating LLMs across different types of documents to create accurate competency profiles. This section provides an overview of each major component of the system:
 
-![System Overview](documentation/Data Flow Diagram.png)
+![System Overview](documentation/Data%20Flow%20Extraction.png)
 
 ### Data Processing and Summarization
 
