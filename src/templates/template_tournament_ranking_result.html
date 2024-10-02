@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Results Visualization</title>
+    <style>
+        body,
+        html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+            overflow-x: hidden;
+        }
+
+        #tree {
+            width: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 20px;
+        }
+
+        .level {
+            display: flex;
+            justify-content: space-evenly;
+        }
+
+        .node {
+            width: 65px;
+            padding: 10px;
+            border: 1px solid black;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            white-space: nowrap;
+        }
+
+        .node:hover {
+            background-color: #e3e3e3;
+        }
+
+        #container {
+            display: none;
+            width: 100%;
+            flex-direction: row;
+            overflow-y: auto;
+        }
+
+        .card {
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 50px;
+            box-sizing: border-box;
+            height: fit-content;
+        }
+
+        .preferred {
+            background-color: #e6ffe6;
+            /* Light green background for preferred profile */
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="position: absolute; top: 0; left: 30px;">Tournament Tree</h1>
+    <canvas id="graphCanvas" width="800" height="600"></canvas>
+    <div id="container">
+    </div>
+
+    <script>
+        const authorData = "{{authorData}}"; // Replace with actual JSON data
+        const rankingResults = authorData.ranking_results;
+
+        function buildTree() {
+            function Node(match, index) {
+                this.match = match;
+                this.index = index;
+                this.children = [];
+                this.x = -1; // X position to be set based on layout
+                this.y = -1; // Y position to be set based on layout
+                this.radius = 20; // Node radius
+            }
+
+            function parseTree(inputNode) {
+                let node = new Node(inputNode.match, 0); // index gets added later after bottom-up traversal
+                inputNode.children.forEach(child => node.children.push(parseTree(child)));
+                return node
+            }
+
+            const root = parseTree(authorData.tournament);
+
+
+            function bottomUpTraversal(root) {
+                if (!root) {
+                    return [];
+                }
+
+                const queue = [{ node: root, depth: 0 }];
+                const depthMap = {};
+                let maxDepth = 0;
+
+                while (queue.length > 0) {
+                    const { node, depth } = queue.shift();
+                    if (!depthMap[depth]) {
+                        depthMap[depth] = [];
+                    }
+                    depthMap[depth].push(node);
+                    maxDepth = Math.max(maxDepth, depth);
+                    node.children.forEach(child => {
+                        queue.push({ node: child, depth: depth + 1 });
+                    });
+                }
+
+                const result = [];
+                for (let d = maxDepth; d >= 0; d--) {
+                    if (depthMap[d]) {
+                        result.push(...depthMap[d]);
+                    }
+                }
+
+                return result;
+            }
+
+            const nodes = bottomUpTraversal(root);
+            // set index for each node
+            nodes.forEach((node, index) => node.index = index);
+
+
+            function getLeaves(node) {
+                if (node.children.length === 0) return [node];
+
+                return node.children.flatMap(getLeaves);
+            }
+
+            const leaves = getLeaves(root);
+
+            // Bottom y should be log2(number of leaves) * 70 (arbitrary value for spacing)
+            const bottomY = Math.ceil(Math.log2(leaves.length)) * 70;
+            const screenX = window.innerWidth;
+
+            // Set the leaves evenly spaced along the x-axis
+            const spacing = screenX / (leaves.length + 1);
+            leaves.forEach((leaf, i) => {
+                leaf.x = (i + 1) * spacing;
+                leaf.y = bottomY;
+            });
+
+            function positionNodes(node) {
+                if (node.x !== -1 && node.y !== -1) {
+                    return;
+                }
+                if (node.children.length === 0) {
+                    return alert('Error: Node without position or children.');
+                }
+                node.children.forEach(positionNodes);
+                const midpointOfChildren = node.children.reduce((acc, child) => acc + child.x, 0) / node.children.length;
+                node.x = midpointOfChildren;
+                node.y = node.children[0].y - 50;
+            }
+
+            positionNodes(root);
+
+            function getNodes(node) {
+                return [node, ...node.children.flatMap(getNodes)];
+            }
+
+            var selectedNode = null;
+
+            const canvas = document.getElementById('graphCanvas');
+            canvas.width = screenX;
+            canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
+            const ctx = canvas.getContext('2d');
+
+            function isNodeSkipped(node) {
+                return node.match.reasoning.toLowerCase().includes('one profile left');
+            }
+
+            // Function to draw nodes
+            function drawNodes(node, selected) {
+                node.children.forEach(child => {
+                    ctx.beginPath();
+                    ctx.moveTo(node.x, node.y);
+                    ctx.lineTo(child.x, child.y);
+                    ctx.stroke();
+                });
+
+                if (!isNodeSkipped(node)) {
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
+                    ctx.fillStyle = (node === selected) ? '#aaa' : '#ddd';
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
+                }
+
+                node.children.forEach(child => drawNodes(child, selected));
+            }
+
+            // Function to check if a point is inside a node
+            function isPointInNode(x, y, node) {
+                return Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2) < node.radius;
+            }
+
+            // Event listener for mouse clicks
+            canvas.addEventListener('click', function (event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                var newSelectedNode = null;
+
+                getNodes(root).forEach(node => {
+                    if (isPointInNode(x, y, node) && !isNodeSkipped(node)) {
+                        newSelectedNode = node;
+                        showMatchDetails(node.match);
+                    }
+                });
+
+                if (newSelectedNode) {
+                    selectedNode = newSelectedNode;
+                    drawNodes(root, selectedNode);
+                }
+            });
+
+            drawNodes(root, selectedNode);
+        }
+
+
+        function showMatchDetails(match) {
+            const container = document.getElementById('container');
+            container.style.display = 'flex';
+            container.innerHTML = '';
+            console.log(match)
+            console.log(authorData.profiles)
+
+            match.profiles.forEach((profile_index, idx) => {
+                const profile = authorData.profiles[profile_index];
+                const card = document.createElement('div');
+                card.className = 'card';
+                if (idx === match.preferred_profile_index) {
+                    card.classList.add('preferred');
+                    card.innerHTML = `
+                        <h2>Profile ${idx + 1} (Preferred)</h2>
+                    `;
+                } else {
+                    card.innerHTML = `
+                        <h2>Profile ${idx + 1}</h2>
+                    `;
+                }
+                card.innerHTML += `
+                    <p><strong>Domain:</strong> ${profile.profile.domain}</p>
+                    <ul>
+                        ${profile.profile.competencies.map(comp => `<li><strong>${comp.name}:</strong> ${comp.description}</li>`).join('')}
+                    </ul>
+                    <p><strong>Model:</strong> ${profile.model}</p>
+                    <p><strong>Extraction Function:</strong> ${profile.extraction_function}</p>
+                    <p><strong>Extraction Time:</strong> ${profile.extraction_time}s</p>
+                    <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
+                `;
+                if (idx === match.preferred_profile_index) {
+                    card.innerHTML += `<p><strong>Reasoning:</strong> ${match.reasoning}</p>
+                    `;
+                }
+                container.appendChild(card);
+            });
+        }
+
+        buildTree();
+    </script>
+</body>
+
+</html>

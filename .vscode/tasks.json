@@ -6,31 +6,13 @@
         {
             "label": "Query Example",
             "type": "shell",
-            "command": "python -m src author \"${input:author}\"",
+            "command": "python -m src.scripts.extract_for_author \"${input:author}\"",
             "problemMatcher": []
         },
         {
-            "label": "Generate Example References",
+            "label": "Generate References",
             "type": "shell",
-            "command": "python -m src gen_example ${input:number}",
-            "problemMatcher": []
-        },
-        {
-            "label": "Generate Combination References",
-            "type": "shell",
-            "command": "python -m src gen_combination ${input:number}",
-            "problemMatcher": []
-        },
-        {
-            "label": "Generate Ranking References",
-            "type": "shell",
-            "command": "python -m src gen_ranking ${input:number}",
-            "problemMatcher": []
-        },
-        {
-            "label": "Test Database",
-            "type": "shell",
-            "command": "python -m src.database",
+            "command": "python -m src.scripts.populate_rag_examples ${input:task} ${input:number}",
             "problemMatcher": []
         },
         {
@@ -42,19 +24,19 @@
         {
             "label": "Run Evaluation analysis",
             "type": "shell",
-            "command": "python -m src.expert_evaluation_analysis",
+            "command": "python -m src.scripts.expert_evaluation_analysis",
             "problemMatcher": []
         },
         {
             "label": "Plot GPU Usage",
             "type": "shell",
-            "command": "python -m src.dpo_cluster.plot_gpu_usage",
+            "command": "python -m src.finetuning.util.plot_gpu_usage",
             "problemMatcher": []
         },
         {
             "label": "Evaluate after finetuning",
             "type": "shell",
-            "command": "python -m src.dpo_cluster.evaluate_model_after_finetuning mlpc",
+            "command": "python -m src.finetuning.evaluate_model_after_finetuning mlpc",
             "problemMatcher": []
         }
     ],
@@ -76,6 +58,17 @@
             "type": "promptString",
             "description": "Enter the number of references to generate",
             "default": "2"
+        },
+        {
+            "id": "task",
+            "type": "pickString",
+            "description": "Select the task to run",
+            "options": [
+                "gen_example",
+                "gen_combination",
+                "gen_ranking"
+            ],
+            "default": "gen_example"
         }
     ]
 }

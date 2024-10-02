@@ -1,149 +1,58 @@
-# Master's Thesis: Competence Extraction from Documents
+# Domain-Agnostic Approaches to Competency Extraction via Large Language Models
 
 ## Overview
 
-This project is part of my Master's thesis, which focuses on the extraction of competencies from academic documents using advanced AI techniques. The core objective is to develop and evaluate methods that automate the extraction of competencies from the abstracts and full texts of scientific papers. This involves summarizing documents, extracting competencies in various ways, and combining results using state-of-the-art language models.
+This repository hosts the implementation of the Master's Thesis titled "Domain-Agnostic Approaches to Competency Extraction via Large Language Models" by Bertil Braun, submitted to the Karlsruhe Institute of Technology (KIT). The thesis develops an innovative system utilizing Large Language Models (LLMs) to extract competencies from a variety of document types, improving upon existing methods that struggle with unstructured data across diverse domains.
 
-## System Architecture
+## System Description
 
-The system is built on a local AI server provided by the KIT AIFB. It utilizes multiple instances of language models to process and analyze texts through a retrieval-augmented setup. The architecture includes:
+The competency extraction system is built on a multi-phase approach that includes selecting, fine-tuning, and evaluating LLMs across different types of documents to create accurate competency profiles. This section provides an overview of each major component of the system:
 
-- **Chroma DB Database**: Integrates with a retrieval system to fetch relevant examples for competence extraction.
-- **PyAlex Library**: Used to access the Open Alex dataset, which includes a wide range of academic publications.
-- **PyPDF Library**: Powers the downloading and textual analysis of full-text documents.
-- **Typed System**: Employs a strongly typed system for clean and manageable development.
+![System Overview](documentation/Data Flow Diagram.png)
 
-## Components
+### Data Processing and Summarization
 
-The project includes several Python modules, each fulfilling specific roles within the system:
+The process begins with the collection of input documents that are mostly based on papers by authors from various domains. These documents are fetched and preprocessed in `src/logic/papers.py`, which includes the extraction of relevant text and metadata.
 
-- **`database.py`**: Manages database interactions, particularly with Chroma DB for storing and retrieving document instances.
-- **`evaluation.py`**: Handles the automatic evaluation of extracted competencies against model predictions.
-- **`instance.py`**: Defines instances for different types of document processing and extraction tasks.
-- **`language_model.py`**: Configures and manages interactions with the local AI language models.
-- **`log.py`**: Provides logging functionality across various modules.
-- **`openai_defines.py`**: Contains definitions and settings for OpenAI models used in the project.
-- **`papers.py`**: Facilitates fetching and processing papers from the Open Alex dataset.
-- **`types.py`**: Defines custom types and protocols for structured programming.
-- **`util.py`**: Utility functions supporting various operations across modules.
-- **`__main__.py`**: The entry point of the program, orchestrating the processing and evaluation workflows.
+### Competency Extraction
 
-## Extraction Methods
+Extracted summaries are then processed to identify and extract competency profiles. This extraction is performed using LLMs designed to pull relevant competencies from the documents. Each document's competencies are initially profiled individually in `src/extraction` using three different extraction methods.
 
-The system explores three main extraction methods:
+### Model Fine-Tuning
 
-1. **Single-Prompt Extraction**: Extracts competencies from combined abstracts of multiple documents.
-2. **Summarized Prompt Extraction**: Summarizes multiple papers into one prompt and then extracts competencies.
-3. **Individual Paper Extraction**: Extracts competencies from each paper individually and combines the results.
+The system employs advanced fine-tuning methodologies, Direct Preference Optimization (DPO), to adapt the LLMs to the specific task of competency extraction. The fine-tuning process, located in `src/finetuning`, optimizes the models to enhance their performance across various document types and domains by learning from synthetic data. The fine-tuning process is designed to be run on the BW-UniCluster, a high-performance computing cluster. SLURM scripts for running the setup and fine-tuning process are located in `src/finetuning`. For more information on the fine-tuning process, refer to `src/finetuning/README.md`.
 
-## Evaluation
+### Evaluation Framework
 
-Competency profiles are generated for authors and evaluated in two main ways:
+To validate the accuracy of the extracted profiles, the system incorporates both expert and automatic evaluation mechanisms. These evaluations compare the competencies extracted by the system against benchmarks set by human experts and automated systems to ensure reliability and accuracy. The evaluation scripts are found in `src/scripts/automatic_evaluation_correlation_analysis.py`.
 
-- **Automated Evaluation**: Uses a large language model to assess the match between extracted competencies and the actual content of the papers.
-- **Expert Validation**: Profiles are sent to authors for ranking or scoring, which are then used to measure the accuracy of the extraction methods.
+### Visualization and Reporting
 
-## Future Work
+For easy interpretation and analysis, the system generates visualizations and structured reports of the competency profiles. This functionality, designed to help users quickly understand and utilize the extracted data, is handled by templates in `src/templates` and generated by `src/logic/display.py`.
 
-Plans include the use of reinforcement learning from automated feedback to fine-tune models based on their performance in competency extraction. This will also involve creating a synthetic dataset to improve and expand the training data available for models.
+## Installation and Setup
 
-## Setup and Usage
-
-To set up and run the system, ensure you have the necessary dependencies installed, then execute the main script:
+To setup the system, follow these steps:
 
 ```bash
-# Create a virtual environment
-python -m venv .venv/
-
-# Activate the virtual environment
-".venv/Scripts/activate.bat" # Windows
-source .venv/bin/activate # Linux
-
-# Install dependencies
+# Clone the repository
+git clone https://github.com/BertilBraun/Master-Thesis.git Master-Thesis
+# Navigate to the project directory
+cd Master-Thesis
+# Install the required dependencies
 pip install -r requirements.txt
-
-# Run the main script
-python -m src
 ```
 
-### Setup Local AI Server
+The system requires Python 3.11 or higher to run as a result of the strong type annotations added.
 
-Start the Local AI server using the following command:
+Furthermore, to be able to use the system, you need to add API keys for OpenAI and JsonBin.io to the `src/defines.py` file.
 
-```bash
-docker run -p 8080:8080 --name local-ai -ti localai/localai:latest-aio-cpu
-```
+For the fine-tuning process, you need to have access to the BW-UniCluster. Other high-performance computing clusters can be used as well, but the SLURM scripts might need to be adjusted accordingly. For a detailed guide on how to set up the fine-tuning process, refer to `src/finetuning/README.md`.
 
-Access the Local AI server at `http://localhost:8080`.
+## Documentation
 
-Add a model to the Local AI server using the following command:
+Detailed documentation of the system and its components is available within the repository. This includes the full text of the Master's Thesis located under `documentation/Master_Thesis.pdf`, as well as additional supporting materials and references.
 
-```bash
-curl http://localhost:8080/models/apply -H "Content-Type: application/json" -d '{
-     "url": "<MODEL_CONFIG_FILE>",
-     "name": "<MODEL_NAME>"
-    }'
-```
+## License
 
-Find the model configuration file [here](https://gitlab.kit.edu/kit/aifb/BIS/infrastruktur/localai/localai-model-gallery).
-
-The used models in this project are:
-
-```json
-{
-    "url": "https://gitlab.kit.edu/kit/aifb/BIS/infrastruktur/localai/localai-model-gallery/-/raw/main/text-embeddings.yaml",
-    "name": "text-embedding-ada-002"
-}
-```
-
-## Experimental Approaches and Alternatives
-
-Throughout the development of this project, several experimental approaches were evaluated but ultimately not adopted for various reasons:
-
-### LMQL (Language Model Query Language)
-
-We explored using LMQL, a structured output formatting for large language models that enforces a user-defined structure. This method allows precise control over the output by masking potential outputs before sampling from the final distribution. However, this approach was found to be significantly slower—up to three times—compared to baseline methods. Given the structured output is nearly always followed when using carefully designed prompts, the additional complexity and processing time did not justify its use. Here is an example of how LMQL was intended to be used:
-
-```bash
-lmql serve-model (--dtype 8bit - only if a GPU is supported)
-```
-
-```python
-import lmql
-
-@lmql.query(model='TinyLlama/TinyLlama-1.1B-Chat-v1.0', is_async=False) # Example model from Hugging Face
-def say(phrase):
-    """lmql
-    "Say '{phrase}': [TEST]" where len(TOKENS(TEST)) < 25
-    return TEST
-    """ # LMQL formatted prompt
-
-print(say('Hello World!'))
-```
-
-LMQL was deemed not fast enough compared to traditional transformers with a 2-3x slowdown. The structured output is nearly always followed when using carefully designed prompts, so the additional complexity and processing time did not justify its use.
-
-### Expected Output Format
-
-The designed system aims to parse and extract data into a well-defined format, as illustrated below:
-
-```markdown
-Domain: Scientist in the Field of Machine Learning
-Competencies:
-- Computer Vision: Capability in developing machine vision systems for the recognition of objects, scenes, and activities in images and videos.
-- Task Planning: Expertise in creating systems for efficient task planning and execution in dynamic environments.
-- Autonomous Driving: Knowledge in the development of self-driving vehicles, including navigation, sensor technology, and decision-making processes.
-- Analysis of Human Behavior: Experience in analyzing and interpreting human behavior using machine learning methods to enhance the interaction between humans and machines.
-```
-
-This format ensures clarity and consistency in the presentation of extracted competencies, which is essential for subsequent analyses and evaluations.
-
-### Vector Database Alternatives: Marqo
-
-Initially, the project also experimented with Marqo, a vector database, for embedding model flexibility and configuration. However, Marqo was eventually discarded in favor of Chroma DB due to the latter's better support for custom embedding models, which are crucial for our applications. Here are the basic commands for setting up Marqo:
-
-```bash
-docker rm -f marqo
-docker pull marqoai/marqo:latest
-docker run --name marqo -p 8882:8882 marqoai/marqo:latest
-```
+This project is licensed under the MIT License, which allows for extensive reuse and modification in academic and commercial projects.

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tournament Expert Evaluation</title>
+    <style>
+        body,
+        html {
+            height: 100%;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f4f4f4;
+            overflow-x: hidden;
+        }
+
+        #tree {
+            width: 100%;
+            display: flex;
+            flex-direction: column-reverse;
+            padding: 20px;
+        }
+
+        .level {
+            display: flex;
+            justify-content: space-evenly;
+        }
+
+        .node {
+            width: 65px;
+            padding: 10px;
+            border: 1px solid black;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            white-space: nowrap;
+        }
+
+        .node:hover {
+            background-color: #e3e3e3;
+        }
+
+        #container {
+            display: none;
+            width: 100%;
+            flex-direction: row;
+            overflow-y: auto;
+        }
+
+        .card {
+            width: 50%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 50px;
+            cursor: pointer;
+            box-sizing: border-box;
+            height: fit-content;
+        }
+
+        .preferred {
+            background-color: #aaffaa;
+            /* Light green background for preferred profile */
+        }
+
+        /* The Modal (background) */
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            /* Stay in place */
+            z-index: 1;
+            /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Full width */
+            height: 100%;
+            /* Full height */
+            overflow: auto;
+            /* Enable scroll if needed */
+            background-color: rgb(0, 0, 0);
+            /* Fallback color */
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Black w/ opacity */
+        }
+
+        /* Modal Content/Box */
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            /* 15% from the top and centered */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            /* Could be more or less, depending on screen size */
+        }
+
+        /* The Close Button */
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .plain-button {
+            background: none;
+            border: none;
+            color: grey;
+            font: inherit;
+            cursor: pointer;
+            padding: 0;
+        }
+
+        .plain-button:focus {
+            outline: none;
+        }
+
+        .plain-button:hover {
+            text-decoration: none;
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+    <h1 style="position: absolute; top: 0; left: 30px; display: none;" id="TournamentTitle">Tournament Tree</h1>
+    <canvas id="graphCanvas" width="800" height="600"></canvas>
+    <div id="container"></div>
+    <div id="startModal" class="modal" style="display: block;">
+        <div class="modal-content">
+            <p><strong id="startModalHeading"></strong></p>
+
+            <p>As part of my Master's thesis, we are evaluating the performance of different extraction systems based on
+                the competencies derived from your research papers. We have automatically extracted different competency
+                profiles using various methods, and we would greatly appreciate your help in evaluating these profiles.
+            </p>
+
+            <h3>Overview</h3>
+            <p>For this evaluation, we have generated several competency profiles based on five of your published
+                papers. These profiles consist of:</p>
+            <ul>
+                <li><strong>Domain:</strong> A concise summary of your general research area.</li>
+                <li><strong>Competencies:</strong> A list of <strong>3</strong> to <strong>8</strong> specific skills or
+                    knowledge areas demonstrated in your papers. Each competency is identified by a name, with a more
+                    detailed description available if needed (which is initially hidden).</li>
+            </ul>
+            <p>Below, you can see the list of papers that we have analyzed to generate these profiles:</p>
+            <ul id="titlesList"></ul>
+
+            <h3>Evaluation Process</h3>
+            <p>You will be guided through an evaluation tree where two competency profiles are compared at each step. We
+                kindly ask you to select the profile that you believe better represents your competencies.</p>
+            <ul>
+                <li><strong>Selection:</strong> Simply click on the profile that you think more accurately reflects your
+                    competencies as well as the format described above.</li>
+                <li><strong>Details:</strong> While the descriptions of the competencies are available, it is typically
+                    sufficient to compare the domain and competency names. If the profiles seem very similar or if you
+                    find it difficult to decide, you may review the detailed descriptions to help form a preference.
+                </li>
+            </ul>
+
+            <h3>Time Commitment</h3>
+            <p>The entire evaluation should take no more than five minutes of your time. Your feedback is invaluable and
+                will significantly contribute to the improvement of our extraction methods.</p>
+
+            <p>Thank you so much for your assistance and your thoughtful feedback!</p>
+
+            <button class="button" onclick="startEvaluation()">Start Evaluation</button>
+        </div>
+    </div>
+    <div id="submitModal" class="modal" style="display: none;">
+
+        <!-- Modal content -->
+        <div class="modal-content">
+            <h2>Submitting Your Evaluations</h2>
+
+            <p><strong style="color: red;">DO NOT CLOSE THIS TAB UNTIL YOU HAVE SUBMITTED YOUR EVALUATIONS.</strong></p>
+
+            <p>Thank you for participating in the evaluation.</p>
+            <p>If you have any additional comments or feedback, please feel free to include them in the text box below:
+            </p>
+            <textarea id="feedback" placeholder="Feedback" style="width: 300px; height: 100px;"></textarea>
+            <br>
+            <p>You can now submit your evaluations by clicking the button
+                below.</p>
+            <br>
+
+            <button class="button" onclick="submitData()" id="submit">Submit</button>
+
+            <h3 style="color: red; font-weight: bold; text-align: center; margin-top: 50px; display: none;"
+                id="pleaseWait">Please wait
+                a few seconds until the submission success is shown.</h3>
+        </div>
+
+    </div>
+
+    <script>
+        const authorData = "{{authorData}}"; // Replace with actual JSON data
+        const isDebug = false;
+
+        document.getElementById('startModalHeading').textContent = `Dear ${authorData.author},`;
+        document.getElementById('titlesList').innerHTML = authorData.titles.map(title => `<li>${title}</li>`).join('');
+
+        // Find the element with href="https://tiiny.host?ref=free-site", get its parent, and remove it (if it exists)
+        setInterval(() => {
+            const element = document.querySelector('a[href="https://tiiny.host?ref=free-site"]');
+            if (element) element.parentElement.remove();
+        }, 100);
+
+        window.addEventListener('beforeunload', function (e) {
+            const evaluationStarted = document.getElementById('startModal').style.display === 'none';
+            const evaluationNotCompleted = document.getElementById('pleaseWait').innerText.toLocaleLowerCase().includes('please wait');
+            if (evaluationStarted && evaluationNotCompleted) {
+                // Cancel the event
+                e.preventDefault(); // If you prevent default behavior in older browsers
+                e.returnValue = ''; // Chrome requires returnValue to be set
+            }
+        });
+
+
+        function toggleVisibility(id, display = 'block') {
+            var element = document.getElementById(id);
+            if (element) element.style.display = (element.style.display === display ? 'none' : display);
+        }
+
+
+        function startEvaluation() {
+            toggleVisibility('startModal');
+            toggleVisibility('TournamentTitle');
+            buildTree();
+        }
+
+        function submitData() {
+            const cleanupNode = (node) => ({
+                match: {
+                    profiles: node.match.profiles,
+                    preferred_profile_index: node.match.preferred_profile_index
+                },
+                children: node.children.map(child => cleanupNode(child))
+            });
+
+
+            const postData = {
+                "author": authorData.author,
+                "titles": authorData.titles,
+                "profiles": authorData.profiles,
+                "tournament": cleanupNode(root),
+                "feedback": document.getElementById('feedback').value
+            };
+
+            console.log(postData);
+
+            var pleaseWait = document.getElementById('pleaseWait');
+            pleaseWait.style.display = 'block';
+
+            // delete submit and finalBack buttons to prevent multiple submissions
+            document.getElementById('submit').style.display = 'none';
+
+            fetch('https://api.jsonbin.io/v3/b', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': '$2a$10$F4XWL9xhJ1HtdWLMfj8aDeH4wzcYvl1evcpiFJJWNa3RUt9eLn6dm',
+                    'X-Bin-Name': `${authorData.author}_evaluation_${new Date().toISOString()}`
+                },
+                body: JSON.stringify(postData)
+            }).then(response => response.json())
+                .then(data => {
+                    pleaseWait.textContent = 'Thank you for participating in the evaluation. You can close this tab now.';
+                    pleaseWait.style.color = 'black';
+                })
+                .catch((error) => alert('Submission Failed\n\nError: ' + error));
+        }
+
+        function Node(match, index) {
+            this.match = match;
+            this.index = index;
+            this.children = [];
+            this.x = -1; // X position to be set based on layout
+            this.y = -1; // Y position to be set based on layout
+            this.radius = 20; // Node radius
+            this.was_evaluated = false;
+            this.is_ready = false;
+            this.is_selected = false;
+        }
+
+        function getNodes(node) {
+            return [node, ...node.children.flatMap(getNodes)];
+        }
+
+        function getNodesInLoserBracket(node) {
+            if (node.children.length < 2) return [];
+
+            const winnerIndex = node.match.preferred_profile_index;
+
+            return getNodes(node.children[1 - winnerIndex]);
+        }
+
+        let nodes = [];
+        let root = null;
+
+        function buildTree() {
+            function parseTree(inputNode) {
+                let node = new Node(inputNode.match, 0); // index gets added later after bottom-up traversal
+                inputNode.children.forEach(child => node.children.push(parseTree(child)));
+                return node
+            }
+
+            root = parseTree(authorData.tournament);
+
+
+            function bottomUpTraversal(root) {
+                if (!root) {
+                    return [];
+                }
+
+                const queue = [{ node: root, depth: 0 }];
+                const depthMap = {};
+                let maxDepth = 0;
+
+                while (queue.length > 0) {
+                    const { node, depth } = queue.shift();
+                    if (!depthMap[depth]) {
+                        depthMap[depth] = [];
+                    }
+                    depthMap[depth].push(node);
+                    maxDepth = Math.max(maxDepth, depth);
+                    node.children.forEach(child => {
+                        queue.push({ node: child, depth: depth + 1 });
+                    });
+                }
+
+                const result = [];
+                for (let d = maxDepth; d >= 0; d--) {
+                    if (depthMap[d]) {
+                        result.push(...depthMap[d]);
+                    }
+                }
+
+                return result;
+            }
+
+            nodes = bottomUpTraversal(root);
+            // set index for each node
+            nodes.forEach((node, index) => node.index = index);
+            // reset preferred profile index for all nodes
+            nodes.forEach(node => node.match.preferred_profile_index = -1);
+
+            function getLeaves(node) {
+                if (node.children.length === 0) return [node];
+
+                return node.children.flatMap(getLeaves);
+            }
+
+            const leaves = getLeaves(root);
+
+            // Bottom y should be log2(number of leaves) * 70 (arbitrary value for spacing)
+            const bottomY = Math.ceil(Math.log2(leaves.length)) * 70;
+            const screenX = window.innerWidth;
+
+            // Set the leaves evenly spaced along the x-axis
+            const spacing = screenX / (leaves.length + 1);
+            leaves.forEach((leaf, i) => {
+                leaf.x = (i + 1) * spacing;
+                leaf.y = bottomY;
+            });
+
+            // Set the leaves as ready
+            leaves.forEach(leaf => leaf.is_ready = true);
+            leaves.forEach(leaf => leaf.was_evaluated = leaf.match.profiles[0] === leaf.match.profiles[1]);
+            leaves.forEach(leaf => leaf.match.preferred_profile_index = (leaf.match.profiles[0] === leaf.match.profiles[1]) ? 0 : -1);
+
+            function positionNodes(node) {
+                if (node.x !== -1 && node.y !== -1) {
+                    return;
+                }
+                if (node.children.length === 0) {
+                    return alert('Error: Node without position or children.');
+                }
+                node.children.forEach(positionNodes);
+                const midpointOfChildren = node.children.reduce((acc, child) => acc + child.x, 0) / node.children.length;
+                node.x = midpointOfChildren;
+                node.y = node.children[0].y - 50;
+            }
+
+            positionNodes(root);
+
+            const canvas = document.getElementById('graphCanvas');
+            canvas.width = screenX;
+            canvas.height = Math.round(bottomY) + 60; // Allow for all nodes to be visible + padding
+            const ctx = canvas.getContext('2d');
+
+            function isNodeSkipped(node) {
+                return node.match.reasoning.toLowerCase().includes('one profile left');
+            }
+
+            // Function to draw nodes
+            function drawNodes(node) {
+                node.children.forEach(child => {
+                    ctx.beginPath();
+                    ctx.moveTo(node.x, node.y);
+                    ctx.lineTo(child.x, child.y);
+                    ctx.stroke();
+                });
+
+                if (!isNodeSkipped(node)) {
+                    ctx.beginPath();
+                    ctx.arc(node.x, node.y, node.radius, 0, 2 * Math.PI, false);
+                    if (!node.is_ready) {
+                        ctx.fillStyle = '#fff';
+                    } else {
+                        if (node.was_evaluated) {
+                            if (node.is_selected) {
+                                ctx.fillStyle = '#0d0';
+                            } else {
+                                ctx.fillStyle = '#0f0';
+                            }
+                        } else {
+                            if (node.is_selected) {
+                                ctx.fillStyle = '#aaa';
+                            } else {
+                                ctx.fillStyle = '#ddd';
+                            }
+                        }
+                    }
+                    ctx.fill();
+                    ctx.lineWidth = 1;
+                    ctx.strokeStyle = '#000';
+                    ctx.stroke();
+                    ctx.textAlign = 'center';
+                    ctx.fillStyle = '#000';
+                    ctx.fillText(node.index + 1, node.x, node.y + 2); // Display index + 1
+                }
+
+                node.children.forEach(drawNodes);
+            }
+
+            // Function to check if a point is inside a node
+            function isPointInNode(x, y, node) {
+                return Math.sqrt((x - node.x) ** 2 + (y - node.y) ** 2) < node.radius;
+            }
+
+            function showMatchDetails(node) {
+                const container = document.getElementById('container');
+                container.style.display = 'flex';
+                container.innerHTML = '';
+
+                // unselect all nodes
+                nodes.forEach(node => node.is_selected = false);
+                // select current node
+                node.is_selected = true;
+
+                const match = node.match;
+
+                match.profiles.forEach((profile_index, idx) => {
+                    const profile = authorData.profiles[profile_index];
+                    const card = document.createElement('div');
+                    card.className = 'card';
+
+                    const profileDiv = document.createElement('div');
+                    profileDiv.innerHTML = `
+                    <h2>Profile ${idx + 1}</h2>
+                    <p><strong>Domain:</strong> ${profile.profile.domain}</p>
+                    <ul>
+                        ${profile.profile.competencies.map((comp, index) => `
+                            <li id="competency-${index}">
+                                <strong>${comp.name}</strong> <button onclick="event.stopPropagation();toggleVisibility('description-${idx}-${index}')" class="plain-button">&#9660;</button>
+                                <p id="description-${idx}-${index}" style="display:none;">${comp.description}</p>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    `;
+
+                    const moreInformation = document.createElement('div');
+                    if (isDebug) {
+                        moreInformation.innerHTML = `
+                        <button onclick="toggleVisibility('more_details${idx}')">More Details</button>
+                        <div id="more_details${idx}" style="display: none">
+                            <p><strong>Model:</strong> ${profile.model}</p>
+                            <p><strong>Extraction Function:</strong> ${profile.extraction_function}</p>
+                            <p><strong>Extraction Time:</strong> ${profile.extraction_time}s</p>
+                            <p><strong>Number of Examples:</strong> ${profile.number_of_examples}</p>
+                        </div>
+                    `;
+                    }
+
+                    if (match.preferred_profile_index === idx) {
+                        card.classList.add('preferred');
+                    }
+
+                    profileDiv.onclick = () => {
+                        node.was_evaluated = true;
+                        match.preferred_profile_index = idx;
+
+                        if (node === root) {
+                            drawNodes(root);
+                            toggleVisibility('submitModal');
+                            return;
+                        }
+
+                        // remove preferred class from all cards
+                        document.querySelectorAll('.card').forEach(card => card.classList.remove('preferred'));
+
+                        // add preferred class to selected card
+                        card.classList.add('preferred');
+
+                        // set parents to ready
+                        function setParentsReady() {
+                            nodes.forEach(node => {
+                                if (node.children.every(child => child.was_evaluated)) {
+                                    node.is_ready = true;
+                                    if (node.children.length === 0) return;
+                                    node.match.profiles = [];
+                                    node.children.forEach(child => node.match.profiles.push(child.match.profiles[child.match.preferred_profile_index]));
+                                }
+                            });
+                        }
+                        setParentsReady();
+
+                        // select next node after small delay
+                        setTimeout(() => {
+                            let nextNode = nodes.find(node => !node.was_evaluated && node.is_ready);
+                            if (nextNode) {
+                                if (nextNode.children.length === 1) {
+                                    nextNode.was_evaluated = true;
+                                    nextNode.match.preferred_profile_index = 0;
+                                    setParentsReady();
+                                    nextNode = nodes.find(node => !node.was_evaluated && node.is_ready);
+                                }
+                                showMatchDetails(nextNode);
+                                drawNodes(root);
+                            }
+                        }, 250);
+                    };
+                    card.appendChild(profileDiv);
+                    card.appendChild(moreInformation);
+                    container.appendChild(card);
+                });
+            }
+
+            // Event listener for mouse clicks
+            canvas.addEventListener('click', function (event) {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+
+                nodes.forEach(node => {
+                    node.is_selected = isPointInNode(x, y, node) && node.is_ready && !isNodeSkipped(node);
+                    if (node.is_selected) {
+                        showMatchDetails(node);
+                    }
+                });
+
+                drawNodes(root);
+            });
+
+            drawNodes(root);
+            showMatchDetails(leaves[0]);
+        }
+    </script>
+</body>
+
+</html>
