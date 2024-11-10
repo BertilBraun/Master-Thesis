@@ -102,7 +102,7 @@ def get_all_json_files(directory: str) -> list[str]:
     return [os.path.join(directory, file) for file in os.listdir(directory) if file.endswith('.json')]
 
 
-def _get_all_jsons():
+def _get_all_jsons() -> tuple[list[AuthorResult], list[AuthorResult]]:
     import src.defines
     from src.logic.jsonbin import JsonBin
 
@@ -117,14 +117,18 @@ def _get_all_jsons():
         [AuthorResult.from_json(data).author for data in all_jsons_from_manual + all_jsons_from_automatic]
     )
 
-    manuals, automatics = [], []
+    manuals: list[AuthorResult] = []
+    automatics: list[AuthorResult] = []
+
     for author, count in authors.items():
         if count > 1:
             for data in all_jsons_from_manual:
-                if AuthorResult.from_json(data).author == author:
+                data = AuthorResult.from_json(data)
+                if data.author == author:
                     manuals.append(data)
             for data in all_jsons_from_automatic:
-                if AuthorResult.from_json(data).author == author:
+                data = AuthorResult.from_json(data)
+                if data.author == author:
                     automatics.append(data)
 
     for data in all_jsons_from_manual:
@@ -134,25 +138,26 @@ def _get_all_jsons():
     return manuals, automatics
 
 
-def get_all_manual_jsons():
+def get_all_manual_jsons() -> list[AuthorResult]:
     manuals, automatics = _get_all_jsons()
 
     return manuals
 
 
-def get_all_automatic_jsons():
+def get_all_automatic_jsons() -> list[AuthorResult]:
     manuals, automatics = _get_all_jsons()
 
     return automatics
 
 
-def get_evaluation_results(all_jsons: list) -> tuple[dict[EvaluationIdentifier, EvaluationResult], int, int]:
+def get_evaluation_results(
+    all_jsons: list[AuthorResult],
+) -> tuple[dict[EvaluationIdentifier, EvaluationResult], int, int]:
     results: dict[EvaluationIdentifier, EvaluationResult] = {}
     total_times_profile1_preferred = 0
     total_nodes = 0
 
-    for data in all_jsons:
-        author_result = AuthorResult.from_json(data)
+    for author_result in all_jsons:
         for evaluation_identifier, evaluation_result in process_tournament(author_result).items():
             if evaluation_identifier in results:
                 results[evaluation_identifier] += evaluation_result
