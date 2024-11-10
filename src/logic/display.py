@@ -110,7 +110,7 @@ Link to the Research Project Kompetenznetzwerk: https://bis.aifb.kit.edu/317_389
 
 def generate_html_file_for_tournament_evaluation(author_result: AuthorResult, output_folder: str = 'results'):
     json_data = json.dumps(custom_asdict(author_result), indent=4)
-    with open('src/template/template_tournament_evaluation.html', 'r') as file:
+    with open('src/templates/template_tournament_evaluation.html', 'r') as file:
         html_template = file.read()
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
@@ -121,7 +121,7 @@ def generate_html_file_for_tournament_evaluation(author_result: AuthorResult, ou
 
 def generate_html_file_for_tournament_ranking_result(author_result: AuthorResult, output_folder: str = 'results'):
     json_data = json.dumps(custom_asdict(author_result), indent=4)
-    with open('src/template/template_tournament_ranking_result.html', 'r') as file:
+    with open('src/templates/template_tournament_ranking_result.html', 'r') as file:
         html_template = file.read()
 
     html_content = html_template.replace('"{{authorData}}"', json_data)
@@ -138,7 +138,7 @@ def dump_author_result_to_json(author_result: AuthorResult, output_folder: str =
 
 def generate_html_file_for_chat(messages: list[Message], chat_name: str = 'chat'):
     json_data = json.dumps([message.to_dict() for message in messages], indent=4)
-    with open('src/template/template_chat.html', 'r') as file:
+    with open('src/templates/template_chat.html', 'r') as file:
         html_template = file.read()
 
     html_content = html_template.replace('"{{chatData}}"', json_data).replace('"{{fileName}}"', chat_name)

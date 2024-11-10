@@ -5,6 +5,7 @@ logs/**
 data/**
 downloads/**
 evaluation/**
+prompts/**
 .venv/**
 
 **.cache

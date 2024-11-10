@@ -1,13 +1,19 @@
+import os
+from time import sleep
 from typing import Callable
 
+from tqdm import tqdm
+
+import src.defines
 from src.scripts.expert_evaluation_analysis import get_all_manual_jsons
 from src.logic.types import EvaluationResult, RankingResult
+from src.logic.types.message_types import AIMessage, HumanMessage, SystemMessage
 from src.logic.database import get_retriever_getter
 from src.logic.language_model import OpenAILanguageModel
 from src.logic.types.database_types import EvaluationResult_from_invalid_response, Ranking
 from src.extraction.evaluation import get_all_preferences, prompt_for_ranking, compare_profiles
 from src.finetuning.extract_from_finetuned_model import get_queries_from_evaluation_folder
-from src.util.log import ratio
+from src.util import log, ratio, dump_json, load_json
 
 
 # Function to update Elo ratings based on the results
@@ -61,38 +67,33 @@ def run_pairwise_evaluations(
 
 # Main code execution
 if __name__ == '__main__':
-    BASE_URL = None  # '# TODO: Replace with the base URL of the API'
-    API_KEY = '# TODO: Replace with your API key'
+    # Run with: python -m src.extraction.evaluation_elo_and_consistency
+    BASE_URL = src.defines.LOCAL_AI_ML_PC  # TODO: Replace with the base URL of the API
+    API_KEY = src.defines.OPENAI_API_KEY  # TODO: Replace with your API key
     MAX_RETRIES = 1
+
+    # Initialize LLMs
+    LLMS = [
+        'alias-large-instruct',  # TODO: Replace with the model ID
+        'dev-llama-3-large',  # TODO: Replace with the model ID
+        'dev-mixtral-large',  # TODO: Replace with the model ID
+    ]
 
     NUM_EXAMPLES = 1  # Adjust as needed
     EVALUATE_WITH_CONSISTENCY_CHECK = True  # Set to False to disable consistency check
     EVALUATIONS_FOLDER = 'evaluation/_DONE_DONE'  # Folder containing evaluation queries
+    ONLY_GEN_PROMPTS = False  # Set to True to only generate prompts
 
-    # Initialize LLMs
-    LLM1 = OpenAILanguageModel(
-        model='model_id_1',  # TODO: Replace with the model ID
-        debug_context_name='evaluate_for_elo_and_consistency',
-        base_url=BASE_URL,
-        api_key=API_KEY,
-        max_retries=MAX_RETRIES,
-    )
-    LLM2 = OpenAILanguageModel(
-        model='model_id_2',  # TODO: Replace with the model ID
-        debug_context_name='evaluate_for_elo_and_consistency',
-        base_url=BASE_URL,
-        api_key=API_KEY,
-        max_retries=MAX_RETRIES,
-    )
-    LLM3 = OpenAILanguageModel(
-        model='model_id_3',  # TODO: Replace with the model ID
-        debug_context_name='evaluate_for_elo_and_consistency',
-        base_url=BASE_URL,
-        api_key=API_KEY,
-        max_retries=MAX_RETRIES,
-    )
-
-    llms = [LLM1, LLM2, LLM3]
+    llms = [
+        OpenAILanguageModel(
+            model=model,
+            base_url=BASE_URL,
+            api_key=API_KEY,
+            max_retries=MAX_RETRIES,
+            debug_context_name='evaluate_for_elo_and_consistency',
+        )
+        for model in LLMS
+    ]
 
     all_jsons_from_manual = {data.author: data for data in get_all_manual_jsons()}
 
@@ -101,14 +102,39 @@ if __name__ == '__main__':
     total_preferences = 0
     total_matched_preferences = 0
 
+    log(f'Running Elo and consistency check for {len(queries)} queries')
+
+    if not ONLY_GEN_PROMPTS:
+        for i, llm in enumerate(llms):
+            # go through all prompts in the prompts folder and generate responses
+            all_prompts = []
+            for query in queries.values():
+                for prompt in os.listdir(f'prompts/{query.author}'):
+                    if prompt.endswith(f'_{i}.json'):
+                        prompt_data = load_json(f'prompts/{query.author}/{prompt}')
+                        prompt_data[0] = SystemMessage(prompt_data[0]['content'])
+                        prompt_data[1] = HumanMessage(prompt_data[1]['content'])
+                        prompt_data[2] = AIMessage(prompt_data[2]['content'])
+                        prompt_data[3] = HumanMessage(prompt_data[3]['content'])
+                        all_prompts.append(prompt_data)
+
+            for prompt_data in tqdm(all_prompts, desc=f'Running LLM {llm.model}'):
+                # Generate the response - this will be cached to file to avoid re-running the same prompt
+                llm.invoke(prompt_data, temperature=0.1)
+
+            sleep(120)  # Sleep for 2 minutes to avoid switching models too quickly
+
     for query in queries.values():
+        log(f'Query: {query.author}')
         sample_abstracts = query.abstracts
-        sample_profiles = all_jsons_from_manual[query.author].profiles
+        sample_profiles = list(all_jsons_from_manual[query.author].profiles.values())
 
         # Retrieve examples (implement this function based on your data)
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
             '\n\n'.join(sample_abstracts)
         )
+
+        log(f'Found {len(examples)} examples')
 
         # Define the match evaluator function
         def match_evaluator(profile1_index: int, profile2_index: int) -> list[EvaluationResult]:
@@ -118,7 +144,12 @@ if __name__ == '__main__':
             evaluations: list[EvaluationResult] = []
             for i, llm in enumerate(llms):
                 prompt = prompt_for_ranking(profile1, profile2, examples, sample_abstracts)
-                response = llm.invoke(prompt, temperature=0.1)
+                if ONLY_GEN_PROMPTS:
+                    os.makedirs(f'prompts/{query.author}', exist_ok=True)
+                    dump_json(prompt, f'prompts/{query.author}/{profile1_index}_{profile2_index}_{i}.json')
+                    response = '1'
+                else:
+                    response = llm.invoke(prompt, temperature=0.1)
                 evaluation = EvaluationResult_from_invalid_response(response)
                 evaluations.append(evaluation)
 
@@ -137,16 +168,18 @@ if __name__ == '__main__':
             return [EvaluationResult(reasoning=reasoning, preferred_profile=preferred_profile)]
 
         # Run pairwise evaluations
+        log(f'Running pairwise evaluations for {len(sample_profiles)} profiles')
         results = run_pairwise_evaluations(
             profile_indices=list(range(len(sample_profiles))),
             evaluator=match_evaluator,
         )
+        log('Pairwise evaluations complete')
 
         # Get Elo ratings based on results
         elo_ratings = get_elo_ratings(results)
 
         # Sort profiles by Elo rating
-        sorted_profiles = sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True)
+        sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
 
         # Output the sorted profiles and their ratings
         for profile_index, rating in sorted_profiles:
@@ -162,10 +195,10 @@ if __name__ == '__main__':
             index_of_loser_in_elo = -1
             score_of_loser_in_elo = -1
             for i, (profile_index, elo_score) in enumerate(sorted_profiles):
-                if profile_index == preference.winner:
+                if profile_index == preference.winner - 1:  # 1-indexed
                     index_of_winner_in_elo = i
                     score_of_winner_in_elo = elo_score
-                if profile_index == preference.loser:
+                if profile_index == preference.loser - 1:  # 1-indexed
                     index_of_loser_in_elo = i
                     score_of_loser_in_elo = elo_score
 
@@ -174,7 +207,7 @@ if __name__ == '__main__':
                 and index_of_loser_in_elo != -1
                 and score_of_winner_in_elo != -1
                 and score_of_loser_in_elo != -1
-            ), 'Winner or loser not found in elo ranking'
+            ), f'Winner or loser not found in elo ranking: (Winner: {preference.winner}, Loser: {preference.loser}) in {sorted_profiles}'
 
             total_preferences += 1
             if index_of_winner_in_elo < index_of_loser_in_elo:
