@@ -473,18 +473,13 @@
                 if (dragSrcEl !== this) {
                     let parentNode = this.parentNode;
                     // Determine the relative horizontal position
-                    let rect = this.getBoundingClientRect();
+                    let rect = dragSrcEl.getBoundingClientRect();
                     let offset = e.clientX - rect.left;
-                    console.log('Rect:', rect.left);
-                    console.log('ClientX:', e.clientX);
-                    console.log('Offset (ClientX - Rect):', offset);
                     if (offset > 0) {
                         // Insert after the drop target
-                        console.log('Inserting after');
                         parentNode.insertBefore(dragSrcEl, this.nextSibling);
                     } else {
                         // Insert before the drop target
-                        console.log('Inserting before');
                         parentNode.insertBefore(dragSrcEl, this);
                     }
                 }

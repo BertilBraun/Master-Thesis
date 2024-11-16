@@ -64,6 +64,9 @@ def process_papers():
     assert all('title' in paper and 'abstract' in paper for paper in request.json['papers'])
     assert 5 <= len(request.json['papers']) <= 10
 
+    GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
+    GROQ_API_KEY = 'gsk_...'
+
     author_name = request.json['author_name']
     papers = request.json['papers']
     # sort papers by title to ensure consistent results
@@ -77,12 +80,18 @@ def process_papers():
         abstracts=[paper['abstract'] for paper in papers],
         author=author_name,
     )
-    for model in ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo']:  # TODO all in parallel
+    for model in [
+        'gemma2-9b-it',
+        'llama-3.1-70b-versatile',
+        'mixtral-8x7b-32768',
+        'llama-3.1-8b-instant',
+    ]:  # ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo']:  # TODO all in parallel
         retriever_getter = get_retriever_getter(max_number_to_retrieve=2)
 
         llm = OpenAILanguageModel(
             model,
-            base_url=src.defines.BASE_URL_LLM,
+            base_url=GROQ_BASE_URL,  # src.defines.BASE_URL_LLM,
+            api_key=GROQ_API_KEY,  # src.defines.API_KEY_LLM,
             debug_context_name=author_name,
         )
 
