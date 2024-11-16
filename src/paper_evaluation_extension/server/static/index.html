@@ -480,15 +480,16 @@
 
             let progress = 0;
             const maxProgress = 90; // Maximum progress percentage before waiting for the actual response
-            const totalDuration = 40000; // Total duration in milliseconds (40 seconds)
-            const intervalTime = 500; // Update interval in milliseconds
+            const totalDuration = 20000; // Total duration in milliseconds (40 seconds)
+            const intervalTime = 1500; // Update interval in milliseconds
             const increment = (maxProgress / (totalDuration / intervalTime));
 
             // Start the progress bar simulation
             const progressInterval = setInterval(() => {
                 if (progress < maxProgress) {
+                    const progressToDisplay = Math.random() * 10 * increment + progress;
+                    progressBar.style.width = progressToDisplay + '%';
                     progress += increment;
-                    progressBar.style.width = progress + '%';
                     progressText.textContent = 'Processing... ' + Math.round(progress) + '%';
                 } else {
                     clearInterval(progressInterval);
