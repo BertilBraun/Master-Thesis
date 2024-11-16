@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Paper Evaluation Extension</title>
+    <style>
+        body,
+        html {
+            /* height: 100%; */
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        h1 {
+            margin-top: 20px;
+        }
+
+        #author-form {
+            margin: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #author-form input {
+            padding: 8px;
+            font-size: 16px;
+            width: 300px;
+            margin-bottom: 10px;
+        }
+
+        #author-form button {
+            padding: 8px 16px;
+            font-size: 16px;
+        }
+
+        #papers-section {
+            width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #papers-container {
+            display: flex;
+            flex-direction: column;
+            max-height: 400px;
+            overflow-y: auto;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+
+        .paper-tile {
+            padding: 10px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+            cursor: pointer;
+            background-color: #fff;
+            border-radius: 5px;
+            position: relative;
+        }
+
+        .paper-tile.selected {
+            background-color: #cce5ff;
+        }
+
+        #process-button {
+            padding: 8px 16px;
+            font-size: 16px;
+            margin-bottom: 20px;
+            cursor: pointer;
+        }
+
+        #process-button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        #profiles-container {
+            display: flex;
+            flex-direction: row;
+            overflow-x: auto;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+
+        .profile-card {
+            min-width: 300px;
+            max-width: 400px;
+            height: fit-content;
+            background-color: #fff;
+            padding: 20px;
+            border: 1px solid #ccc;
+            margin-right: 20px;
+            border-radius: 5px;
+            cursor: grab;
+            box-sizing: border-box;
+            position: relative;
+        }
+
+        .profile-card h2 {
+            margin-top: 0;
+        }
+
+        .profile-card pre {
+            background-color: #f4f4f4;
+            padding: 10px;
+            border-radius: 5px;
+            overflow: auto;
+            max-height: 200px;
+        }
+
+        .profile-card .drag-handle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            cursor: move;
+            font-size: 20px;
+            color: #ccc;
+        }
+
+        .profile-card .drag-handle:hover {
+            color: #888;
+        }
+
+        .toggle-abstract {
+            background: none;
+            border: none;
+            color: blue;
+            cursor: pointer;
+            text-decoration: underline;
+            font-size: 14px;
+            padding: 0;
+            margin-left: 10px;
+        }
+
+        .toggle-abstract:focus {
+            outline: none;
+        }
+
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #555;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+            margin-left: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        #selected-papers-list {
+            list-style-type: disc;
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* New styles for competencies list */
+        .competencies-list {
+            list-style-type: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .competency-item {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 5px;
+        }
+
+        .competency-item button.plain-button {
+            background: none;
+            border: none;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 5px;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .competency-item button.plain-button:focus {
+            outline: none;
+        }
+
+        .competency-item strong {
+            margin-right: 5px;
+        }
+
+        .competency-description {
+            margin-left: 22px;
+            /* Indent to align with the competency name */
+            margin-top: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Paper Evaluation Extension</h1>
+
+    <form id="author-form">
+        <input type="text" id="author-name" placeholder="Enter Author Name" required>
+        <button type="submit">Fetch Papers</button>
+    </form>
+
+    <div id="papers-section">
+        <div id="papers-container"></div>
+        <button id="process-button" disabled>Process Papers</button>
+    </div>
+
+    <h2 id="profiles-heading" style="display: none;">Extracted Profiles</h2>
+    <div id="profiles-container"></div>
+
+    <div id="selected-papers-section" style="display: none;">
+        <h2>Selected Papers</h2>
+        <ul id="selected-papers-list"></ul>
+    </div>
+
+    <script>
+        const authorForm = document.getElementById('author-form');
+        const authorNameInput = document.getElementById('author-name');
+        const papersContainer = document.getElementById('papers-container');
+        const processButton = document.getElementById('process-button');
+        const profilesContainer = document.getElementById('profiles-container');
+        const profilesHeading = document.getElementById('profiles-heading');
+        const papersSection = document.getElementById('papers-section');
+        const selectedPapersSection = document.getElementById('selected-papers-section');
+        const selectedPapersList = document.getElementById('selected-papers-list');
+
+        let selectedPapers = [];
+        let authorName = '';
+
+        authorForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            authorName = authorNameInput.value.trim();
+
+            // Validate author name
+            if (authorName.length < 3 || !authorName.includes(' ')) {
+                alert('Author name must be at least 3 characters long and contain at least one space.');
+                return;
+            }
+
+            // Disable form inputs and show spinner
+            authorNameInput.disabled = true;
+            const submitButton = authorForm.querySelector('button');
+            submitButton.disabled = true;
+            const originalButtonText = submitButton.innerHTML;
+            submitButton.innerHTML = 'Fetching Papers... <div class="spinner"></div>';
+
+            // Fetch papers
+            try {
+                const response = await fetch('/get_papers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author_name: authorName })
+                });
+                const papers = await response.json();
+                displayPapers(papers);
+            } catch (error) {
+                alert('Error fetching papers: ' + error);
+            }
+
+            // Re-enable form inputs and hide spinner
+            authorNameInput.disabled = false;
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
+        });
+
+        function displayPapers(papers) {
+            papersContainer.innerHTML = '';
+            selectedPapers = [];
+            processButton.disabled = true;
+            profilesHeading.style.display = 'none';
+            profilesContainer.innerHTML = '';
+            selectedPapersSection.style.display = 'none';
+            selectedPapersList.innerHTML = '';
+
+            if (papers.length === 0) {
+                papersContainer.innerHTML = '<p>No papers found for this author.</p>';
+                return;
+            }
+
+            papers.forEach((paper, index) => {
+                const paperTile = document.createElement('div');
+                paperTile.classList.add('paper-tile');
+                paperTile.dataset.index = index;
+
+                const title = document.createElement('strong');
+                title.textContent = paper.title;
+
+                const toggleAbstractBtn = document.createElement('button');
+                toggleAbstractBtn.textContent = 'Show Abstract';
+                toggleAbstractBtn.classList.add('toggle-abstract');
+
+                const abstract = document.createElement('p');
+                abstract.textContent = paper.abstract;
+                abstract.classList.add('abstract');
+                abstract.style.display = 'none';
+
+                toggleAbstractBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (abstract.style.display === 'none') {
+                        abstract.style.display = 'block';
+                        toggleAbstractBtn.textContent = 'Hide Abstract';
+                    } else {
+                        abstract.style.display = 'none';
+                        toggleAbstractBtn.textContent = 'Show Abstract';
+                    }
+                });
+
+                paperTile.appendChild(title);
+                paperTile.appendChild(toggleAbstractBtn);
+                paperTile.appendChild(abstract);
+
+                paperTile.addEventListener('click', () => togglePaperSelection(paperTile, paper));
+
+                papersContainer.appendChild(paperTile);
+            });
+        }
+
+        function togglePaperSelection(paperTile, paper) {
+            if (paperTile.classList.contains('selected')) {
+                paperTile.classList.remove('selected');
+                selectedPapers = selectedPapers.filter(p => p !== paper);
+            } else {
+                if (selectedPapers.length >= 10) {
+                    alert('You can select a maximum of 10 papers.');
+                    return;
+                }
+                paperTile.classList.add('selected');
+                selectedPapers.push(paper);
+            }
+
+            if (selectedPapers.length >= 5 && selectedPapers.length <= 10) {
+                processButton.disabled = false;
+            } else {
+                processButton.disabled = true;
+            }
+        }
+
+        processButton.addEventListener('click', async () => {
+            // Disable processButton and show spinner
+            const originalButtonText = processButton.innerHTML;
+            showSpinner(processButton);
+
+            try {
+                const response = await fetch('/process_papers', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        author_name: authorName,
+                        papers: selectedPapers
+                    })
+                });
+                const profiles = await response.json();
+                displayProfiles(profiles);
+                displaySelectedPapers();
+                // Hide the paper selection and buttons
+                papersSection.style.display = 'none';
+                // Hide the author form
+                authorForm.style.display = 'none';
+            } catch (error) {
+                alert('Error processing papers: ' + error);
+            }
+
+            // Re-enable processButton and hide spinner
+            hideSpinner(processButton, originalButtonText);
+        });
+
+        function displaySelectedPapers() {
+            selectedPapersSection.style.display = 'block';
+            selectedPapersList.innerHTML = selectedPapers.map(paper => `<li>${paper.title}</li>`).join('');
+        }
+
+        function displayProfiles(profiles) {
+            profilesContainer.innerHTML = '';
+            profilesHeading.style.display = 'block';
+            profiles.forEach(profile => {
+                const profileCard = document.createElement('div');
+                profileCard.classList.add('profile-card');
+
+                const dragHandle = document.createElement('div');
+                dragHandle.classList.add('drag-handle');
+                dragHandle.innerHTML = '&#9776;';
+                profileCard.appendChild(dragHandle);
+
+                const content = document.createElement('div');
+                content.innerHTML = `
+                    <h2>${profile.model_name}</h2>
+                    <p><strong>Domain:</strong> ${profile.profile.domain}</p>
+                    <p><strong>Competencies:</strong></p>
+                    <ul class="competencies-list">
+                        ${profile.profile.competencies.map((comp, index) => `
+                            <li class="competency-item">
+                                <button onclick="event.stopPropagation();toggleDescription(this, 'desc-${profile.model_name}-${index}')" class="plain-button">&#9660;</button>
+                                <strong>${comp.name}</strong>
+                                <p id="desc-${profile.model_name}-${index}" class="competency-description" style="display:none;">${comp.description}</p>
+                            </li>
+                        `).join('')}
+                    </ul>
+                `;
+                profileCard.appendChild(content);
+
+                profilesContainer.appendChild(profileCard);
+            });
+            makeCardsDraggable();
+        }
+
+        function toggleDescription(button, id) {
+            const desc = document.getElementById(id);
+            if (desc.style.display === 'none') {
+                desc.style.display = 'block';
+                button.innerHTML = '&#9650;';
+            } else {
+                desc.style.display = 'none';
+                button.innerHTML = '&#9660;';
+            }
+        }
+
+        function makeCardsDraggable() {
+            let dragSrcEl = null;
+
+            function handleDragStart(e) {
+                dragSrcEl = this;
+                e.dataTransfer.effectAllowed = 'move';
+                e.dataTransfer.setData('text/html', this.outerHTML);
+                this.classList.add('dragging');
+            }
+
+            function handleDragOver(e) {
+                if (e.preventDefault) {
+                    e.preventDefault();
+                }
+                e.dataTransfer.dropEffect = 'move';
+                return false;
+            }
+
+            function handleDragEnter(e) {
+                this.classList.add('over');
+            }
+
+            function handleDragLeave(e) {
+                this.classList.remove('over');
+            }
+
+            function handleDrop(e) {
+                e.preventDefault();
+                if (dragSrcEl !== this) {
+                    let parentNode = this.parentNode;
+                    // Determine the relative horizontal position
+                    let rect = this.getBoundingClientRect();
+                    let offset = e.clientX - rect.left;
+                    console.log('Rect:', rect.left);
+                    console.log('ClientX:', e.clientX);
+                    console.log('Offset (ClientX - Rect):', offset);
+                    if (offset > 0) {
+                        // Insert after the drop target
+                        console.log('Inserting after');
+                        parentNode.insertBefore(dragSrcEl, this.nextSibling);
+                    } else {
+                        // Insert before the drop target
+                        console.log('Inserting before');
+                        parentNode.insertBefore(dragSrcEl, this);
+                    }
+                }
+                return false;
+            }
+
+
+            function handleDragEnd(e) {
+                this.classList.remove('over');
+                this.classList.remove('dragging');
+                const cards = document.querySelectorAll('.profile-card');
+                cards.forEach(card => {
+                    card.classList.remove('over');
+                });
+            }
+
+            function addDnDHandlers(card) {
+                card.addEventListener('dragstart', handleDragStart, false);
+                card.addEventListener('dragenter', handleDragEnter, false);
+                card.addEventListener('dragover', handleDragOver, false);
+                card.addEventListener('dragleave', handleDragLeave, false);
+                card.addEventListener('drop', handleDrop, false);
+                card.addEventListener('dragend', handleDragEnd, false);
+            }
+
+            const cards = document.querySelectorAll('.profile-card');
+            cards.forEach(card => {
+                card.setAttribute('draggable', 'true');
+                addDnDHandlers(card);
+            });
+        }
+
+        function showSpinner(button) {
+            button.disabled = true;
+            button.innerHTML = 'Processing... <div class="spinner"></div>';
+        }
+
+        function hideSpinner(button, originalText) {
+            button.disabled = false;
+            button.innerHTML = originalText;
+        }
+    </script>
+
+</body>
+
+</html>

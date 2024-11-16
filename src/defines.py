@@ -5,6 +5,7 @@ dotenv.load_dotenv()
 
 OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-...')
 JSONBIN_API_KEY = os.getenv('JSONBIN_API_KEY', '$2a$...')
+JSONBIN_API_KEY = '$2a$10$e5lgWuePR6yPBPIBgN8fb.iIRqRnYXQ9mv2iUL3466zUz0p9CMeVe'
 
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 

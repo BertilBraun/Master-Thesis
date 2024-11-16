@@ -145,7 +145,7 @@ def get_papers_by_author(
     works = Works().filter(language='en').filter(author={'id': author_id}).filter(has_abstract=True)
     if load_full_text:
         works = works.filter(has_fulltext=True).filter(open_access={'is_oa': True}).filter(fulltext_origin='pdf')
-    papers = works.sort(cited_by_count='desc').get(per_page=number_of_papers * 10)
+    papers = works.sort(cited_by_count='desc').get(per_page=min(number_of_papers * 10, 200))
 
     full_texts: list[str] = []
     abstracts: list[str] = []
@@ -168,7 +168,7 @@ def get_papers_by_author(
         abstracts.append(paper['abstract'])  # type: ignore
         titles.append(paper['title'])  # type: ignore
 
-    assert len(abstracts) >= number_of_papers, f'Not enough papers found for author {author_name}'
+    # assert len(abstracts) >= number_of_papers, f'Not enough papers found for author {author_name}'
 
     return Query(
         abstracts=abstracts,

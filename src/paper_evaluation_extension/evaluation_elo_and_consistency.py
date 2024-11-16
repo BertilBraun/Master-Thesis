@@ -74,9 +74,9 @@ if __name__ == '__main__':
 
     # Initialize LLMs
     LLMS = [
+        'dev-mixtral-large',  # TODO: Replace with the model ID
         'alias-large-instruct',  # TODO: Replace with the model ID
         'dev-llama-3-large',  # TODO: Replace with the model ID
-        'dev-mixtral-large',  # TODO: Replace with the model ID
     ]
 
     NUM_EXAMPLES = 1  # Adjust as needed
@@ -120,7 +120,9 @@ if __name__ == '__main__':
 
             for prompt_data in tqdm(all_prompts, desc=f'Running LLM {llm.model}'):
                 # Generate the response - this will be cached to file to avoid re-running the same prompt
-                llm.invoke(prompt_data, temperature=0.1)
+                response = llm.invoke(prompt_data, temperature=0.1)
+                if response.strip()[-1] != '}':
+                    print('WARNING: Response is not valid JSON')
 
             sleep(120)  # Sleep for 2 minutes to avoid switching models too quickly
 
