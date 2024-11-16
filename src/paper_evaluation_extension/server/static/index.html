@@ -7,7 +7,6 @@
     <style>
         body,
         html {
-            /* height: 100%; */
             width: 100%;
             margin: 0;
             padding: 0;
@@ -72,14 +71,16 @@
             background-color: #cce5ff;
         }
 
-        #process-button {
+        #process-button,
+        #upload-button {
             padding: 8px 16px;
             font-size: 16px;
             margin-bottom: 20px;
             cursor: pointer;
         }
 
-        #process-button:disabled {
+        #process-button:disabled,
+        #upload-button:disabled {
             background-color: #ccc;
             cursor: not-allowed;
         }
@@ -88,6 +89,7 @@
             display: flex;
             flex-direction: row;
             overflow-x: auto;
+            overflow-y: hidden;
             width: 100%;
             padding: 20px;
             box-sizing: border-box;
@@ -213,8 +215,66 @@
 
         .competency-description {
             margin-left: 22px;
-            /* Indent to align with the competency name */
             margin-top: 5px;
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            /* Hidden by default */
+            position: fixed;
+            /* Stay in place */
+            z-index: 1000;
+            /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%;
+            /* Full width */
+            height: 100%;
+            /* Full height */
+            overflow: auto;
+            /* Enable scroll if needed */
+            background-color: rgba(0, 0, 0, 0.4);
+            /* Black w/ opacity */
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            /* Center in the screen */
+            padding: 20px;
+            border: 1px solid #888;
+            width: 80%;
+            /* Could be more or less, depending on screen size */
+            max-width: 500px;
+            text-align: center;
+            border-radius: 5px;
+        }
+
+        #instruction-button {
+            margin-top: 20px;
+        }
+
+        /* Progress Bar Styles */
+        #progress-container {
+            width: 80%;
+            background-color: #ccc;
+            border-radius: 5px;
+            overflow: hidden;
+            display: none;
+            margin-bottom: 20px;
+        }
+
+        #progress-bar {
+            width: 0%;
+            height: 20px;
+            background-color: #4caf50;
+        }
+
+        #progress-text {
+            text-align: center;
+            margin-top: 5px;
+            display: none;
         }
     </style>
 </head>
@@ -228,17 +288,34 @@
         <button type="submit">Fetch Papers</button>
     </form>
 
+    <!-- Progress Bar -->
+    <div id="progress-container">
+        <div id="progress-bar"></div>
+    </div>
+    <div id="progress-text">Processing... 0%</div>
+
     <div id="papers-section">
         <div id="papers-container"></div>
-        <button id="process-button" disabled>Process Papers</button>
+        <button id="process-button" disabled style="display: none;">Process Papers</button>
     </div>
 
     <h2 id="profiles-heading" style="display: none;">Extracted Profiles</h2>
     <div id="profiles-container"></div>
 
+    <!-- New Upload Button -->
+    <button id="upload-button" style="display: none;">Upload Profiles</button>
+
     <div id="selected-papers-section" style="display: none;">
         <h2>Selected Papers</h2>
         <ul id="selected-papers-list"></ul>
+    </div>
+
+    <!-- Instruction Modal -->
+    <div id="instruction-modal" class="modal">
+        <div class="modal-content">
+            <p id="instruction-text"></p>
+            <button id="instruction-button">OK</button>
+        </div>
     </div>
 
     <script>
@@ -246,14 +323,38 @@
         const authorNameInput = document.getElementById('author-name');
         const papersContainer = document.getElementById('papers-container');
         const processButton = document.getElementById('process-button');
+        const uploadButton = document.getElementById('upload-button');
         const profilesContainer = document.getElementById('profiles-container');
         const profilesHeading = document.getElementById('profiles-heading');
         const papersSection = document.getElementById('papers-section');
         const selectedPapersSection = document.getElementById('selected-papers-section');
         const selectedPapersList = document.getElementById('selected-papers-list');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
 
         let selectedPapers = [];
         let authorName = '';
+        let profiles = [];
+
+        function showInstruction(message, callback) {
+            const modal = document.getElementById('instruction-modal');
+            const instructionText = document.getElementById('instruction-text');
+            const instructionButton = document.getElementById('instruction-button');
+
+            instructionText.innerHTML = message;
+            modal.style.display = 'block';
+
+            instructionButton.onclick = function () {
+                modal.style.display = 'none';
+                if (callback) callback();
+            }
+        }
+
+        // Show the initial instruction when the page loads
+        document.addEventListener('DOMContentLoaded', function () {
+            showInstruction('Enter your full name (first and last name), then click "Fetch Papers".');
+        });
 
         authorForm.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -296,9 +397,14 @@
             selectedPapers = [];
             processButton.disabled = true;
             profilesHeading.style.display = 'none';
+            processButton.style.display = 'inline-block';
             profilesContainer.innerHTML = '';
             selectedPapersSection.style.display = 'none';
             selectedPapersList.innerHTML = '';
+            uploadButton.style.display = 'none';
+            progressContainer.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.style.display = 'none';
 
             if (papers.length === 0) {
                 papersContainer.innerHTML = '<p>No papers found for this author.</p>';
@@ -341,6 +447,9 @@
 
                 papersContainer.appendChild(paperTile);
             });
+
+            // Show instruction for selecting papers
+            showInstruction('Select 5-10 papers which represent your competencies the best, then click "Process Papers".');
         }
 
         function togglePaperSelection(paperTile, paper) {
@@ -364,12 +473,30 @@
         }
 
         processButton.addEventListener('click', async () => {
-            // Disable processButton and show spinner
-            const originalButtonText = processButton.innerHTML;
-            showSpinner(processButton);
+            // Disable processButton and show progress bar
+            processButton.disabled = true;
+            progressContainer.style.display = 'block';
+            progressText.style.display = 'block';
+
+            let progress = 0;
+            const maxProgress = 90; // Maximum progress percentage before waiting for the actual response
+            const totalDuration = 40000; // Total duration in milliseconds (40 seconds)
+            const intervalTime = 500; // Update interval in milliseconds
+            const increment = (maxProgress / (totalDuration / intervalTime));
+
+            // Start the progress bar simulation
+            const progressInterval = setInterval(() => {
+                if (progress < maxProgress) {
+                    progress += increment;
+                    progressBar.style.width = progress + '%';
+                    progressText.textContent = 'Processing... ' + Math.round(progress) + '%';
+                } else {
+                    clearInterval(progressInterval);
+                }
+            }, intervalTime);
 
             try {
-                const response = await fetch('/process_papers', {
+                const responsePromise = fetch('/process_papers', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -377,19 +504,43 @@
                         papers: selectedPapers
                     })
                 });
-                const profiles = await response.json();
-                displayProfiles(profiles);
-                displaySelectedPapers();
-                // Hide the paper selection and buttons
-                papersSection.style.display = 'none';
-                // Hide the author form
-                authorForm.style.display = 'none';
+
+                // Wait for the response
+                const response = await responsePromise;
+                profiles = await response.json();
+
+                // If progress bar is still running, clear the interval
+                clearInterval(progressInterval);
+
+                // Set progress to 100%
+                progressBar.style.width = '100%';
+                progressText.textContent = 'Processing... 100%';
+
+                // Small delay to show full progress bar
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressText.style.display = 'none';
+
+                    displayProfiles(profiles);
+                    displaySelectedPapers();
+                    // Hide the paper selection and buttons
+                    papersSection.style.display = 'none';
+                    // Hide the author form
+                    authorForm.style.display = 'none';
+                    // Show the upload button
+                    uploadButton.style.display = 'inline-block';
+
+                    // Show instruction for ordering profiles
+                    showInstruction('Order the profiles from worst to best match of your actual competencies (left to right), then click "Upload Profiles".');
+                }, 500);
+
             } catch (error) {
                 alert('Error processing papers: ' + error);
+                clearInterval(progressInterval);
+                progressContainer.style.display = 'none';
+                progressText.style.display = 'none';
+                processButton.disabled = false;
             }
-
-            // Re-enable processButton and hide spinner
-            hideSpinner(processButton, originalButtonText);
         });
 
         function displaySelectedPapers() {
@@ -397,10 +548,10 @@
             selectedPapersList.innerHTML = selectedPapers.map(paper => `<li>${paper.title}</li>`).join('');
         }
 
-        function displayProfiles(profiles) {
+        function displayProfiles(profilesData) {
             profilesContainer.innerHTML = '';
             profilesHeading.style.display = 'block';
-            profiles.forEach(profile => {
+            profilesData.forEach(profile => {
                 const profileCard = document.createElement('div');
                 profileCard.classList.add('profile-card');
 
@@ -448,7 +599,6 @@
             function handleDragStart(e) {
                 dragSrcEl = this;
                 e.dataTransfer.effectAllowed = 'move';
-                e.dataTransfer.setData('text/html', this.outerHTML);
                 this.classList.add('dragging');
             }
 
@@ -471,11 +621,11 @@
             function handleDrop(e) {
                 e.preventDefault();
                 if (dragSrcEl !== this) {
-                    let parentNode = this.parentNode;
+                    const parentNode = this.parentNode;
                     // Determine the relative horizontal position
-                    let rect = dragSrcEl.getBoundingClientRect();
-                    let offset = e.clientX - rect.left;
-                    if (offset > 0) {
+                    const rect = this.getBoundingClientRect();
+                    const offset = e.clientX - rect.left;
+                    if (offset > this.offsetWidth / 2) {
                         // Insert after the drop target
                         parentNode.insertBefore(dragSrcEl, this.nextSibling);
                     } else {
@@ -485,7 +635,6 @@
                 }
                 return false;
             }
-
 
             function handleDragEnd(e) {
                 this.classList.remove('over');
@@ -521,6 +670,41 @@
             button.disabled = false;
             button.innerHTML = originalText;
         }
+
+        // Upload Button Click Handler
+        uploadButton.addEventListener('click', async () => {
+            uploadButton.disabled = true;
+            uploadButton.innerHTML = 'Uploading... <div class="spinner"></div>';
+
+            // Get the current order of profiles
+            const orderedProfiles = [];
+            const profileCards = profilesContainer.querySelectorAll('.profile-card');
+            profileCards.forEach(card => {
+                const modelName = card.querySelector('h2').textContent;
+                const profile = profiles.find(p => p.model_name === modelName);
+                if (profile) {
+                    orderedProfiles.push(profile);
+                }
+            });
+
+            try {
+                const response = await fetch('/upload_profiles', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ profiles: orderedProfiles, author_name: authorName })
+                });
+                const result = await response.json();
+                if (response.ok) {
+                    alert('Profiles uploaded successfully! Bin ID: ' + result.binId);
+                } else {
+                    alert('Error uploading profiles: ' + result.message);
+                }
+            } catch (error) {
+                alert('Error uploading profiles: ' + error);
+            }
+
+            uploadButton.innerHTML = 'Thank you!';
+        });
     </script>
 
 </body>

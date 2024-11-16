@@ -18,6 +18,7 @@
 # The server is started by running `python -m src.paper_evaluation_extension.server` from the root directory of the project.
 
 from flask import Flask, request, jsonify
+import requests
 
 # TODO no relative imports in the main module
 import src.defines
@@ -113,6 +114,36 @@ def process_papers():
 @app.route('/index', methods=['GET'])
 def index():
     return app.send_static_file('index.html')
+
+
+@app.route('/upload_profiles', methods=['POST'])
+def upload_profiles():
+    # Ensure the request contains profiles
+    assert request.json is not None
+    assert 'author_name' in request.json
+    assert isinstance(request.json['author_name'], str)
+    assert 'profiles' in request.json
+    assert isinstance(request.json['profiles'], list)
+
+    author_name = request.json['author_name']
+    profiles = request.json['profiles']
+
+    url = 'https://api.jsonbin.io/v3/b'
+    headers = {
+        'Content-Type': 'application/json',
+        'X-Master-Key': src.defines.JSONBIN_API_KEY,
+        'X-Bin-Name': f'Uploaded Profiles: {author_name}',
+        'X-Bin-Private': 'false',
+    }
+
+    response = requests.post(url, json=profiles, headers=headers)
+    response_data = response.json()
+
+    if response.status_code != 200:
+        return jsonify({'message': response_data.get('message', 'Unknown error')}), response.status_code
+
+    bin_id = response_data['metadata']['id']
+    return jsonify({'binId': bin_id}), 200
 
 
 if __name__ == '__main__':
