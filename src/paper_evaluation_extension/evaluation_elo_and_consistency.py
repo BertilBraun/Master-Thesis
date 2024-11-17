@@ -1,19 +1,17 @@
-import os
-from time import sleep
-from typing import Callable
-
-from tqdm import tqdm
+import time
+import random
+from typing import Any, Callable, TypedDict
+from scipy.stats import spearmanr, kendalltau
 
 import src.defines
-from src.scripts.expert_evaluation_analysis import get_all_manual_jsons
+from src.logic.jsonbin import JsonBin
+from src.logic.types.base_types import Profile
 from src.logic.types import EvaluationResult, RankingResult
-from src.logic.types.message_types import AIMessage, HumanMessage, SystemMessage
 from src.logic.database import get_retriever_getter
 from src.logic.language_model import OpenAILanguageModel
 from src.logic.types.database_types import EvaluationResult_from_invalid_response, Ranking
-from src.extraction.evaluation import get_all_preferences, prompt_for_ranking, compare_profiles
-from src.finetuning.extract_from_finetuned_model import get_queries_from_evaluation_folder
-from src.util import log, ratio, dump_json, load_json
+from src.extraction.evaluation import prompt_for_ranking, compare_profiles
+from src.util import log
 
 
 # Function to update Elo ratings based on the results
@@ -65,71 +63,61 @@ def run_pairwise_evaluations(
     return results
 
 
+class UploadedProfile(TypedDict):
+    model_name: str
+    profile: dict[str, Any]
+
+
+class UploadedProfiles(TypedDict):
+    author: str
+    profiles: list[UploadedProfile]
+    abstracts: list[str]
+
+
 # Main code execution
 if __name__ == '__main__':
-    # Run with: python -m src.extraction.evaluation_elo_and_consistency
+    # Run with: python -m src.paper_evaluation_extension.evaluation_elo_and_consistency
     BASE_URL = src.defines.LOCAL_AI_ML_PC  # TODO: Replace with the base URL of the API
     API_KEY = src.defines.OPENAI_API_KEY  # TODO: Replace with your API key
     MAX_RETRIES = 1
 
     # Initialize LLMs
     LLMS = [
-        'dev-mixtral-large',  # TODO: Replace with the model ID
-        'alias-large-instruct',  # TODO: Replace with the model ID
-        'dev-llama-3-large',  # TODO: Replace with the model ID
+        'gemma2-9b-it',
+        'llama-3.1-70b-versatile',
+        'mixtral-8x7b-32768',
+        'llama-3.1-8b-instant',
     ]
 
     NUM_EXAMPLES = 1  # Adjust as needed
     EVALUATE_WITH_CONSISTENCY_CHECK = True  # Set to False to disable consistency check
-    EVALUATIONS_FOLDER = 'evaluation/_DONE_DONE'  # Folder containing evaluation queries
-    ONLY_GEN_PROMPTS = False  # Set to True to only generate prompts
 
     llms = [
         OpenAILanguageModel(
             model=model,
-            base_url=BASE_URL,
-            api_key=API_KEY,
+            base_url=src.defines.GROQ_BASE_URL,
+            api_key=src.defines.GROQ_API_KEY,
             max_retries=MAX_RETRIES,
             debug_context_name='evaluate_for_elo_and_consistency',
         )
         for model in LLMS
     ]
 
-    all_jsons_from_manual = {data.author: data for data in get_all_manual_jsons()}
+    json_bin = JsonBin(src.defines.JSONBIN_API_KEY)
+    jsons: list[UploadedProfiles] = [json_bin.bin(bin_id) for bin_id in json_bin.bins()]  # type: ignore
+    all_jsons_from_manual = {data['author']: data for data in jsons if 'abstracts' in data and 'profiles' in data}
 
-    queries, emails = get_queries_from_evaluation_folder(EVALUATIONS_FOLDER)
+    rohs, taus = [], []
 
-    total_preferences = 0
-    total_matched_preferences = 0
+    last_eval_time = time.time() - 60  # Initialize to 60 seconds ago to avoid waiting on the first iteration
 
-    log(f'Running Elo and consistency check for {len(queries)} queries')
+    log(f'Running Elo and consistency check for {len(jsons)} queries')
 
-    if not ONLY_GEN_PROMPTS:
-        for i, llm in enumerate(llms):
-            # go through all prompts in the prompts folder and generate responses
-            all_prompts = []
-            for query in queries.values():
-                for prompt in os.listdir(f'prompts/{query.author}'):
-                    if prompt.endswith(f'_{i}.json'):
-                        prompt_data = load_json(f'prompts/{query.author}/{prompt}')
-                        prompt_data[0] = SystemMessage(prompt_data[0]['content'])
-                        prompt_data[1] = HumanMessage(prompt_data[1]['content'])
-                        prompt_data[2] = AIMessage(prompt_data[2]['content'])
-                        prompt_data[3] = HumanMessage(prompt_data[3]['content'])
-                        all_prompts.append(prompt_data)
-
-            for prompt_data in tqdm(all_prompts, desc=f'Running LLM {llm.model}'):
-                # Generate the response - this will be cached to file to avoid re-running the same prompt
-                response = llm.invoke(prompt_data, temperature=0.1)
-                if response.strip()[-1] != '}':
-                    print('WARNING: Response is not valid JSON')
-
-            sleep(120)  # Sleep for 2 minutes to avoid switching models too quickly
-
-    for query in queries.values():
-        log(f'Query: {query.author}')
-        sample_abstracts = query.abstracts
-        sample_profiles = list(all_jsons_from_manual[query.author].profiles.values())
+    for author, upload in all_jsons_from_manual.items():
+        log(f'Query: {author}')
+        sample_abstracts = upload['abstracts']
+        sample_profiles = upload['profiles'].copy()  # Make a copy to avoid modifying the original list
+        random.shuffle(sample_profiles)
 
         # Retrieve examples (implement this function based on your data)
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
@@ -140,20 +128,22 @@ if __name__ == '__main__':
 
         # Define the match evaluator function
         def match_evaluator(profile1_index: int, profile2_index: int) -> list[EvaluationResult]:
-            profile1 = sample_profiles[profile1_index].profile
-            profile2 = sample_profiles[profile2_index].profile
+            global last_eval_time
+            # Make sure to wait for at least 1 minute between evaluations
+            time_since_last_eval = time.time() - last_eval_time
+            if time_since_last_eval < 60:
+                print(f'Waiting for {60 - time_since_last_eval} seconds before next evaluation')
+                time.sleep(60 - time_since_last_eval)
+            last_eval_time = time.time()
+
+            profile1 = Profile.from_json(sample_profiles[profile1_index]['profile'])
+            profile2 = Profile.from_json(sample_profiles[profile2_index]['profile'])
 
             evaluations: list[EvaluationResult] = []
-            for i, llm in enumerate(llms):
+            for llm in llms:
                 prompt = prompt_for_ranking(profile1, profile2, examples, sample_abstracts)
-                if ONLY_GEN_PROMPTS:
-                    os.makedirs(f'prompts/{query.author}', exist_ok=True)
-                    dump_json(prompt, f'prompts/{query.author}/{profile1_index}_{profile2_index}_{i}.json')
-                    response = '1'
-                else:
-                    response = llm.invoke(prompt, temperature=0.1)
-                evaluation = EvaluationResult_from_invalid_response(response)
-                evaluations.append(evaluation)
+                response = llm.invoke(prompt, temperature=0.1)
+                evaluations.append(EvaluationResult_from_invalid_response(response))
 
             preferred_profiles = [evaluation['preferred_profile'] for evaluation in evaluations]
 
@@ -186,42 +176,17 @@ if __name__ == '__main__':
         # Output the sorted profiles and their ratings
         for profile_index, rating in sorted_profiles:
             print(f'Profile {profile_index + 1}: Elo Rating = {rating}')
-            print(
-                f'Profile Model: {sample_profiles[profile_index].model} - Profile Method: {sample_profiles[profile_index].extraction_function}\n'
-            )
+            print(f'Profile Model: {sample_profiles[profile_index]["model_name"]}')
 
-        # Compare all preferences of the manual evaluation: Each preference should occur in the elo ranking in the order of the manual evaluation
-        for preference in get_all_preferences(all_jsons_from_manual[query.author].tournament):
-            index_of_winner_in_elo = -1
-            score_of_winner_in_elo = -1
-            index_of_loser_in_elo = -1
-            score_of_loser_in_elo = -1
-            for i, (profile_index, elo_score) in enumerate(sorted_profiles):
-                if profile_index == preference.winner - 1:  # 1-indexed
-                    index_of_winner_in_elo = i
-                    score_of_winner_in_elo = elo_score
-                if profile_index == preference.loser - 1:  # 1-indexed
-                    index_of_loser_in_elo = i
-                    score_of_loser_in_elo = elo_score
+        # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
+        X = [profile_index for profile_index, _ in sorted_profiles]
+        Y = [sample_profiles.index(profile) for profile in upload['profiles']]
+        rho, p_value = spearmanr(X, Y)
+        tau, p_value = kendalltau(X, Y)
+        print(f'Spearman correlation: {rho} (p-value: {p_value})')
+        print(f'Kendall tau: {tau} (p-value: {p_value})')
+        rohs.append(rho)
+        taus.append(tau)
 
-            assert (
-                index_of_winner_in_elo != -1
-                and index_of_loser_in_elo != -1
-                and score_of_winner_in_elo != -1
-                and score_of_loser_in_elo != -1
-            ), f'Winner or loser not found in elo ranking: (Winner: {preference.winner}, Loser: {preference.loser}) in {sorted_profiles}'
-
-            total_preferences += 1
-            if index_of_winner_in_elo < index_of_loser_in_elo:
-                total_matched_preferences += 1
-
-            if index_of_winner_in_elo > index_of_loser_in_elo:
-                print(
-                    f'Preference {preference} not satisfied in elo ranking ({index_of_winner_in_elo} > {index_of_loser_in_elo}) (Winner: {score_of_winner_in_elo}, Loser: {score_of_loser_in_elo})'
-                )
-            else:
-                print(
-                    f'Preference {preference} satisfied in elo ranking ({index_of_winner_in_elo} < {index_of_loser_in_elo}) (Winner: {score_of_winner_in_elo}, Loser: {score_of_loser_in_elo})'
-                )
-
-    print(f'Matched preferences: {ratio(total_matched_preferences, total_preferences)}')
+    print(f'Mean Spearman correlation: {sum(rohs) / len(rohs)}')
+    print(f'Mean Kendall tau: {sum(taus) / len(taus)}')

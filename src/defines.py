@@ -7,6 +7,9 @@ OPENAI_API_KEY = os.getenv('OPENAI_API_KEY', 'sk-...')
 JSONBIN_API_KEY = os.getenv('JSONBIN_API_KEY', '$2a$...')
 JSONBIN_API_KEY = '$2a$10$e5lgWuePR6yPBPIBgN8fb.iIRqRnYXQ9mv2iUL3466zUz0p9CMeVe'
 
+GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
+GROQ_API_KEY = 'gsk_...'
+
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
 

@@ -65,9 +65,6 @@ def process_papers():
     assert all('title' in paper and 'abstract' in paper for paper in request.json['papers'])
     assert 5 <= len(request.json['papers']) <= 10
 
-    GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
-    GROQ_API_KEY = 'gsk_...'
-
     author_name = request.json['author_name']
     papers = request.json['papers']
     # sort papers by title to ensure consistent results
@@ -91,8 +88,8 @@ def process_papers():
 
         llm = OpenAILanguageModel(
             model,
-            base_url=GROQ_BASE_URL,  # src.defines.BASE_URL_LLM,
-            api_key=GROQ_API_KEY,  # src.defines.API_KEY_LLM,
+            base_url=src.defines.GROQ_BASE_URL,  # src.defines.BASE_URL_LLM,
+            api_key=src.defines.GROQ_API_KEY,  # src.defines.API_KEY_LLM,
             debug_context_name=author_name,
         )
 
@@ -124,19 +121,30 @@ def upload_profiles():
     assert isinstance(request.json['author_name'], str)
     assert 'profiles' in request.json
     assert isinstance(request.json['profiles'], list)
+    assert 'abstracts' in request.json
+    assert isinstance(request.json['abstracts'], list)
 
     author_name = request.json['author_name']
     profiles = request.json['profiles']
+    abstracts = request.json['abstracts']
 
     url = 'https://api.jsonbin.io/v3/b'
     headers = {
         'Content-Type': 'application/json',
         'X-Master-Key': src.defines.JSONBIN_API_KEY,
         'X-Bin-Name': f'Uploaded Profiles: {author_name}',
-        'X-Bin-Private': 'false',
+        'X-Bin-Private': 'true',
     }
 
-    response = requests.post(url, json=profiles, headers=headers)
+    response = requests.post(
+        url,
+        json={
+            'author': author_name,
+            'profiles': profiles,
+            'abstracts': abstracts,
+        },
+        headers=headers,
+    )
     response_data = response.json()
 
     if response.status_code != 200:
@@ -147,4 +155,5 @@ def upload_profiles():
 
 
 if __name__ == '__main__':
+    # Run with: python -m src.paper_evaluation_extension.server
     app.run()

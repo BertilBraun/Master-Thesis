@@ -487,10 +487,10 @@
             // Start the progress bar simulation
             const progressInterval = setInterval(() => {
                 if (progress < maxProgress) {
-                    const progressToDisplay = Math.random() * 10 * increment + progress;
+                    const progressToDisplay = Math.random() * increment + progress;
                     progressBar.style.width = progressToDisplay + '%';
+                    progressText.textContent = 'Processing... ' + Math.round(progressToDisplay) + '%';
                     progress += increment;
-                    progressText.textContent = 'Processing... ' + Math.round(progress) + '%';
                 } else {
                     clearInterval(progressInterval);
                 }
@@ -502,7 +502,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         author_name: authorName,
-                        papers: selectedPapers
+                        papers: selectedPapers,
                     })
                 });
 
@@ -692,7 +692,11 @@
                 const response = await fetch('/upload_profiles', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ profiles: orderedProfiles, author_name: authorName })
+                    body: JSON.stringify({
+                        author_name: authorName,
+                        profiles: orderedProfiles, author_name: authorName,
+                        abstracts: selectedPapers.map(paper => paper.abstract),
+                    })
                 });
                 const result = await response.json();
                 if (response.ok) {
