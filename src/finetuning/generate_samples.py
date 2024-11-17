@@ -2,13 +2,14 @@ from math import ceil, log2
 from concurrent.futures import Future, ProcessPoolExecutor
 
 
+from src.finetuning.logic.finetuning_types import SampleToEvaluate, SampleToGenerate
 from src.util.log import LogLevel, log
 from src.logic.database import get_retriever_getter
 from src.logic.papers import get_random_english_authors_abstracts
 from src.extraction.extraction_custom import prompt_for_extract_from_abstracts_custom
 from src.logic.types import Example, Profile
 from src.finetuning.defines import *
-from src.finetuning.log_gpu_usage import trace_gpu_usage
+from src.finetuning.util.log_gpu_usage import trace_gpu_usage
 from src.util import dump_json, json_dumper, log_all_exceptions, text_similarity, timeblock
 
 # While we have not generated enough samples
@@ -32,16 +33,16 @@ if __name__ == '__main__':
     START_DATETIME = get_new_datetime_str()
 
 
-def calculate_number_of_authors_to_process() -> int:
+def calculate_number_of_authors_to_process(samples_to_generate: int, top_k: int) -> int:
     def calculate_P(n: int) -> int:
         log2_n = int(log2(n))
         sum_part = sum((2 ** (log2_n - r) * (2 ** (r - 1) - 1)) for r in range(1, log2_n + 1))
         return (n - 1) + sum_part
 
-    return ceil(NUM_SAMPLES_TO_GENERATE / calculate_P(TOP_K_TO_SAMPLE))
+    return ceil(samples_to_generate / calculate_P(top_k))
 
 
-NUM_AUTHORS_TO_PROCESS = calculate_number_of_authors_to_process()
+NUM_AUTHORS_TO_PROCESS = calculate_number_of_authors_to_process(NUM_SAMPLES_TO_GENERATE, TOP_K_TO_SAMPLE)
 
 
 def load_samples_to_generate() -> list[SampleToGenerate]:

@@ -56,7 +56,13 @@ def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerF
         conversation=[message.to_dict() for message in messages],  # type: ignore
         tokenize=False,
     )
-    prompt = prompt.replace('<|endoftext|>', '').strip()
+
+    prompt = prompt.replace(tokenizer.eos_token, '').strip()
+    assistant_start = (
+        tokenizer.apply_chat_template(conversation=[{'role': 'assistant', 'content': ''}], tokenize=False).split('>')[0]  # type: ignore
+        + '>'
+    )
+    prompt += '\n' + assistant_start
     return prompt
 
 
@@ -88,10 +94,10 @@ def generate(
     terminators = [
         tokenizer.eos_token_id,
         # The following are phi3 specific tokens
-        2,
-        32000,
-        32007,
-        32010,
+        # 2,
+        # 32000,
+        # 32007,
+        # 32010,
     ]
 
     do_sample = do_sample and num_return_sequences == 1

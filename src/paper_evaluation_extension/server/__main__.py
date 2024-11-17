@@ -83,6 +83,8 @@ def process_papers():
         'llama-3.1-70b-versatile',
         'mixtral-8x7b-32768',
         'llama-3.1-8b-instant',
+        'llama-3.2-1b-preview',
+        'llama-3.2-90b-text-preview',
     ]:  # ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo']:  # TODO all in parallel
         retriever_getter = get_retriever_getter(max_number_to_retrieve=2)
 
@@ -98,6 +100,7 @@ def process_papers():
             profile = extract_from_abstracts_custom(query, retriever_getter, llm)
 
         if profile is not None:
+            profile.competencies = profile.competencies[:10]
             profiles.append(
                 {
                     'model_name': model,

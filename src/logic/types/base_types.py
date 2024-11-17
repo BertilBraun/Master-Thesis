@@ -47,7 +47,7 @@ class Competency:
         return Competency(name=text, description='')
 
 
-@dataclass(frozen=True)
+@dataclass
 class Profile:
     domain: str
     competencies: list[Competency]
