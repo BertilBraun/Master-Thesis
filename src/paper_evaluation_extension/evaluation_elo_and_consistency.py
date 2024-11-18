@@ -145,6 +145,8 @@ if __name__ == '__main__':
                 response = llm.invoke(prompt, temperature=0.1)
                 evaluations.append(EvaluationResult_from_invalid_response(response))
 
+            # TODO also evaluate wheather the model agrees with the flipped profile orders
+
             preferred_profiles = [evaluation['preferred_profile'] for evaluation in evaluations]
 
             if not EVALUATE_WITH_CONSISTENCY_CHECK:

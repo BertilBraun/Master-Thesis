@@ -498,6 +498,7 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
                 # TODO consistency check? Flip order and check if the result is the same?
                 # TODO multiple models? Use different models and check if the result is the same?
+                # TODO cache LLM results?
 
                 evaluation = EvaluationResult_from_invalid_response(response)
                 return evaluation
