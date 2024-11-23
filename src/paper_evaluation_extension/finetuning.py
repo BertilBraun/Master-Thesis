@@ -42,6 +42,8 @@ from src.util import dump_json, ratio, log_all_exceptions, timeblock
 from src.finetuning.logic.tokenizer import get_tokenizer
 from src.finetuning.logic.model import generate, get_model, prompt_messages_to_str
 
+print('All imports done. Now starting execution...')
+
 
 NUM_SAMPLES_TO_GENERATE = 500
 
@@ -64,10 +66,20 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
     f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'
 )
 
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
-BASE_MODEL_ID = 'microsoft/Phi-3-mini-128k-instruct'
+EVALUATION_MODEL_ID = 'meta-llama/Llama-3.1-70B-Instruct'
+BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
 
-NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 50
+NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
+
+
+# TODO temporary for testing
+NUMBER_OF_EPOCHS_TO_TRAIN = 1
+NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 1
+NUM_SAMPLES_TO_GENERATE = 12
+TOP_K_TO_SAMPLE = 8
+PAPERS_PER_SAMPLE = 2
+TEMPERATURE = 0.8
+TEST_PERCENTAGE = 1 / 12
 
 
 def setup_initial_model(model_path: str, base_model_id: str):
@@ -462,7 +474,7 @@ def map_over_devices(func_to_apply: Callable[[list[T], int], list[S]], all_eleme
 def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
     """Evaluate generated samples using a language model."""
 
-    # TODO redo the evaluation system? Elo based - tradeof with computation time (n^2)
+    # TODO redo the evaluation system? Elo based - tradeof with computation time (n^2) - from 5 evaluations to 18 evaluations for no more preferences
 
     def process_samples_on_device(samples: list[SampleToEvaluate], device_id: int) -> list[PreferenceSample]:
         example_retriever = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking)
@@ -498,7 +510,6 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
                 # TODO consistency check? Flip order and check if the result is the same?
                 # TODO multiple models? Use different models and check if the result is the same?
-                # TODO cache LLM results?
 
                 evaluation = EvaluationResult_from_invalid_response(response)
                 return evaluation
@@ -531,9 +542,11 @@ def main():
     """Main function to coordinate finetuning steps."""
     huggingface_hub.login(new_session=False)
 
+    print('Setting up initial model')
     start_model_path = f'{CURRENT_MODEL_PATH}_run_0'
     setup_initial_model(start_model_path, BASE_MODEL_ID)
 
+    print('Generating initial samples for evaluation')
     samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
     dump_json(samples_for_improvement_evaluation, SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
 
@@ -541,20 +554,28 @@ def main():
         model_path = f'{CURRENT_MODEL_PATH}_run_{i}'
         next_model_path = f'{CURRENT_MODEL_PATH}_run_{i + 1}'
 
+        print(f'Finetuning model {i}')
+        print(f'Generating samples for model {i}')
         generated_samples = generate_samples(model_path, NUM_SAMPLES_TO_GENERATE)
         dump_json(generated_samples, f'generated_samples_{i}.json')
 
+        print(f'Evaluating samples for model {i}')
         preferences = evaluate_samples(generated_samples)
         dump_json(preferences, f'preferences_{i}.json')
 
+        print(f'Training model {i}')
         train_model(model_path, next_model_path, preferences)
 
+        print(f'Evaluating model {i}')
         has_improved, samples_for_improvement_evaluation = evaluate_model(
             next_model_path, samples_for_improvement_evaluation
         )
         dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i}')
         if not has_improved:
+            print('Model has not improved. Exiting...')
             break
+
+        print('Model has improved. Continuing to next iteration...')
 
 
 if __name__ == '__main__':

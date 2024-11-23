@@ -1,7 +1,9 @@
 import time
 import random
+import numpy as np
 from typing import Any, Callable, TypedDict
 from scipy.stats import spearmanr, kendalltau
+from tabulate import tabulate
 
 import src.defines
 from src.logic.jsonbin import JsonBin
@@ -12,6 +14,8 @@ from src.logic.language_model import OpenAILanguageModel
 from src.logic.types.database_types import EvaluationResult_from_invalid_response, Ranking
 from src.extraction.evaluation import prompt_for_ranking, compare_profiles
 from src.util import log
+
+random.seed(42)  # For reproducibility
 
 
 # Function to update Elo ratings based on the results
@@ -63,6 +67,17 @@ def run_pairwise_evaluations(
     return results
 
 
+def print_table(data, headers):
+    for row_index, row in enumerate(data):
+        new_row = list(row)
+        for i, value in enumerate(row):
+            if isinstance(value, float):
+                new_row[i] = f'{value:.3f}'
+        data[row_index] = new_row
+
+    print(tabulate(data, headers=headers, tablefmt='rounded_grid'))
+
+
 class UploadedProfile(TypedDict):
     model_name: str
     profile: dict[str, Any]
@@ -81,16 +96,16 @@ if __name__ == '__main__':
     API_KEY = src.defines.OPENAI_API_KEY  # TODO: Replace with your API key
     MAX_RETRIES = 1
 
+    NUM_EXAMPLES = 1  # Adjust as needed
+    EVALUATE_WITH_CONSISTENCY_CHECK = False  # Set to False to disable consistency check
+
     # Initialize LLMs
     LLMS = [
-        'gemma2-9b-it',
+        # TODO 'gemma2-9b-it',
         'llama-3.1-70b-versatile',
         'mixtral-8x7b-32768',
         'llama-3.1-8b-instant',
     ]
-
-    NUM_EXAMPLES = 1  # Adjust as needed
-    EVALUATE_WITH_CONSISTENCY_CHECK = True  # Set to False to disable consistency check
 
     llms = [
         OpenAILanguageModel(
@@ -104,14 +119,19 @@ if __name__ == '__main__':
     ]
 
     json_bin = JsonBin(src.defines.JSONBIN_API_KEY)
+    # Get all uploaded profiles from jsonbin
     jsons: list[UploadedProfiles] = [json_bin.bin(bin_id) for bin_id in json_bin.bins()]  # type: ignore
-    all_jsons_from_manual = {data['author']: data for data in jsons if 'abstracts' in data and 'profiles' in data}
+    # Filter out invalid data
+    jsons = [data for data in jsons if all(key in data for key in ['author', 'abstracts', 'profiles'])]
+    # Create a dictionary with author names as keys
+    all_jsons_from_manual = {data['author']: data for data in jsons}
 
     rohs, taus = [], []
+    roh_p_values, tau_p_values = [], []
 
     last_eval_time = time.time() - 60  # Initialize to 60 seconds ago to avoid waiting on the first iteration
 
-    log(f'Running Elo and consistency check for {len(jsons)} queries')
+    log(f'Running Elo and consistency check for {len(all_jsons_from_manual)} queries')
 
     for author, upload in all_jsons_from_manual.items():
         log(f'Query: {author}')
@@ -124,16 +144,14 @@ if __name__ == '__main__':
             '\n\n'.join(sample_abstracts)
         )
 
-        log(f'Found {len(examples)} examples')
-
         # Define the match evaluator function
         def match_evaluator(profile1_index: int, profile2_index: int) -> list[EvaluationResult]:
             global last_eval_time
             # Make sure to wait for at least 1 minute between evaluations
             time_since_last_eval = time.time() - last_eval_time
             if time_since_last_eval < 60:
-                print(f'Waiting for {60 - time_since_last_eval} seconds before next evaluation')
-                time.sleep(60 - time_since_last_eval)
+                print(f'Waiting for {60 - time_since_last_eval:.2f} seconds before next evaluation')
+                # time.sleep(60 - time_since_last_eval)
             last_eval_time = time.time()
 
             profile1 = Profile.from_json(sample_profiles[profile1_index]['profile'])
@@ -176,19 +194,38 @@ if __name__ == '__main__':
         sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
 
         # Output the sorted profiles and their ratings
-        for profile_index, rating in sorted_profiles:
-            print(f'Profile {profile_index + 1}: Elo Rating = {rating}')
-            print(f'Profile Model: {sample_profiles[profile_index]["model_name"]}')
+        print_table(
+            [
+                (
+                    sample_profiles[profile_index]['model_name'],
+                    rating,
+                    len(sample_profiles) - upload['profiles'].index(sample_profiles[profile_index]),
+                )
+                for profile_index, rating in sorted_profiles
+            ],
+            headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
+        )
 
         # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
         X = [profile_index for profile_index, _ in sorted_profiles]
         Y = [sample_profiles.index(profile) for profile in upload['profiles']]
-        rho, p_value = spearmanr(X, Y)
-        tau, p_value = kendalltau(X, Y)
-        print(f'Spearman correlation: {rho} (p-value: {p_value})')
-        print(f'Kendall tau: {tau} (p-value: {p_value})')
-        rohs.append(rho)
-        taus.append(tau)
 
-    print(f'Mean Spearman correlation: {sum(rohs) / len(rohs)}')
-    print(f'Mean Kendall tau: {sum(taus) / len(taus)}')
+        rho, p_value = spearmanr(X, Y)
+        rohs.append(rho)
+        roh_p_values.append(p_value)
+
+        tau, p_value = kendalltau(X, Y)
+        taus.append(tau)
+        tau_p_values.append(p_value)
+
+    print_table(
+        [(author, rho, p_value) for author, rho, p_value in zip(all_jsons_from_manual.keys(), rohs, roh_p_values)]
+        + [('Mean', np.mean(rohs), np.mean(roh_p_values))],
+        headers=['Author', 'Spearman Correlation', 'p-value'],
+    )
+
+    print_table(
+        [(author, tau, p_value) for author, tau, p_value in zip(all_jsons_from_manual.keys(), taus, tau_p_values)]
+        + [('Mean', np.mean(taus), np.mean(tau_p_values))],
+        headers=['Author', 'Kendall Tau', 'p-value'],
+    )

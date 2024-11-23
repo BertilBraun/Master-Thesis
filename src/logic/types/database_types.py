@@ -68,11 +68,13 @@ class EvaluationResult(TypedDict):
 
 
 def EvaluationResult_from_invalid_response(response: str) -> EvaluationResult:
-    # last number [1|2] is the preferred profile
+    # last number [0|1|2] is the preferred profile
     assert '}' in response, f'Invalid response: {response}'
+    last_zero = response.rfind('0')
     last_one = response.rfind('1')
     last_two = response.rfind('2')
-    preferred_profile = 1 if last_two == -1 or last_one > last_two else 2
+    # preferred profile is the one that appears last in the response = argmax(last_zero, last_one, last_two)
+    preferred_profile = max(enumerate([last_zero, last_one, last_two]), key=lambda x: x[1])[0]
     return {'reasoning': response, 'preferred_profile': preferred_profile}
 
 
@@ -116,7 +118,7 @@ class Ranking:
         for key in obj:
             if 'preferred' in key.lower():
                 number = obj[key]
-                if number < 1 or number > 2:
+                if number not in [0, 1, 2]:
                     log(f'Invalid preferred profile format: {obj}.', level=LogLevel.WARNING)
                     return 0
 

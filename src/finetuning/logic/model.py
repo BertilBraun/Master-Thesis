@@ -1,4 +1,5 @@
 import gc
+import os
 from torch import Tensor, compile, cuda, float16, float32
 from transformers import (
     AutoModelForCausalLM,
@@ -10,6 +11,8 @@ from transformers import (
 from src.logic.types import Message
 
 from src.finetuning.defines import CURRENT_MODEL_PATH
+from src.util.cache import generate_hashcode
+from src.util.json import dump_json, load_json
 
 
 def get_model(
@@ -89,6 +92,17 @@ def generate(
     temperature: float = 0.2,
     skip_special_tokens: bool = True,
 ) -> list[str]:
+    cache_folder = 'finetuning/logic/LLM_output'
+    os.makedirs(cache_folder, exist_ok=True)
+
+    hash_code = generate_hashcode(
+        (model.name_or_path, prompt, num_return_sequences, do_sample, max_new_tokens, temperature, skip_special_tokens)
+    )
+    cache_file_name = os.path.join(cache_folder, hash_code + '.json')
+
+    if os.path.exists(cache_file_name):
+        return load_json(cache_file_name)
+
     inputs = tokenizer(tokenizer.eos_token + prompt, return_tensors='pt', padding=True).to(model.device)
 
     terminators = [
@@ -126,6 +140,8 @@ def generate(
         for output_str in output_strs:
             f.write(f'\n\n\n\n{clean_output(output_str, tokenizer)}\n\n\n\n' + '-' * 100)
         f.write('\n\n\n\n' + '=' * 100 + '\n\n\n\n')
+
+    dump_json(output_strs, cache_file_name)
 
     gc.collect()
     cuda.empty_cache()
