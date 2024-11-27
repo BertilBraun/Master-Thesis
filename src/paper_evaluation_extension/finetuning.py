@@ -82,14 +82,15 @@ TEMPERATURE = 0.8
 TEST_PERCENTAGE = 1 / 12
 
 
-def setup_initial_model(model_path: str, base_model_id: str):
+def setup_initial_model(model_path: str, base_model_id: str) -> bool:
     """Setup the initial model for finetuning."""
     if os.path.exists(model_path):
         print(f'{model_path} already exists. Exiting...')
-        sys.exit(1)
+        return False
     # Initialize and save the base model
     model = get_model(base_model_id)
     model.save_pretrained(model_path)
+    return True
 
 
 def generate_evaluation_samples(model_path: str) -> list[SampleForFineTuningImprovementEvaluation]:
@@ -591,11 +592,11 @@ def main():
 
     print('Setting up initial model')
     start_model_path = f'{CURRENT_MODEL_PATH}_run_0'
-    setup_initial_model(start_model_path, BASE_MODEL_ID)
-
-    print('Generating initial samples for evaluation')
-    samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
-    dump_json(samples_for_improvement_evaluation, SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
+    if setup_initial_model(start_model_path, BASE_MODEL_ID):
+        # Setup returns True if the model was created
+        print('Generating initial samples for evaluation')
+        samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
+        dump_json(samples_for_improvement_evaluation, SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
 
     for i in range(10):
         model_path = f'{CURRENT_MODEL_PATH}_run_{i}'
