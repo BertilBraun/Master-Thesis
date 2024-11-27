@@ -3,7 +3,7 @@ import gc
 import sys
 import random
 from math import ceil, log2
-from typing import Callable, TypeVar
+from typing import Callable, Sequence, Type, TypeVar
 
 import torch
 import huggingface_hub
@@ -38,7 +38,7 @@ from src.logic.types import (
     EvaluationResult_from_invalid_response,
     Ranking,
 )
-from src.util import dump_json, ratio, log_all_exceptions, timeblock
+from src.util import dump_json, ratio, log_all_exceptions, timeblock, FromJsonProtocol, load_json
 from src.finetuning.logic.tokenizer import get_tokenizer
 from src.finetuning.logic.model import generate, get_model, prompt_messages_to_str
 
@@ -135,7 +135,12 @@ def generate_evaluation_samples(model_path: str) -> list[SampleForFineTuningImpr
     author_queries = get_random_english_authors_abstracts(
         NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING, PAPERS_PER_SAMPLE
     )
-    return map_over_devices(process_queries, author_queries)
+    return map_over_devices(
+        process_queries,
+        author_queries,
+        Query,
+        SampleForFineTuningImprovementEvaluation,
+    )
 
 
 def load_dataset(preferences: list[PreferenceSample], test_percentage: float = 0.002) -> tuple[Dataset, Dataset]:
@@ -361,10 +366,22 @@ def evaluate_model(
 
         return samples
 
-    samples = map_over_devices(process_samples, samples)
+    samples = map_over_devices(
+        process_samples,
+        samples,
+        SampleForFineTuningImprovementEvaluation,
+        SampleForFineTuningImprovementEvaluation,
+    )
 
     with timeblock('Comparing the current model to the original model'):
-        number_of_wins_current_model = sum(map_over_devices(get_wins_of_current_model, samples))
+        number_of_wins_current_model = sum(
+            map_over_devices(
+                get_wins_of_current_model,
+                samples,
+                SampleForFineTuningImprovementEvaluation,
+                bool,
+            )
+        )
 
     total_samples = len(samples)
     print(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
@@ -447,26 +464,51 @@ def generate_samples(
 
         return results
 
-    return map_over_devices(process_samples_on_device, samples_to_generate)
+    return map_over_devices(
+        process_samples_on_device,
+        samples_to_generate,
+        SampleToGenerate,
+        SampleToEvaluate,
+    )
 
 
-T = TypeVar('T')
-S = TypeVar('S')
+T = TypeVar('T', bound=FromJsonProtocol)
+S = TypeVar('S', bound=FromJsonProtocol | bool | str | int | float)
 
 
-def map_over_devices(func_to_apply: Callable[[list[T], int], list[S]], all_elements: list[T]) -> list[S]:
+def map_over_devices(
+    func_to_apply: Callable[[list[T], int], Sequence[S]],
+    all_elements: Sequence[T],
+    obj_type: Type[T],
+    return_type: Type[S],
+) -> list[S]:
     num_devices = torch.cuda.device_count()
     elements_per_device = (len(all_elements) + num_devices - 1) // num_devices
-    batches = [all_elements[i * elements_per_device : (i + 1) * elements_per_device] for i in range(num_devices)]
+    batches = [(i * elements_per_device, (i + 1) * elements_per_device) for i in range(num_devices)]
 
-    def process_batch(args) -> list[S]:
-        elements_batch, device_id = args
+    def process_batch(args) -> None:
+        (start, end), device_id = args
         torch.cuda.set_device(device_id)
-        return func_to_apply(elements_batch, device_id)
+        elements_batch = load_json('all_elements.json', obj_type)[start:end]
+        result = func_to_apply(elements_batch, device_id)
+        dump_json(result, f'result_{device_id}.json')
+
+    dump_json(all_elements, 'all_elements.json')
 
     with multiprocessing.Pool(processes=num_devices) as pool:
         args = [(batches[i], i) for i in range(num_devices)]
-        results = pool.map(process_batch, args)
+        pool.map(process_batch, args)
+
+    if return_type in [bool, str, int, float]:
+        results = [load_json(f'result_{i}.json') for i in range(num_devices)]
+    else:
+        results = [
+            load_json(
+                f'result_{i}.json',
+                return_type,  # type: ignore must be S
+            )
+            for i in range(num_devices)
+        ]
 
     return [item for sublist in results for item in sublist]
 
@@ -535,7 +577,12 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
         return preference_samples
 
-    return map_over_devices(process_samples_on_device, samples_to_evaluate)
+    return map_over_devices(
+        process_samples_on_device,
+        samples_to_evaluate,
+        SampleToEvaluate,
+        PreferenceSample,
+    )
 
 
 def main():
