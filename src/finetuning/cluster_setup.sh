@@ -10,26 +10,22 @@ cd ~/Master-Thesis
 echo "cd ~/Master-Thesis" >> ~/.bashrc
 echo "module purge" >> ~/.bashrc
 echo "module load compiler/intel/2021.4.0" >> ~/.bashrc
-echo "module load devel/python/3.11.7_intel_2021.4.0" >> ~/.bashrc
 echo "module load devel/cuda/12.2" >> ~/.bashrc
 echo "source .venv/bin/activate" >> ~/.bashrc
 echo "export OMP_NUM_THREADS=8" >> ~/.bashrc
 
 module purge
 module load compiler/intel/2021.4.0
-module load devel/python/3.11.7_intel_2021.4.0
 module load devel/cuda/12.2
-
-if ! ninja --version; then
-    echo "Please install ninja. Visit https://pypi.org/project/flash-attn/ for more information."
-    exit 1
-fi
 
 python -m venv .venv
 source .venv/bin/activate
 
 pip install --upgrade pip
+
 pip install -r requirements.txt
+
+pip uninstall -y ninja && pip install ninja
 
 pip install flash-attn --no-build-isolation
 

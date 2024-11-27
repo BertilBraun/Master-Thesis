@@ -45,7 +45,7 @@ def get_model(
         low_cpu_mem_usage=True,
         # local_files_only=name_or_path.startswith('./'),
         # NOTE: This is a hack which seems to work for Phi3 to avoid a bug when the context size crosses 4096 tokens during generation
-        original_max_position_embeddings=8192 * 2,
+        # original_max_position_embeddings=8192 * 2,
     )
     model = model.eval()
 
