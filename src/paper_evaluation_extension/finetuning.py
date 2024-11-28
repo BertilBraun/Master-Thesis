@@ -100,7 +100,7 @@ def _generate_samples_from_queries(
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
-        load_in_8bit=True,
+        load_in_4bit=True,
     )
     print('model loaded, now generating...')
 
@@ -258,7 +258,7 @@ def train_model(model_path: str, next_model_path: str, preferences: list[Prefere
         use_cache=False,
         attn_implementation='flash_attention_2',
         torch_dtype='auto',
-        load_in_8bit=True,
+        load_in_4bit=True,
         original_max_position_embeddings=8192 * 2,
     )
     trainer = get_trainer(
@@ -318,7 +318,7 @@ def _get_wins_of_current_model(
     model = get_model(
         EVALUATION_MODEL_ID,
         device=f'cuda:{device_id}',
-        load_in_8bit=True,
+        load_in_4bit=True,
     )
 
     return [
@@ -340,7 +340,7 @@ def _evaluate_samples(
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
-        load_in_8bit=True,
+        load_in_4bit=True,
     )
 
     for sample in samples:
@@ -397,7 +397,7 @@ def _generate_samples_on_device(
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
-        load_in_8bit=True,
+        load_in_4bit=True,
     )
     print('Model loaded, now generating...')
 
@@ -467,7 +467,7 @@ def _evaluate_samples_on_device(
     model = get_model(
         EVALUATION_MODEL_ID,
         device=f'cuda:{device_id}',
-        load_in_8bit=True,
+        load_in_4bit=True,
     )
 
     preference_samples: list[PreferenceSample] = []
