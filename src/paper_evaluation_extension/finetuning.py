@@ -72,6 +72,7 @@ NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
 # TODO temporary for testing
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
+BASE_MODEL_ID = 'mistralai/Mistral-7B-Instruct-v0.3'
 NUMBER_OF_EPOCHS_TO_TRAIN = 1
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 1
 NUM_SAMPLES_TO_GENERATE = 12
@@ -312,7 +313,7 @@ def evaluate_is_profile1_preferred(
 
 
 def _get_wins_of_current_model(
-    samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation], model_path: str, device_id: int
+    samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation], extra_args: None, device_id: int
 ) -> list[bool]:
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(
@@ -320,6 +321,8 @@ def _get_wins_of_current_model(
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
+
+    print('Model loaded, now evaluating samples...')
 
     return [
         evaluate_is_profile1_preferred(
@@ -342,6 +345,8 @@ def _evaluate_samples(
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
+
+    print('Model loaded, now generating evaluation samples...')
 
     for sample in samples:
         response = generate(
@@ -368,17 +373,21 @@ def evaluate_model(
 ) -> tuple[bool, list[SampleForFineTuningImprovementEvaluation]]:
     """Evaluate the finetuned model to assess improvements."""
 
-    samples = map_over_devices(_evaluate_samples, samples, model_path)
+    print('Now evaluating whether the model has improved...')
+    print('Generating the extraction samples with the new model...')
+    new_samples = map_over_devices(_evaluate_samples, samples, model_path)
+
+    print('Now comparing the current model to the original model...')
 
     with timeblock('Comparing the current model to the original model'):
-        number_of_wins_current_model = sum(map_over_devices(_get_wins_of_current_model, samples, model_path))
+        number_of_wins_current_model = sum(map_over_devices(_get_wins_of_current_model, new_samples, None))
 
-    total_samples = len(samples)
+    total_samples = len(new_samples)
     print(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
 
     has_improved = number_of_wins_current_model / total_samples > 0.5
 
-    return has_improved, samples
+    return has_improved, new_samples
 
 
 def calculate_number_of_authors_to_process(samples_to_generate: int, top_k: int) -> int:
@@ -404,6 +413,8 @@ def _generate_samples_on_device(
     results: list[SampleToEvaluate] = []
 
     for sample_to_generate in samples:
+        print('Processing query:', sample_to_generate.author)
+
         prompt_messages = prompt_for_extract_from_abstracts_custom(
             sample_to_generate.abstracts,
             sample_to_generate.examples,
@@ -455,6 +466,8 @@ def generate_samples(
         )
         samples_to_generate.append(sample)
 
+    print(f'Generated {len(samples_to_generate)} samples to evaluate. Now generating...')
+
     return map_over_devices(_generate_samples_on_device, samples_to_generate, model_path)
 
 
@@ -469,9 +482,11 @@ def _evaluate_samples_on_device(
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
+    print('Model loaded, now evaluating...')
 
     preference_samples: list[PreferenceSample] = []
     for sample_to_evaluate in samples:
+        print('Evaluating:', sample_to_evaluate.author)
         examples = example_retriever.invoke('\n\n'.join(sample_to_evaluate.abstracts))
 
         def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
@@ -524,6 +539,8 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
     """Evaluate generated samples using a language model."""
 
     # TODO redo the evaluation system? Elo based - tradeof with computation time (n^2) - from 5 evaluations to 18 evaluations for no more preferences
+
+    print('Evaluating samples into preferences...')
 
     return map_over_devices(_evaluate_samples_on_device, samples_to_evaluate, None)
 
