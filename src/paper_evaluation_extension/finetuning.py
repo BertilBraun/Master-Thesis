@@ -71,6 +71,7 @@ NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
 
 # TODO temporary for testing
 EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
 BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
 BASE_MODEL_ID = 'mistralai/Mistral-7B-Instruct-v0.3'
 NUMBER_OF_EPOCHS_TO_TRAIN = 1
