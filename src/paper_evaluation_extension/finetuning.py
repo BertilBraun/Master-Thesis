@@ -1,13 +1,9 @@
 import os
 import gc
-import sys
 import random
 from math import ceil, log2
-from typing import Callable, Sequence, Type, TypeVar
 
-import torch
 import huggingface_hub
-import multiprocessing
 from torch import cuda, float16
 from tqdm import tqdm
 from transformers import PreTrainedTokenizer, PreTrainedTokenizerFast, AutoModelForCausalLM
@@ -38,9 +34,10 @@ from src.logic.types import (
     EvaluationResult_from_invalid_response,
     Ranking,
 )
-from src.util import dump_json, ratio, log_all_exceptions, timeblock, FromJsonProtocol, load_json
+from src.util import dump_json, ratio, log_all_exceptions, timeblock
 from src.finetuning.logic.tokenizer import get_tokenizer
 from src.finetuning.logic.model import generate, get_model, prompt_messages_to_str
+from src.util.multiprocessing import map_over_devices
 
 print('All imports done. Now starting execution...')
 
@@ -93,55 +90,53 @@ def setup_initial_model(model_path: str, base_model_id: str) -> bool:
     return True
 
 
-def generate_evaluation_samples(model_path: str) -> list[SampleForFineTuningImprovementEvaluation]:
-    """Generate initial samples for evaluating model improvement."""
+def _generate_samples_from_queries(
+    queries: list[Query], model_path: str, device_id: int
+) -> list[SampleForFineTuningImprovementEvaluation]:
+    tokenizer = get_tokenizer()
+    model = get_model(
+        model_path,
+        device=f'cuda:{device_id}',
+        load_in_8bit=True,
+    )
 
-    def process_queries(queries: list[Query], device_id: int) -> list[SampleForFineTuningImprovementEvaluation]:
-        tokenizer = get_tokenizer()
-        model = get_model(
-            model_path,
-            device=f'cuda:{device_id}',
-            load_in_8bit=True,
+    samples: list[SampleForFineTuningImprovementEvaluation] = []
+
+    for query in queries:
+        abstracts = '\n\n'.join(query.abstracts)
+        examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
+        prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
+        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+        prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
+        response = generate(
+            tokenizer,
+            model,
+            prompt,
+            num_return_sequences=1,
+            do_sample=True,
+            temperature=0.2,
+            max_new_tokens=650,
+        )[0]
+        profile = Profile.parse('Domain: "' + response)
+        samples.append(
+            SampleForFineTuningImprovementEvaluation(
+                prompt=prompt,
+                abstracts=query.abstracts,
+                best_profile_from_original_model=str(profile),
+                best_profile_from_last_model=str(profile),
+            )
         )
 
-        samples: list[SampleForFineTuningImprovementEvaluation] = []
+    return samples
 
-        for query in queries:
-            abstracts = '\n\n'.join(query.abstracts)
-            examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
-            prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
-            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
-            prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
-            response = generate(
-                tokenizer,
-                model,
-                prompt,
-                num_return_sequences=1,
-                do_sample=True,
-                temperature=0.2,
-                max_new_tokens=650,
-            )[0]
-            profile = Profile.parse('Domain: "' + response)
-            samples.append(
-                SampleForFineTuningImprovementEvaluation(
-                    prompt=prompt,
-                    abstracts=query.abstracts,
-                    best_profile_from_original_model=str(profile),
-                    best_profile_from_last_model=str(profile),
-                )
-            )
 
-        return samples
+def generate_evaluation_samples(model_path: str) -> list[SampleForFineTuningImprovementEvaluation]:
+    """Generate initial samples for evaluating model improvement."""
 
     author_queries = get_random_english_authors_abstracts(
         NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING, PAPERS_PER_SAMPLE
     )
-    return map_over_devices(
-        process_queries,
-        author_queries,
-        Query,
-        SampleForFineTuningImprovementEvaluation,
-    )
+    return map_over_devices(_generate_samples_from_queries, author_queries, model_path)
 
 
 def load_dataset(preferences: list[PreferenceSample], test_percentage: float = 0.002) -> tuple[Dataset, Dataset]:
@@ -311,8 +306,8 @@ def evaluate_is_profile1_preferred(
     return profiles[preferred_profile_index] == profile1
 
 
-def get_wins_of_current_model(
-    samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation], device_id: int
+def _get_wins_of_current_model(
+    samples_to_evaluate: list[SampleForFineTuningImprovementEvaluation], model_path: str, device_id: int
 ) -> list[bool]:
     tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
     model = get_model(
@@ -333,56 +328,45 @@ def get_wins_of_current_model(
     ]
 
 
+def _evaluate_samples(
+    samples: list[SampleForFineTuningImprovementEvaluation], model_path: str, device_id: int
+) -> list[SampleForFineTuningImprovementEvaluation]:
+    tokenizer = get_tokenizer()
+    model = get_model(
+        model_path,
+        device=f'cuda:{device_id}',
+        load_in_8bit=True,
+    )
+
+    for sample in samples:
+        response = generate(
+            tokenizer,
+            model,
+            sample.prompt,
+            num_return_sequences=1,
+            do_sample=True,
+            temperature=0.2,
+            max_new_tokens=650,
+        )[0]
+        new_profile = Profile.parse('Domain: "' + response)
+        sample.best_profile_from_last_model = str(new_profile)
+
+    del model
+    gc.collect()
+    cuda.empty_cache()
+
+    return samples
+
+
 def evaluate_model(
     model_path: str, samples: list[SampleForFineTuningImprovementEvaluation]
 ) -> tuple[bool, list[SampleForFineTuningImprovementEvaluation]]:
     """Evaluate the finetuned model to assess improvements."""
 
-    def process_samples(
-        samples: list[SampleForFineTuningImprovementEvaluation], device_id: int
-    ) -> list[SampleForFineTuningImprovementEvaluation]:
-        tokenizer = get_tokenizer()
-        model = get_model(
-            model_path,
-            device=f'cuda:{device_id}',
-            load_in_8bit=True,
-        )
-
-        for sample in samples:
-            response = generate(
-                tokenizer,
-                model,
-                sample.prompt,
-                num_return_sequences=1,
-                do_sample=True,
-                temperature=0.2,
-                max_new_tokens=650,
-            )[0]
-            new_profile = Profile.parse('Domain: "' + response)
-            sample.best_profile_from_last_model = str(new_profile)
-
-        del model
-        gc.collect()
-        cuda.empty_cache()
-
-        return samples
-
-    samples = map_over_devices(
-        process_samples,
-        samples,
-        SampleForFineTuningImprovementEvaluation,
-        SampleForFineTuningImprovementEvaluation,
-    )
+    samples = map_over_devices(_evaluate_samples, samples, model_path)
 
     with timeblock('Comparing the current model to the original model'):
-        number_of_wins_current_model = sum(
-            map_over_devices(
-                get_wins_of_current_model,
-                samples,
-                SampleForFineTuningImprovementEvaluation,
-                bool,
-            )
-        )
+        number_of_wins_current_model = sum(map_over_devices(_get_wins_of_current_model, samples, model_path))
 
     total_samples = len(samples)
     print(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
@@ -401,14 +385,58 @@ def calculate_number_of_authors_to_process(samples_to_generate: int, top_k: int)
     return ceil(samples_to_generate / calculate_P(top_k))
 
 
+def _generate_samples_on_device(
+    samples: list[SampleToGenerate], model_path: str, device_id: int
+) -> list[SampleToEvaluate]:
+    tokenizer = get_tokenizer()
+    model = get_model(
+        model_path,
+        device=f'cuda:{device_id}',
+        load_in_8bit=True,
+    )
+
+    results: list[SampleToEvaluate] = []
+
+    for sample_to_generate in samples:
+        prompt_messages = prompt_for_extract_from_abstracts_custom(
+            sample_to_generate.abstracts,
+            sample_to_generate.examples,
+        )
+        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+        prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
+        responses = generate(
+            tokenizer,
+            model,
+            prompt,
+            num_return_sequences=TOP_K_TO_SAMPLE,
+            temperature=TEMPERATURE,
+            max_new_tokens=650,
+        )
+
+        profiles: list[Profile] = []
+        for response in responses:
+            with log_all_exceptions(f'Profile parsing failed for response: {response}'):
+                profiles.append(Profile.parse('Domain: "' + response))
+
+        results.append(
+            SampleToEvaluate(
+                author=sample_to_generate.author,
+                prompt=prompt,
+                abstracts=sample_to_generate.abstracts,
+                profiles=profiles,
+            )
+        )
+
+    return results
+
+
 def generate_samples(
     model_path: str,
     num_samples_to_generate: int,
-    top_k: int = TOP_K_TO_SAMPLE,
 ) -> list[SampleToEvaluate]:
     """Generate new samples for finetuning."""
     samples_to_generate: list[SampleToGenerate] = []
-    num_authors_to_process = calculate_number_of_authors_to_process(num_samples_to_generate, top_k)
+    num_authors_to_process = calculate_number_of_authors_to_process(num_samples_to_generate, TOP_K_TO_SAMPLE)
 
     for query in get_random_english_authors_abstracts(num_authors_to_process, PAPERS_PER_SAMPLE):
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(
@@ -421,97 +449,69 @@ def generate_samples(
         )
         samples_to_generate.append(sample)
 
-    def process_samples_on_device(samples: list[SampleToGenerate], device_id: int) -> list[SampleToEvaluate]:
-        torch.cuda.set_device(device_id)
+    return map_over_devices(_generate_samples_on_device, samples_to_generate, model_path)
 
-        tokenizer = get_tokenizer()
-        model = get_model(
-            model_path,
-            device=f'cuda:{device_id}',
-            load_in_8bit=True,
-        )
 
-        results: list[SampleToEvaluate] = []
+def _evaluate_samples_on_device(
+    samples: list[SampleToEvaluate], extra_args: None, device_id: int
+) -> list[PreferenceSample]:
+    example_retriever = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking)
 
-        for sample_to_generate in samples:
-            prompt_messages = prompt_for_extract_from_abstracts_custom(
-                sample_to_generate.abstracts,
-                sample_to_generate.examples,
-            )
-            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
-            prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
-            responses = generate(
-                tokenizer,
-                model,
-                prompt,
-                num_return_sequences=top_k,
-                temperature=TEMPERATURE,
-                max_new_tokens=650,
-            )
-
-            profiles: list[Profile] = []
-            for response in responses:
-                with log_all_exceptions(f'Profile parsing failed for response: {response}'):
-                    profiles.append(Profile.parse('Domain: "' + response))
-
-            results.append(
-                SampleToEvaluate(
-                    author=sample_to_generate.author,
-                    prompt=prompt,
-                    abstracts=sample_to_generate.abstracts,
-                    profiles=profiles,
-                )
-            )
-
-        return results
-
-    return map_over_devices(
-        process_samples_on_device,
-        samples_to_generate,
-        SampleToGenerate,
-        SampleToEvaluate,
+    tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
+    model = get_model(
+        EVALUATION_MODEL_ID,
+        device=f'cuda:{device_id}',
+        load_in_8bit=True,
     )
 
+    preference_samples: list[PreferenceSample] = []
+    for sample_to_evaluate in samples:
+        examples = example_retriever.invoke('\n\n'.join(sample_to_evaluate.abstracts))
 
-T = TypeVar('T', bound=FromJsonProtocol)
-S = TypeVar('S', bound=FromJsonProtocol | bool | str | int | float)
-
-
-def map_over_devices(
-    func_to_apply: Callable[[list[T], int], Sequence[S]],
-    all_elements: Sequence[T],
-    obj_type: Type[T],
-    return_type: Type[S],
-) -> list[S]:
-    num_devices = torch.cuda.device_count()
-    elements_per_device = (len(all_elements) + num_devices - 1) // num_devices
-    batches = [(i * elements_per_device, (i + 1) * elements_per_device) for i in range(num_devices)]
-
-    def process_batch(args) -> None:
-        (start, end), device_id = args
-        torch.cuda.set_device(device_id)
-        elements_batch = load_json('all_elements.json', obj_type)[start:end]
-        result = func_to_apply(elements_batch, device_id)
-        dump_json(result, f'result_{device_id}.json')
-
-    dump_json(all_elements, 'all_elements.json')
-
-    with multiprocessing.Pool(processes=num_devices) as pool:
-        args = [(batches[i], i) for i in range(num_devices)]
-        pool.map(process_batch, args)
-
-    if return_type in [bool, str, int, float]:
-        results = [load_json(f'result_{i}.json') for i in range(num_devices)]
-    else:
-        results = [
-            load_json(
-                f'result_{i}.json',
-                return_type,  # type: ignore must be S
+        def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
+            profiles = sample_to_evaluate.profiles
+            prompt = prompt_for_ranking(
+                profiles[profile1_index],
+                profiles[profile2_index],
+                examples,
+                sample_to_evaluate.abstracts,
             )
-            for i in range(num_devices)
-        ]
+            response = generate(
+                tokenizer,
+                model,
+                prompt_messages_to_str(tokenizer, prompt),
+                num_return_sequences=1,
+                do_sample=True,
+                temperature=0.2,
+                max_new_tokens=650,
+            )[0]
 
-    return [item for sublist in results for item in sublist]
+            # TODO consistency check? Flip order and check if the result is the same?
+            # TODO multiple models? Use different models and check if the result is the same?
+
+            evaluation = EvaluationResult_from_invalid_response(response)
+            return evaluation
+
+        tournament = run_tournament_ranking(
+            list(range(len(sample_to_evaluate.profiles))),
+            default_round_evaluator(match_evaluator),
+            do_shuffle=True,
+        )
+
+        preferences = []
+        for preference in get_all_preferences(tournament):
+            chosen = sample_to_evaluate.profiles[preference.winner]
+            rejected = sample_to_evaluate.profiles[preference.loser]
+            preferences.append(
+                PreferenceSample(
+                    prompt=sample_to_evaluate.prompt,
+                    chosen=str(chosen),
+                    rejected=str(rejected),
+                )
+            )
+        preference_samples.extend(preferences)
+
+    return preference_samples
 
 
 def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[PreferenceSample]:
@@ -519,71 +519,7 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
     # TODO redo the evaluation system? Elo based - tradeof with computation time (n^2) - from 5 evaluations to 18 evaluations for no more preferences
 
-    def process_samples_on_device(samples: list[SampleToEvaluate], device_id: int) -> list[PreferenceSample]:
-        example_retriever = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking)
-
-        tokenizer = get_tokenizer(EVALUATION_MODEL_ID)
-        model = get_model(
-            EVALUATION_MODEL_ID,
-            device=f'cuda:{device_id}',
-            load_in_8bit=True,
-        )
-
-        preference_samples: list[PreferenceSample] = []
-        for sample_to_evaluate in samples:
-            examples = example_retriever.invoke('\n\n'.join(sample_to_evaluate.abstracts))
-
-            def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
-                profiles = sample_to_evaluate.profiles
-                prompt = prompt_for_ranking(
-                    profiles[profile1_index],
-                    profiles[profile2_index],
-                    examples,
-                    sample_to_evaluate.abstracts,
-                )
-                response = generate(
-                    tokenizer,
-                    model,
-                    prompt_messages_to_str(tokenizer, prompt),
-                    num_return_sequences=1,
-                    do_sample=True,
-                    temperature=0.2,
-                    max_new_tokens=650,
-                )[0]
-
-                # TODO consistency check? Flip order and check if the result is the same?
-                # TODO multiple models? Use different models and check if the result is the same?
-
-                evaluation = EvaluationResult_from_invalid_response(response)
-                return evaluation
-
-            tournament = run_tournament_ranking(
-                list(range(len(sample_to_evaluate.profiles))),
-                default_round_evaluator(match_evaluator),
-                do_shuffle=True,
-            )
-
-            preferences = []
-            for preference in get_all_preferences(tournament):
-                chosen = sample_to_evaluate.profiles[preference.winner]
-                rejected = sample_to_evaluate.profiles[preference.loser]
-                preferences.append(
-                    PreferenceSample(
-                        prompt=sample_to_evaluate.prompt,
-                        chosen=str(chosen),
-                        rejected=str(rejected),
-                    )
-                )
-            preference_samples.extend(preferences)
-
-        return preference_samples
-
-    return map_over_devices(
-        process_samples_on_device,
-        samples_to_evaluate,
-        SampleToEvaluate,
-        PreferenceSample,
-    )
+    return map_over_devices(_evaluate_samples_on_device, samples_to_evaluate, None)
 
 
 def main():
