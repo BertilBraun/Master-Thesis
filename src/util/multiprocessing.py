@@ -32,6 +32,7 @@ def map_over_devices(
         for i in range(num_devices)
     ]
 
+    multiprocessing.set_start_method('spawn')
     with multiprocessing.Pool(processes=num_devices) as pool:
         args = [(batches[i], extra_args, i, func_to_apply) for i in range(num_devices)]
         results = pool.map(__process_batch, args)
