@@ -25,6 +25,8 @@ def map_over_devices(
     Note: The func_to_apply function must be defined in the global scope.
     """
 
+    return func_to_apply(all_elements, extra_args, 0)
+
     num_devices = torch.cuda.device_count()
     elements_per_device = (len(all_elements) + num_devices - 1) // num_devices
     batches = [
@@ -32,7 +34,11 @@ def map_over_devices(
         for i in range(num_devices)
     ]
 
-    multiprocessing.set_start_method('spawn')
+    try:
+        multiprocessing.set_start_method('spawn', force=True)
+        print('spawned')
+    except RuntimeError:
+        pass
     with multiprocessing.Pool(processes=num_devices) as pool:
         args = [(batches[i], extra_args, i, func_to_apply) for i in range(num_devices)]
         results = pool.map(__process_batch, args)

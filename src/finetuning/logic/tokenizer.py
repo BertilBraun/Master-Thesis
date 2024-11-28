@@ -3,10 +3,9 @@ from transformers import (
     PreTrainedTokenizer,
     PreTrainedTokenizerFast,
 )
-from src.finetuning.defines import BASE_MODEL_ID
 
 
-def get_tokenizer(name_or_path: str = BASE_MODEL_ID) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
+def get_tokenizer(name_or_path: str) -> PreTrainedTokenizer | PreTrainedTokenizerFast:
     # WARNING there is a copy of this function in src/finetuning/train.py
     tokenizer = AutoTokenizer.from_pretrained(
         name_or_path,

@@ -3,6 +3,9 @@ from src.hyperparameter_defines import REFERENCE_GENERATION_MODEL, EVALUATION_MO
 
 if __name__ == '__main__':
     import sys
+    from src.extraction.references.initial_references import add_initial_example_references
+
+    add_initial_example_references()
 
     if len(sys.argv) <= 2:
         sys.exit('Usage: python -m src <command> <query>')

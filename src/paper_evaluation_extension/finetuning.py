@@ -70,6 +70,8 @@ NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
 
 
 # TODO temporary for testing
+EVALUATION_MODEL_ID = 'meta-llama/Llama-3.1-70B-Instruct'
+BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
 NUMBER_OF_EPOCHS_TO_TRAIN = 1
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 1
 NUM_SAMPLES_TO_GENERATE = 12
@@ -93,16 +95,19 @@ def setup_initial_model(model_path: str, base_model_id: str) -> bool:
 def _generate_samples_from_queries(
     queries: list[Query], model_path: str, device_id: int
 ) -> list[SampleForFineTuningImprovementEvaluation]:
-    tokenizer = get_tokenizer()
+    print('loading model...')
+    tokenizer = get_tokenizer(BASE_MODEL_ID)
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
         load_in_8bit=True,
     )
+    print('model loaded, now generating...')
 
     samples: list[SampleForFineTuningImprovementEvaluation] = []
 
     for query in queries:
+        print('Processing query:', query.author)
         abstracts = '\n\n'.join(query.abstracts)
         examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
         prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
@@ -231,7 +236,7 @@ def merge_and_save_model(next_model_path: str):
 def train_model(model_path: str, next_model_path: str, preferences: list[PreferenceSample]):
     """Train the finetuned model on the preference dataset."""
     train_dataset, test_dataset = load_dataset(preferences)
-    tokenizer = get_tokenizer()
+    tokenizer = get_tokenizer(BASE_MODEL_ID)
 
     def len_of_input(text) -> int:
         return len(tokenizer(text)['input_ids'])  # type: ignore
@@ -331,7 +336,7 @@ def _get_wins_of_current_model(
 def _evaluate_samples(
     samples: list[SampleForFineTuningImprovementEvaluation], model_path: str, device_id: int
 ) -> list[SampleForFineTuningImprovementEvaluation]:
-    tokenizer = get_tokenizer()
+    tokenizer = get_tokenizer(BASE_MODEL_ID)
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
@@ -388,12 +393,13 @@ def calculate_number_of_authors_to_process(samples_to_generate: int, top_k: int)
 def _generate_samples_on_device(
     samples: list[SampleToGenerate], model_path: str, device_id: int
 ) -> list[SampleToEvaluate]:
-    tokenizer = get_tokenizer()
+    tokenizer = get_tokenizer(BASE_MODEL_ID)
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
         load_in_8bit=True,
     )
+    print('Model loaded, now generating...')
 
     results: list[SampleToEvaluate] = []
 
@@ -523,6 +529,7 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
 
 def main():
+    # python -m src.paper_evaluation_extension.finetuning
     """Main function to coordinate finetuning steps."""
     huggingface_hub.login(new_session=False)
 
