@@ -302,8 +302,8 @@ def evaluate_is_profile1_preferred(
         prompt_messages_to_str(tokenizer, prompt),
         num_return_sequences=1,
         do_sample=True,
-        temperature=0.2,
-        max_new_tokens=650,
+        temperature=0.1,
+        max_new_tokens=800,
     )[0]
 
     evaluation = EvaluationResult_from_invalid_response(response)

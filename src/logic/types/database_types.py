@@ -69,7 +69,7 @@ class EvaluationResult(TypedDict):
 
 def EvaluationResult_from_invalid_response(response: str) -> EvaluationResult:
     # last number [0|1|2] is the preferred profile
-    assert '}' in response, f'Invalid response: {response}'
+    assert '"preferred_profile":' in response, f'Invalid response: {response}'
     last_zero = response.rfind('0')
     last_one = response.rfind('1')
     last_two = response.rfind('2')
