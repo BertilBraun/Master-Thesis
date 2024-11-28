@@ -12,12 +12,13 @@ U = TypeVar('U')
 
 def __process_batch(args: tuple[list[T], U, int, Callable[[list[T], U, int], list[S]]]) -> list[S]:
     elements_batch, extra_args, device_id, func_to_apply = args
-    torch.cuda.set_device(device_id)
     return func_to_apply(elements_batch, extra_args, device_id)
 
 
 def map_over_devices(
-    func_to_apply: Callable[[list[T], U, int], list[S]], all_elements: list[T], extra_args: U
+    func_to_apply: Callable[[list[T], U, int], list[S]],
+    all_elements: list[T],
+    extra_args: U,
 ) -> list[S]:
     """
     Apply a function to a list of elements in parallel using multiple devices.
