@@ -520,11 +520,15 @@ def _evaluate_samples_on_device(
 
             preferences = []
             for preference in get_all_preferences(tournament):
+                prompt = sample_to_evaluate.prompt
+                if prompt.endswith('Domain: "'):
+                    prompt = prompt[: -len('Domain: "')]
                 chosen = sample_to_evaluate.profiles[preference.winner]
                 rejected = sample_to_evaluate.profiles[preference.loser]
+
                 preferences.append(
                     PreferenceSample(
-                        prompt=sample_to_evaluate.prompt,
+                        prompt=prompt,
                         chosen=str(chosen),
                         rejected=str(rejected),
                     )
