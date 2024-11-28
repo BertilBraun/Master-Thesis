@@ -67,20 +67,21 @@ EVALUATION_MODEL_ID = 'meta-llama/Llama-3.1-70B-Instruct'
 BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
 
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
+IMPROVEMENT_PERCENTAGE_THRESHOLD = 0.5
 
 
 # TODO temporary for testing
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
-EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
-BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
-BASE_MODEL_ID = 'mistralai/Mistral-7B-Instruct-v0.3'
-NUMBER_OF_EPOCHS_TO_TRAIN = 1
-NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 1
-NUM_SAMPLES_TO_GENERATE = 12
-TOP_K_TO_SAMPLE = 8
-PAPERS_PER_SAMPLE = 2
-TEMPERATURE = 0.8
-TEST_PERCENTAGE = 1 / 12
+# EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
+# EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-8B-Instruct'
+# BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
+# BASE_MODEL_ID = 'mistralai/Mistral-7B-Instruct-v0.3'
+# NUMBER_OF_EPOCHS_TO_TRAIN = 1
+# NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 1
+# NUM_SAMPLES_TO_GENERATE = 12
+# TOP_K_TO_SAMPLE = 8
+# PAPERS_PER_SAMPLE = 2
+# TEMPERATURE = 0.8
+# TEST_PERCENTAGE = 1 / 12
 
 
 def setup_initial_model(model_path: str, base_model_id: str) -> bool:
@@ -385,7 +386,7 @@ def evaluate_model(
     total_samples = len(new_samples)
     print(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
 
-    has_improved = number_of_wins_current_model / total_samples > 0.5
+    has_improved = number_of_wins_current_model / total_samples > IMPROVEMENT_PERCENTAGE_THRESHOLD
 
     return has_improved, new_samples
 
