@@ -34,7 +34,7 @@ from src.logic.types import (
     EvaluationResult_from_invalid_response,
     Ranking,
 )
-from src.util import dump_json, ratio, log_all_exceptions, timeblock
+from src.util import dump_json, load_json, ratio, log_all_exceptions, timeblock
 from src.finetuning.logic.tokenizer import get_tokenizer
 from src.finetuning.logic.model import generate, get_model, prompt_messages_to_str
 from src.util.multiprocessing import map_over_devices
@@ -86,7 +86,7 @@ TEST_PERCENTAGE = 1 / 12
 def setup_initial_model(model_path: str, base_model_id: str) -> bool:
     """Setup the initial model for finetuning."""
     if os.path.exists(model_path):
-        print(f'{model_path} already exists. Exiting...')
+        print(f'{model_path} already exists.')
         return False
     # Initialize and save the base model
     model = get_model(base_model_id)
@@ -109,30 +109,30 @@ def _generate_samples_from_queries(
     samples: list[SampleForFineTuningImprovementEvaluation] = []
 
     for query in queries:
-        print('Processing query:', query.author)
-        abstracts = '\n\n'.join(query.abstracts)
-        examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
-        prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
-        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
-        prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
-        response = generate(
-            tokenizer,
-            model,
-            prompt,
-            num_return_sequences=1,
-            do_sample=True,
-            temperature=0.2,
-            max_new_tokens=650,
-        )[0]
-        profile = Profile.parse('Domain: "' + response)
-        samples.append(
-            SampleForFineTuningImprovementEvaluation(
-                prompt=prompt,
-                abstracts=query.abstracts,
-                best_profile_from_original_model=str(profile),
-                best_profile_from_last_model=str(profile),
+        with timeblock('Processing query: ' + query.author):
+            abstracts = '\n\n'.join(query.abstracts)
+            examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Example).invoke(abstracts)
+            prompt_messages = prompt_for_extract_from_abstracts_custom(query.abstracts, examples)
+            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+            prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
+            response = generate(
+                tokenizer,
+                model,
+                prompt,
+                num_return_sequences=1,
+                do_sample=True,
+                temperature=0.2,
+                max_new_tokens=650,
+            )[0]
+            profile = Profile.parse('Domain: "' + response)
+            samples.append(
+                SampleForFineTuningImprovementEvaluation(
+                    prompt=prompt,
+                    abstracts=query.abstracts,
+                    best_profile_from_original_model=str(profile),
+                    best_profile_from_last_model=str(profile),
+                )
             )
-        )
 
     return samples
 
@@ -413,36 +413,35 @@ def _generate_samples_on_device(
     results: list[SampleToEvaluate] = []
 
     for sample_to_generate in samples:
-        print('Processing query:', sample_to_generate.author)
-
-        prompt_messages = prompt_for_extract_from_abstracts_custom(
-            sample_to_generate.abstracts,
-            sample_to_generate.examples,
-        )
-        prompt = prompt_messages_to_str(tokenizer, prompt_messages)
-        prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
-        responses = generate(
-            tokenizer,
-            model,
-            prompt,
-            num_return_sequences=TOP_K_TO_SAMPLE,
-            temperature=TEMPERATURE,
-            max_new_tokens=650,
-        )
-
-        profiles: list[Profile] = []
-        for response in responses:
-            with log_all_exceptions(f'Profile parsing failed for response: {response}'):
-                profiles.append(Profile.parse('Domain: "' + response))
-
-        results.append(
-            SampleToEvaluate(
-                author=sample_to_generate.author,
-                prompt=prompt,
-                abstracts=sample_to_generate.abstracts,
-                profiles=profiles,
+        with timeblock('Processing query: ' + sample_to_generate.author):
+            prompt_messages = prompt_for_extract_from_abstracts_custom(
+                sample_to_generate.abstracts,
+                sample_to_generate.examples,
             )
-        )
+            prompt = prompt_messages_to_str(tokenizer, prompt_messages)
+            prompt += 'Domain: "'  # Note: This is a hack to start the prompt with the desired format to encourage the model to generate valid profiles
+            responses = generate(
+                tokenizer,
+                model,
+                prompt,
+                num_return_sequences=TOP_K_TO_SAMPLE,
+                temperature=TEMPERATURE,
+                max_new_tokens=650,
+            )
+
+            profiles: list[Profile] = []
+            for response in responses:
+                with log_all_exceptions(f'Profile parsing failed for response: {response}'):
+                    profiles.append(Profile.parse('Domain: "' + response))
+
+            results.append(
+                SampleToEvaluate(
+                    author=sample_to_generate.author,
+                    prompt=prompt,
+                    abstracts=sample_to_generate.abstracts,
+                    profiles=profiles,
+                )
+            )
 
     return results
 
@@ -486,51 +485,51 @@ def _evaluate_samples_on_device(
 
     preference_samples: list[PreferenceSample] = []
     for sample_to_evaluate in samples:
-        print('Evaluating:', sample_to_evaluate.author)
-        examples = example_retriever.invoke('\n\n'.join(sample_to_evaluate.abstracts))
+        with timeblock('Evaluating sample: ' + sample_to_evaluate.author):
+            examples = example_retriever.invoke('\n\n'.join(sample_to_evaluate.abstracts))
 
-        def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
-            profiles = sample_to_evaluate.profiles
-            prompt = prompt_for_ranking(
-                profiles[profile1_index],
-                profiles[profile2_index],
-                examples,
-                sample_to_evaluate.abstracts,
-            )
-            response = generate(
-                tokenizer,
-                model,
-                prompt_messages_to_str(tokenizer, prompt),
-                num_return_sequences=1,
-                do_sample=True,
-                temperature=0.2,
-                max_new_tokens=650,
-            )[0]
-
-            # TODO consistency check? Flip order and check if the result is the same?
-            # TODO multiple models? Use different models and check if the result is the same?
-
-            evaluation = EvaluationResult_from_invalid_response(response)
-            return evaluation
-
-        tournament = run_tournament_ranking(
-            list(range(len(sample_to_evaluate.profiles))),
-            default_round_evaluator(match_evaluator),
-            do_shuffle=True,
-        )
-
-        preferences = []
-        for preference in get_all_preferences(tournament):
-            chosen = sample_to_evaluate.profiles[preference.winner]
-            rejected = sample_to_evaluate.profiles[preference.loser]
-            preferences.append(
-                PreferenceSample(
-                    prompt=sample_to_evaluate.prompt,
-                    chosen=str(chosen),
-                    rejected=str(rejected),
+            def match_evaluator(profile1_index: int, profile2_index: int) -> EvaluationResult:
+                profiles = sample_to_evaluate.profiles
+                prompt = prompt_for_ranking(
+                    profiles[profile1_index],
+                    profiles[profile2_index],
+                    examples,
+                    sample_to_evaluate.abstracts,
                 )
+                response = generate(
+                    tokenizer,
+                    model,
+                    prompt_messages_to_str(tokenizer, prompt),
+                    num_return_sequences=1,
+                    do_sample=True,
+                    temperature=0.2,
+                    max_new_tokens=650,
+                )[0]
+
+                # TODO consistency check? Flip order and check if the result is the same?
+                # TODO multiple models? Use different models and check if the result is the same?
+
+                evaluation = EvaluationResult_from_invalid_response(response)
+                return evaluation
+
+            tournament = run_tournament_ranking(
+                list(range(len(sample_to_evaluate.profiles))),
+                default_round_evaluator(match_evaluator),
+                do_shuffle=True,
             )
-        preference_samples.extend(preferences)
+
+            preferences = []
+            for preference in get_all_preferences(tournament):
+                chosen = sample_to_evaluate.profiles[preference.winner]
+                rejected = sample_to_evaluate.profiles[preference.loser]
+                preferences.append(
+                    PreferenceSample(
+                        prompt=sample_to_evaluate.prompt,
+                        chosen=str(chosen),
+                        rejected=str(rejected),
+                    )
+                )
+            preference_samples.extend(preferences)
 
     return preference_samples
 
@@ -557,6 +556,11 @@ def main():
         print('Generating initial samples for evaluation')
         samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
         dump_json(samples_for_improvement_evaluation, SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
+    else:
+        print('Model already exists. Skipping initial sample generation...')
+        samples_for_improvement_evaluation = load_json(
+            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
+        )
 
     for i in range(10):
         model_path = f'{CURRENT_MODEL_PATH}_run_{i}'
