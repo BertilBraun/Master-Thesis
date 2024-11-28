@@ -261,7 +261,6 @@ def train_model(model_path: str, next_model_path: str, preferences: list[Prefere
         attn_implementation='flash_attention_2',
         torch_dtype='auto',
         load_in_4bit=True,
-        original_max_position_embeddings=8192 * 2,
     )
     trainer = get_trainer(
         model,
