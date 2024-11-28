@@ -63,7 +63,7 @@ SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE = (
     f'{OUTPUT_DIR}/samples_for_fine_tuning_improvement_evaluation.json'
 )
 
-EVALUATION_MODEL_ID = 'meta-llama/Llama-3.1-70B-Instruct'
+EVALUATION_MODEL_ID = 'meta-llama/Meta-Llama-3-70B-Instruct'
 BASE_MODEL_ID = 'mistralai/Mixtral-8x7B-Instruct-v0.1'
 
 NUMBER_OF_SAMPLES_TO_EVALUATE_THE_IMPROVEMENT_ON_AFTER_TRAINING = 30
@@ -560,34 +560,45 @@ def main():
         # Setup returns True if the model was created
         print('Generating initial samples for evaluation')
         samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
-        dump_json(samples_for_improvement_evaluation, SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE)
+        dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_0')
     else:
         print('Model already exists. Skipping initial sample generation...')
-        samples_for_improvement_evaluation = load_json(
-            SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE, SampleForFineTuningImprovementEvaluation
-        )
 
     for i in range(10):
         model_path = f'{CURRENT_MODEL_PATH}_run_{i}'
         next_model_path = f'{CURRENT_MODEL_PATH}_run_{i + 1}'
 
-        print(f'Finetuning model {i}')
-        print(f'Generating samples for model {i}')
-        generated_samples = generate_samples(model_path, NUM_SAMPLES_TO_GENERATE)
-        dump_json(generated_samples, f'generated_samples_{i}.json')
+        if os.path.exists(next_model_path):
+            print(f'{next_model_path} already exists. Continuing to next iteration...')
+            continue
 
-        print(f'Evaluating samples for model {i}')
-        preferences = evaluate_samples(generated_samples)
-        dump_json(preferences, f'preferences_{i}.json')
+        print(f'Finetuning model {i}')
+
+        if not os.path.exists(f'generated_samples_{i}.json'):
+            print(f'Generating samples for model {i}')
+            generated_samples = generate_samples(model_path, NUM_SAMPLES_TO_GENERATE)
+            dump_json(generated_samples, f'generated_samples_{i}.json')
+        else:
+            generated_samples = load_json(f'generated_samples_{i}.json', SampleToEvaluate)
+
+        if not os.path.exists(f'preferences_{i}.json'):
+            print(f'Evaluating samples for model {i}')
+            preferences = evaluate_samples(generated_samples)
+            dump_json(preferences, f'preferences_{i}.json')
+        else:
+            preferences = load_json(f'preferences_{i}.json', PreferenceSample)
 
         print(f'Training model {i}')
         train_model(model_path, next_model_path, preferences)
 
         print(f'Evaluating model {i}')
+        samples_for_improvement_evaluation = load_json(
+            f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i}', SampleForFineTuningImprovementEvaluation
+        )
         has_improved, samples_for_improvement_evaluation = evaluate_model(
             next_model_path, samples_for_improvement_evaluation
         )
-        dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i}')
+        dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i + 1}')
         if not has_improved:
             print('Model has not improved. Exiting...')
             break
