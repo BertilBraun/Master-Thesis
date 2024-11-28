@@ -60,12 +60,8 @@ def prompt_messages_to_str(tokenizer: PreTrainedTokenizer | PreTrainedTokenizerF
         tokenize=False,
     )
 
+    return prompt
     prompt = prompt.replace(tokenizer.eos_token, '').strip()
-    assistant_start = (
-        tokenizer.apply_chat_template(conversation=[{'role': 'assistant', 'content': ''}], tokenize=False).split('>')[0]  # type: ignore
-        + '>'
-    )
-    prompt += '\n' + assistant_start
     return prompt
 
 
