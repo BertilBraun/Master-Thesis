@@ -17,13 +17,14 @@
 # 3. /index: Returns the index.html file that is used to interact with the server.
 # The server is started by running `python -m src.paper_evaluation_extension.server` from the root directory of the project.
 
+import random
 from flask import Flask, request, jsonify
 import requests
 
-# TODO no relative imports in the main module
+from src.logic.types.language_model_type import LanguageModel
 import src.defines
 from src.logic.database import get_retriever_getter
-from src.logic.language_model import OpenAILanguageModel
+from src.logic.language_model import OpenAILanguageModel, TransformersLanguageModel
 from src.extraction.extraction_custom import extract_from_abstracts_custom
 from src.logic.papers import get_papers_by_author_cached
 from src.logic.types.instance_type import Query
@@ -70,14 +71,15 @@ def process_papers():
     # sort papers by title to ensure consistent results
     papers = sorted(papers, key=lambda paper: paper['title'])
 
-    profiles = []
-
     query = Query(
         full_texts=[],
         titles=[paper['title'] for paper in papers],
         abstracts=[paper['abstract'] for paper in papers],
         author=author_name,
     )
+
+    llms: dict[str, LanguageModel] = {}
+
     for model in [
         'gemma2-9b-it',
         'llama-3.1-70b-versatile',
@@ -85,28 +87,46 @@ def process_papers():
         'llama-3.1-8b-instant',
         'llama-3.2-1b-preview',
         'llama-3.2-90b-text-preview',
-    ]:  # ['gpt-4o', 'gpt-4', 'gpt-3.5-turbo']:  # TODO all in parallel
-        retriever_getter = get_retriever_getter(max_number_to_retrieve=2)
-
-        llm = OpenAILanguageModel(
+    ]:
+        llms[model] = OpenAILanguageModel(
             model,
             base_url=src.defines.GROQ_BASE_URL,  # src.defines.BASE_URL_LLM,
             api_key=src.defines.GROQ_API_KEY,  # src.defines.API_KEY_LLM,
             debug_context_name=author_name,
         )
 
+    for model in ['gpt-4o', 'gpt-4o-mini']:
+        llms[model] = OpenAILanguageModel(
+            model,
+            base_url=None,
+            api_key=src.defines.OPENAI_API_KEY,
+            debug_context_name=author_name,
+        )
+
+    llms['finetuned'] = TransformersLanguageModel(
+        './models/finetuned_model/',
+        debug_context_name=author_name,
+    )
+
+    profiles: list[dict] = []
+
+    for model_name, llm in llms.items():  # TODO all in parallel
+        retriever_getter = get_retriever_getter(max_number_to_retrieve=2)
+
         profile = None
-        with log_all_exceptions(f'Error processing {model=}'):
+        with log_all_exceptions(f'Error processing {model_name}'):
             profile = extract_from_abstracts_custom(query, retriever_getter, llm)
 
         if profile is not None:
             profile.competencies = profile.competencies[:10]
             profiles.append(
                 {
-                    'model_name': model,
+                    'model_name': model_name,
                     'profile': custom_asdict(profile),
                 }
             )
+
+    random.shuffle(profiles)
 
     return jsonify(profiles)
 

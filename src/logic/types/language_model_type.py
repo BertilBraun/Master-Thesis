@@ -58,8 +58,18 @@ class LanguageModel(Protocol):
     ) -> dict:
         ...
 
-    def invoke_profile_custom(self, prompt: list[Message]) -> Profile:
-        ...
+    def invoke_profile_custom(
+        self,
+        prompt: list[Message],
+        temperature: float = 0.5,
+    ) -> Profile:
+        return Profile.parse(self.invoke(prompt, stop=['\n\n\n\n'], temperature=temperature))
 
-    def invoke_profile_json(self, prompt: list[Message]) -> Profile:
-        ...
+    def invoke_profile_json(
+        self,
+        prompt: list[Message],
+        temperature: float = 0.5,
+    ) -> Profile:
+        return Profile.parse_json(
+            self.invoke(prompt, response_format='json_object', stop=['\n\n\n\n'], temperature=temperature)
+        )
