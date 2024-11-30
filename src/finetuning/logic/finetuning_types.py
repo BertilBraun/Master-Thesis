@@ -7,10 +7,13 @@ class SampleForFineTuningImprovementEvaluation:
     prompt: str
     abstracts: list[str]
     best_profile_from_original_model: str
+    best_profile_from_second_to_last_model: str
     best_profile_from_last_model: str
 
     @staticmethod
     def from_json(data: dict) -> 'SampleForFineTuningImprovementEvaluation':
+        if 'best_profile_from_second_to_last_model' not in data:
+            data['best_profile_from_second_to_last_model'] = data['best_profile_from_last_model']
         return SampleForFineTuningImprovementEvaluation(**data)
 
     def with_new_profiles(
@@ -23,6 +26,7 @@ class SampleForFineTuningImprovementEvaluation:
             abstracts=self.abstracts,
             best_profile_from_original_model=best_profile_from_original_model or self.best_profile_from_original_model,
             best_profile_from_last_model=best_profile_from_last_model,
+            best_profile_from_second_to_last_model=self.best_profile_from_last_model,
         )
 
 

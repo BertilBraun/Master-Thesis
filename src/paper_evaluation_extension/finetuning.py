@@ -34,12 +34,12 @@ from src.logic.types import (
     EvaluationResult_from_invalid_response,
     Ranking,
 )
-from src.util import dump_json, load_json, ratio, log_all_exceptions, timeblock
+from src.util import dump_json, load_json, ratio, log_all_exceptions, timeblock, log
 from src.finetuning.logic.tokenizer import get_tokenizer
 from src.finetuning.logic.model import generate, get_model, prompt_messages_to_str
 from src.util.multiprocessing import map_over_devices
 
-print('All imports done. Now starting execution...')
+log('All imports done. Now starting execution...')
 
 
 NUM_SAMPLES_TO_GENERATE = 500
@@ -55,7 +55,7 @@ TEST_PERCENTAGE = 0.002
 
 TRAINING_OUTPUT_DIR = f'{OUTPUT_DIR}/training'
 
-NUMBER_OF_EPOCHS_TO_TRAIN = 6
+NUMBER_OF_EPOCHS_TO_TRAIN = 3
 
 
 CURRENT_MODEL_PATH = f'./{OUTPUT_DIR}/current-finetuned-model'
@@ -88,7 +88,7 @@ IMPROVEMENT_PERCENTAGE_THRESHOLD = 0.5
 def setup_initial_model(model_path: str, base_model_id: str) -> bool:
     """Setup the initial model for finetuning."""
     if os.path.exists(model_path):
-        print(f'{model_path} already exists.')
+        log(f'{model_path} already exists.')
         return False
     # Initialize and save the base model
     model = get_model(base_model_id)
@@ -99,14 +99,14 @@ def setup_initial_model(model_path: str, base_model_id: str) -> bool:
 def _generate_samples_from_queries(
     queries: list[Query], model_path: str, device_id: int
 ) -> list[SampleForFineTuningImprovementEvaluation]:
-    print('loading model...')
+    log('loading model...')
     tokenizer = get_tokenizer(BASE_MODEL_ID)
     model = get_model(
         model_path,
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
-    print('model loaded, now generating...')
+    log('model loaded, now generating...')
 
     samples: list[SampleForFineTuningImprovementEvaluation] = []
 
@@ -133,6 +133,7 @@ def _generate_samples_from_queries(
                     abstracts=query.abstracts,
                     best_profile_from_original_model=str(profile),
                     best_profile_from_last_model=str(profile),
+                    best_profile_from_second_to_last_model=str(profile),
                 )
             )
 
@@ -246,7 +247,7 @@ def train_model(model_path: str, next_model_path: str, preferences: list[Prefere
         return len(tokenizer(text)['input_ids'])  # type: ignore
 
     # lets find the max length of the prompt
-    print('Finding dataset lengths')
+    log('Finding dataset lengths')
     prompt_lengths = [len_of_input(x) for x in train_dataset['prompt']]
     chosen_lengths = [len_of_input(x) for x in train_dataset['chosen']]
     rejected_lengths = [len_of_input(x) for x in train_dataset['rejected']]
@@ -324,12 +325,12 @@ def _get_wins_of_current_model(
         load_in_4bit=True,
     )
 
-    print('Model loaded, now evaluating samples...')
+    log('Model loaded, now evaluating samples...')
 
     return [
         evaluate_is_profile1_preferred(
             Profile.parse(sample.best_profile_from_last_model),
-            Profile.parse(sample.best_profile_from_original_model),
+            Profile.parse(sample.best_profile_from_second_to_last_model),
             sample.abstracts,
             model,
             tokenizer,
@@ -348,20 +349,22 @@ def _evaluate_samples(
         load_in_4bit=True,
     )
 
-    print('Model loaded, now generating evaluation samples...')
+    log('Model loaded, now generating evaluation samples...')
 
     for sample in samples:
-        response = generate(
-            tokenizer,
-            model,
-            sample.prompt,
-            num_return_sequences=1,
-            do_sample=True,
-            temperature=0.2,
-            max_new_tokens=650,
-        )[0]
-        new_profile = Profile.parse('Domain: "' + response)
-        sample.best_profile_from_last_model = str(new_profile)
+        with timeblock('Processing query: ' + sample.prompt):
+            response = generate(
+                tokenizer,
+                model,
+                sample.prompt,
+                num_return_sequences=1,
+                do_sample=True,
+                temperature=0.2,
+                max_new_tokens=650,
+            )[0]
+            new_profile = Profile.parse('Domain: "' + response)
+            sample.best_profile_from_second_to_last_model = sample.best_profile_from_last_model
+            sample.best_profile_from_last_model = str(new_profile)
 
     del model
     gc.collect()
@@ -375,17 +378,17 @@ def evaluate_model(
 ) -> tuple[bool, list[SampleForFineTuningImprovementEvaluation]]:
     """Evaluate the finetuned model to assess improvements."""
 
-    print('Now evaluating whether the model has improved...')
-    print('Generating the extraction samples with the new model...')
+    log('Now evaluating whether the model has improved...')
+    log('Generating the extraction samples with the new model...')
     new_samples = map_over_devices(_evaluate_samples, samples, model_path)
 
-    print('Now comparing the current model to the original model...')
+    log('Now comparing the current model to the original model...')
 
     with timeblock('Comparing the current model to the original model'):
         number_of_wins_current_model = sum(map_over_devices(_get_wins_of_current_model, new_samples, None))
 
     total_samples = len(new_samples)
-    print(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
+    log(f'The current model won {ratio(number_of_wins_current_model, total_samples)} against the original model')
 
     has_improved = number_of_wins_current_model / total_samples > IMPROVEMENT_PERCENTAGE_THRESHOLD
 
@@ -410,7 +413,7 @@ def _generate_samples_on_device(
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
-    print('Model loaded, now generating...')
+    log('Model loaded, now generating...')
 
     results: list[SampleToEvaluate] = []
 
@@ -467,7 +470,7 @@ def generate_samples(
         )
         samples_to_generate.append(sample)
 
-    print(f'Generated {len(samples_to_generate)} samples to evaluate. Now generating...')
+    log(f'Generated {len(samples_to_generate)} samples to evaluate. Now generating...')
 
     return map_over_devices(_generate_samples_on_device, samples_to_generate, model_path)
 
@@ -483,7 +486,7 @@ def _evaluate_samples_on_device(
         device=f'cuda:{device_id}',
         load_in_4bit=True,
     )
-    print('Model loaded, now evaluating...')
+    log('Model loaded, now evaluating...')
 
     preference_samples: list[PreferenceSample] = []
     for sample_to_evaluate in samples:
@@ -545,7 +548,7 @@ def evaluate_samples(samples_to_evaluate: list[SampleToEvaluate]) -> list[Prefer
 
     # TODO redo the evaluation system? Elo based - tradeof with computation time (n^2) - from 5 evaluations to 18 evaluations for no more preferences
 
-    print('Evaluating samples into preferences...')
+    log('Evaluating samples into preferences...')
 
     return map_over_devices(_evaluate_samples_on_device, samples_to_evaluate, None)
 
@@ -555,44 +558,44 @@ def main():
     """Main function to coordinate finetuning steps."""
     huggingface_hub.login(new_session=False)
 
-    print('Setting up initial model')
+    log('Setting up initial model')
     start_model_path = f'{CURRENT_MODEL_PATH}_run_0'
     if setup_initial_model(start_model_path, BASE_MODEL_ID):
         # Setup returns True if the model was created
-        print('Generating initial samples for evaluation')
+        log('Generating initial samples for evaluation')
         samples_for_improvement_evaluation = generate_evaluation_samples(start_model_path)
         dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_0')
     else:
-        print('Model already exists. Skipping initial sample generation...')
+        log('Model already exists. Skipping initial sample generation...')
 
     for i in range(10):
         model_path = f'{CURRENT_MODEL_PATH}_run_{i}'
         next_model_path = f'{CURRENT_MODEL_PATH}_run_{i + 1}'
 
         if os.path.exists(next_model_path):
-            print(f'{next_model_path} already exists. Continuing to next iteration...')
+            log(f'{next_model_path} already exists. Continuing to next iteration...')
             continue
 
-        print(f'Finetuning model {i}')
+        log(f'Finetuning model {i}')
 
         if not os.path.exists(f'generated_samples_{i}.json'):
-            print(f'Generating samples for model {i}')
+            log(f'Generating samples for model {i}')
             generated_samples = generate_samples(model_path, NUM_SAMPLES_TO_GENERATE)
             dump_json(generated_samples, f'generated_samples_{i}.json')
         else:
             generated_samples = load_json(f'generated_samples_{i}.json', SampleToEvaluate)
 
         if not os.path.exists(f'preferences_{i}.json'):
-            print(f'Evaluating samples for model {i}')
+            log(f'Evaluating samples for model {i}')
             preferences = evaluate_samples(generated_samples)
             dump_json(preferences, f'preferences_{i}.json')
         else:
             preferences = load_json(f'preferences_{i}.json', PreferenceSample)
 
-        print(f'Training model {i}')
+        log(f'Training model {i}')
         train_model(model_path, next_model_path, preferences)
 
-        print(f'Evaluating model {i}')
+        log(f'Evaluating model {i}')
         samples_for_improvement_evaluation = load_json(
             f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i}', SampleForFineTuningImprovementEvaluation
         )
@@ -601,10 +604,10 @@ def main():
         )
         dump_json(samples_for_improvement_evaluation, f'{SAMPLES_FOR_FINE_TUNING_IMPROVEMENT_EVALUATION_FILE}_{i + 1}')
         if not has_improved:
-            print('Model has not improved. Exiting...')
+            log('Model has not improved. Exiting...')
             break
 
-        print('Model has improved. Continuing to next iteration...')
+        log('Model has improved. Continuing to next iteration...')
 
 
 if __name__ == '__main__':
