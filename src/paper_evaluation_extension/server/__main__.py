@@ -104,7 +104,7 @@ def process_papers():
         )
 
     llms['finetuned'] = TransformersLanguageModel(
-        './models/finetuned_model/',
+        'BertilBraun/competency-extraction-finetune-v2',
         debug_context_name=author_name,
     )
 

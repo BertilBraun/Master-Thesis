@@ -262,8 +262,8 @@ class TransformersLanguageModel(LanguageModel):
         debug_context_name: str = '',
         max_retries: int = src.defines.MAX_RETRIES,
     ):
-        self.model = get_model(model)
         self.tokenizer = get_tokenizer(model)
+        self.model = get_model(model)
         self.debug_context_name = debug_context_name
         self.max_retries = max_retries
 
