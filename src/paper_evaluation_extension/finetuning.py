@@ -351,20 +351,19 @@ def _evaluate_samples(
 
     log('Model loaded, now generating evaluation samples...')
 
-    for sample in samples:
-        with timeblock('Processing query: ' + sample.prompt):
-            response = generate(
-                tokenizer,
-                model,
-                sample.prompt,
-                num_return_sequences=1,
-                do_sample=True,
-                temperature=0.2,
-                max_new_tokens=650,
-            )[0]
-            new_profile = Profile.parse('Domain: "' + response)
-            sample.best_profile_from_second_to_last_model = sample.best_profile_from_last_model
-            sample.best_profile_from_last_model = str(new_profile)
+    for sample in tqdm(samples, desc='Generating samples'):
+        response = generate(
+            tokenizer,
+            model,
+            sample.prompt,
+            num_return_sequences=1,
+            do_sample=True,
+            temperature=0.2,
+            max_new_tokens=650,
+        )[0]
+        new_profile = Profile.parse('Domain: "' + response)
+        sample.best_profile_from_second_to_last_model = sample.best_profile_from_last_model
+        sample.best_profile_from_last_model = str(new_profile)
 
     del model
     gc.collect()

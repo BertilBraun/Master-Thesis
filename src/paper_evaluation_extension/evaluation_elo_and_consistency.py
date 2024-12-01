@@ -1,3 +1,4 @@
+from collections import Counter
 import time
 import random
 import numpy as np
@@ -97,7 +98,6 @@ if __name__ == '__main__':
     MAX_RETRIES = 1
 
     NUM_EXAMPLES = 1  # Adjust as needed
-    EVALUATE_WITH_CONSISTENCY_CHECK = False  # Set to False to disable consistency check
 
     # Initialize LLMs
     LLMS = [
@@ -126,106 +126,158 @@ if __name__ == '__main__':
     # Create a dictionary with author names as keys
     all_jsons_from_manual = {data['author']: data for data in jsons}
 
-    rohs, taus = [], []
-    roh_p_values, tau_p_values = [], []
+    evaluation_results: dict[tuple[bool, float], tuple[list[float], list[float], list[float], list[float]]] = {}
 
-    last_eval_time = time.time() - 60  # Initialize to 60 seconds ago to avoid waiting on the first iteration
+    for evaluate_consistency, consistency_threshold in ((False, [1.0]), (True, [1.0, 0.9, 0.75, 0.5])):
+        for threshold in consistency_threshold:
+            rohs: list[float] = []
+            taus: list[float] = []
+            roh_p_values: list[float] = []
+            tau_p_values: list[float] = []
 
-    log(f'Running Elo and consistency check for {len(all_jsons_from_manual)} queries')
+            last_eval_time = time.time() - 60  # Initialize to 60 seconds ago to avoid waiting on the first iteration
 
-    for author, upload in all_jsons_from_manual.items():
-        log(f'Query: {author}')
-        sample_abstracts = upload['abstracts']
-        sample_profiles = upload['profiles'].copy()  # Make a copy to avoid modifying the original list
-        random.shuffle(sample_profiles)
+            log(f'Running Elo and consistency check for {len(all_jsons_from_manual)} queries')
 
-        # Retrieve examples (implement this function based on your data)
-        examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
-            '\n\n'.join(sample_abstracts)
-        )
+            for author, upload in all_jsons_from_manual.items():
+                log(f'Query: {author}')
+                sample_abstracts = upload['abstracts']
+                sample_profiles = upload['profiles'].copy()  # Make a copy to avoid modifying the original list
+                random.shuffle(sample_profiles)
 
-        # Define the match evaluator function
-        def match_evaluator(profile1_index: int, profile2_index: int) -> list[EvaluationResult]:
-            global last_eval_time
-            # Make sure to wait for at least 1 minute between evaluations
-            time_since_last_eval = time.time() - last_eval_time
-            if time_since_last_eval < 60:
-                print(f'Waiting for {60 - time_since_last_eval:.2f} seconds before next evaluation')
-                # time.sleep(60 - time_since_last_eval)
-            last_eval_time = time.time()
-
-            profile1 = Profile.from_json(sample_profiles[profile1_index]['profile'])
-            profile2 = Profile.from_json(sample_profiles[profile2_index]['profile'])
-
-            evaluations: list[EvaluationResult] = []
-            for llm in llms:
-                prompt = prompt_for_ranking(profile1, profile2, examples, sample_abstracts)
-                response = llm.invoke(prompt, temperature=0.1)
-                evaluations.append(EvaluationResult_from_invalid_response(response))
-
-            # TODO also evaluate wheather the model agrees with the flipped profile orders
-
-            preferred_profiles = [evaluation['preferred_profile'] for evaluation in evaluations]
-
-            if not EVALUATE_WITH_CONSISTENCY_CHECK:
-                return evaluations
-
-            if all(p == preferred_profiles[0] for p in preferred_profiles):
-                preferred_profile = preferred_profiles[0]
-            else:
-                preferred_profile = 0  # Draw
-
-            reasoning = '\n\n'.join(f'LLM{i+1} Reasoning:\n{eval["reasoning"]}' for i, eval in enumerate(evaluations))
-
-            return [EvaluationResult(reasoning=reasoning, preferred_profile=preferred_profile)]
-
-        # Run pairwise evaluations
-        log(f'Running pairwise evaluations for {len(sample_profiles)} profiles')
-        results = run_pairwise_evaluations(
-            profile_indices=list(range(len(sample_profiles))),
-            evaluator=match_evaluator,
-        )
-        log('Pairwise evaluations complete')
-
-        # Get Elo ratings based on results
-        elo_ratings = get_elo_ratings(results)
-
-        # Sort profiles by Elo rating
-        sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
-
-        # Output the sorted profiles and their ratings
-        print_table(
-            [
-                (
-                    sample_profiles[profile_index]['model_name'],
-                    rating,
-                    len(sample_profiles) - upload['profiles'].index(sample_profiles[profile_index]),
+                # Retrieve examples (implement this function based on your data)
+                examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
+                    '\n\n'.join(sample_abstracts)
                 )
-                for profile_index, rating in sorted_profiles
-            ],
-            headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
+
+                # Define the match evaluator function
+                def match_evaluator(profile1_index: int, profile2_index: int) -> list[EvaluationResult]:
+                    global last_eval_time
+                    # Make sure to wait for at least 1 minute between evaluations
+                    time_since_last_eval = time.time() - last_eval_time
+                    if time_since_last_eval < 60:
+                        print(f'Waiting for {60 - time_since_last_eval:.2f} seconds before next evaluation')
+                        # time.sleep(60 - time_since_last_eval)
+                    last_eval_time = time.time()
+
+                    profile1 = Profile.from_json(sample_profiles[profile1_index]['profile'])
+                    profile2 = Profile.from_json(sample_profiles[profile2_index]['profile'])
+
+                    evaluations: list[EvaluationResult] = []
+                    # Run evaluation in P1 vs P2 order
+                    prompt = prompt_for_ranking(profile1, profile2, examples, sample_abstracts)
+                    for llm in llms:
+                        response = llm.invoke(prompt, temperature=0.1)
+                        evaluations.append(EvaluationResult_from_invalid_response(response))
+
+                    reverse_preference = {0: 0, 1: 2, 2: 1}
+
+                    # Run evaluation in P2 vs P1 order - make sure to reverse the preference
+                    prompt = prompt_for_ranking(profile2, profile1, examples, sample_abstracts)
+                    for llm in llms:
+                        response = llm.invoke(prompt, temperature=0.1)
+                        eval_result = EvaluationResult_from_invalid_response(response)
+                        eval_result['preferred_profile'] = reverse_preference[eval_result['preferred_profile']]
+                        evaluations.append(EvaluationResult_from_invalid_response(response))
+
+                    if not evaluate_consistency:
+                        return evaluations
+
+                    preferred_profiles = [evaluation['preferred_profile'] for evaluation in evaluations]
+
+                    count = Counter(preferred_profiles)
+                    if count[1] / len(preferred_profiles) >= threshold:
+                        preferred_profile = 1
+                    elif count[2] / len(preferred_profiles) >= threshold:
+                        preferred_profile = 2
+                    else:
+                        preferred_profile = 0  # Draw
+
+                    reasoning = '\n\n'.join(
+                        f'LLM{i+1} Reasoning:\n{eval["reasoning"]}' for i, eval in enumerate(evaluations)
+                    )
+
+                    return [EvaluationResult(reasoning=reasoning, preferred_profile=preferred_profile)]
+
+                # Run pairwise evaluations
+                log(f'Running pairwise evaluations for {len(sample_profiles)} profiles')
+                results = run_pairwise_evaluations(
+                    profile_indices=list(range(len(sample_profiles))),
+                    evaluator=match_evaluator,
+                )
+                log('Pairwise evaluations complete')
+
+                # Get Elo ratings based on results
+                elo_ratings = get_elo_ratings(results)
+
+                # Sort profiles by Elo rating
+                sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
+
+                # Output the sorted profiles and their ratings
+                print_table(
+                    [
+                        (
+                            sample_profiles[profile_index]['model_name'],
+                            rating,
+                            len(sample_profiles) - upload['profiles'].index(sample_profiles[profile_index]),
+                        )
+                        for profile_index, rating in sorted_profiles
+                    ],
+                    headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
+                )
+
+                # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
+                X = [profile_index for profile_index, _ in sorted_profiles]
+                Y = [sample_profiles.index(profile) for profile in upload['profiles']]
+
+                rho, p_value = spearmanr(X, Y)
+                rohs.append(rho)  # type: ignore
+                roh_p_values.append(p_value)  # type: ignore
+
+                tau, p_value = kendalltau(X, Y)
+                taus.append(tau)
+                tau_p_values.append(p_value)
+
+            evaluation_results[(evaluate_consistency, threshold)] = (rohs, taus, roh_p_values, tau_p_values)
+
+    for (evaluate_consistency, threshold), (rohs, taus, roh_p_values, tau_p_values) in evaluation_results.items():
+        print(f'Consistency Check: {evaluate_consistency}, Threshold: {threshold}')
+        print_table(
+            [(author, rho, p_value) for author, rho, p_value in zip(all_jsons_from_manual.keys(), rohs, roh_p_values)]
+            + [('Mean', np.mean(rohs), np.mean(roh_p_values))],
+            headers=['Author', 'Spearman Correlation', 'p-value'],
         )
 
-        # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
-        X = [profile_index for profile_index, _ in sorted_profiles]
-        Y = [sample_profiles.index(profile) for profile in upload['profiles']]
+        print_table(
+            [(author, tau, p_value) for author, tau, p_value in zip(all_jsons_from_manual.keys(), taus, tau_p_values)]
+            + [('Mean', np.mean(taus), np.mean(tau_p_values))],
+            headers=['Author', 'Kendall Tau', 'p-value'],
+        )
 
-        rho, p_value = spearmanr(X, Y)
-        rohs.append(rho)
-        roh_p_values.append(p_value)
-
-        tau, p_value = kendalltau(X, Y)
-        taus.append(tau)
-        tau_p_values.append(p_value)
-
+    # Print mean values for evaluation consistency and thresholds
     print_table(
-        [(author, rho, p_value) for author, rho, p_value in zip(all_jsons_from_manual.keys(), rohs, roh_p_values)]
-        + [('Mean', np.mean(rohs), np.mean(roh_p_values))],
-        headers=['Author', 'Spearman Correlation', 'p-value'],
-    )
-
-    print_table(
-        [(author, tau, p_value) for author, tau, p_value in zip(all_jsons_from_manual.keys(), taus, tau_p_values)]
-        + [('Mean', np.mean(taus), np.mean(tau_p_values))],
-        headers=['Author', 'Kendall Tau', 'p-value'],
+        [
+            (
+                evaluate_consistency,
+                threshold,
+                np.mean(rohs),
+                np.mean(taus),
+                np.mean(roh_p_values),
+                np.mean(tau_p_values),
+            )
+            for (evaluate_consistency, threshold), (
+                rohs,
+                taus,
+                roh_p_values,
+                tau_p_values,
+            ) in evaluation_results.items()
+        ],
+        headers=[
+            'Consistency Check',
+            'Threshold',
+            'Mean Spearman Correlation',
+            'Mean Kendall Tau',
+            'Mean Spearman p-value',
+            'Mean Kendall p-value',
+        ],
     )
