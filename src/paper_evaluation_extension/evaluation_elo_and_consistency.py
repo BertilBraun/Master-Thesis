@@ -211,7 +211,7 @@ if __name__ == '__main__':
                 elo_ratings = get_elo_ratings(results)
 
                 # Sort profiles by Elo rating
-                sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
+                sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1]))
 
                 # Output the sorted profiles and their ratings
                 print_table(
