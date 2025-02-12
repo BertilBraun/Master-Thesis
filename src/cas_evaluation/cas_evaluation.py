@@ -7,7 +7,7 @@ import numpy as np
 from cas_evaluation.cas_preprocess import CAS_KOMPETENZEN_CLEAN_PATH, CASSample
 from src.util.log import log
 from src.logic.database import get_example_messages, get_retriever_getter
-from src.logic.language_model import OpenAILanguageModel, trim_text_to_token_length
+from src.logic.openai_language_model import OpenAILanguageModel, trim_text_to_token_length
 from src.util import chunked_iterate, load_json, log_all_exceptions
 from src.extraction.extraction_custom import extract_from_abstracts_custom, combine_profiles_into_one
 from src.logic.types import (

@@ -12,7 +12,7 @@ from src.hyperparameter_defines import (
     EXTRACTORS,
     EVALUATION_MODEL,
 )
-from src.logic.language_model import OpenAILanguageModel
+from src.logic.openai_language_model import OpenAILanguageModel
 from src.extraction.evaluation import pseudo_tournament_ranking, tournament_ranking
 
 from src.logic.database import get_retriever_getter

@@ -150,10 +150,12 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
 
             log(f'Invoking retriever for {queries=}', level=LogLevel.DEBUG)
 
+            actual_number_to_retrieve = min(max_number_to_retrieve * 2, COLLECTIONS[self.return_type].count())
+
             res = COLLECTIONS[self.return_type].query(
                 query_texts=queries,
                 # We want to get a few more than the maximum number of results we want to return to be able to filter out ones that are too close to each other
-                n_results=max_number_to_retrieve * 2,
+                n_results=actual_number_to_retrieve,
                 where={'reference': True},
                 include=['documents', 'embeddings'],
             )
@@ -186,6 +188,11 @@ def get_retriever_getter(max_number_to_retrieve: int) -> RetrieverGetter:
 def get_sample_from_database(type: Type[DatabaseTypes], number_of_samples: int) -> list[DatabaseTypes]:
     # Returns a list of up to number_of_samples elements of the given type from the database
     docs = COLLECTIONS[type].get(limit=number_of_samples, include=['documents'])['documents'] or []
+    if len(docs) < number_of_samples:
+        log(
+            f'Only found {len(docs)} documents in the database, but {number_of_samples} were requested',
+            level=LogLevel.WARNING,
+        )
     return [type.parse(doc) for doc in docs]
 
 

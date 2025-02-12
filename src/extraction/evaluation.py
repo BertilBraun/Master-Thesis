@@ -13,7 +13,7 @@ from src.logic.types import (
     HumanMessage,
     TournamentNode,
 )
-from src.logic.language_model import OpenAILanguageModel, trim_text_to_token_length
+from src.logic.openai_language_model import OpenAILanguageModel, trim_text_to_token_length
 
 
 random.seed(1)
@@ -71,7 +71,7 @@ Profile 2:
 
 Your evaluation must follow this JSON format:
 {{
-    "reasoning": "[Your Evaluation and Reasoning]",
+    "reasoning": "[Your Reasoning and Evaluation in that order]",
     "preferred_profile": [1 or 2]
 }}
 Be specific and detailed in your reasoning and provide the number of the preferred profile."""

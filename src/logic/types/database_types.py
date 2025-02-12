@@ -71,7 +71,6 @@ def EvaluationResult_from_invalid_response(response: str) -> EvaluationResult:
     # last number [0|1|2] is the preferred profile
     if '"preferred_profile":' not in response:
         print(f'Invalid response: {response}')
-        return {'reasoning': response, 'preferred_profile': 0}
     last_zero = response.rfind('0')
     last_one = response.rfind('1')
     last_two = response.rfind('2')

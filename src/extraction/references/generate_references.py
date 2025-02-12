@@ -1,4 +1,4 @@
-from src.logic.language_model import OpenAILanguageModel
+from src.logic.openai_language_model import OpenAILanguageModel
 from src.extraction.evaluation import tournament_ranking
 from src.extraction.extraction_custom import _extract_from_full_texts_custom, extract_from_abstracts_custom
 from src.logic.database import (

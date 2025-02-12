@@ -38,6 +38,12 @@
             "type": "shell",
             "command": "python -m src.finetuning.evaluate_model_after_finetuning mlpc",
             "problemMatcher": []
+        },
+        {
+            "label": "PE: Evaluation",
+            "type": "shell",
+            "command": "python -m src.paper_evaluation_extension.evaluation_elo_and_consistency",
+            "problemMatcher": []
         }
     ],
     "inputs": [

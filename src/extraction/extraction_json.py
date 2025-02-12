@@ -1,4 +1,4 @@
-from src.logic.language_model import trim_text_to_token_length
+from src.logic.openai_language_model import trim_text_to_token_length
 from src.logic.types import (
     Combination,
     Example,

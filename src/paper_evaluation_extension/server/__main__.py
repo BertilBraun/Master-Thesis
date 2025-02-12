@@ -24,7 +24,8 @@ import requests
 from src.logic.types.language_model_type import LanguageModel
 import src.defines
 from src.logic.database import get_retriever_getter
-from src.logic.language_model import OpenAILanguageModel, TransformersLanguageModel
+from src.logic.openai_language_model import OpenAILanguageModel
+from src.logic.transformers_language_model import TransformersLanguageModel
 from src.extraction.extraction_custom import extract_from_abstracts_custom
 from src.logic.papers import get_papers_by_author_cached
 from src.logic.types.instance_type import Query

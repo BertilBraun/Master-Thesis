@@ -9,6 +9,7 @@ JSONBIN_API_KEY = '$2a$10$e5lgWuePR6yPBPIBgN8fb.iIRqRnYXQ9mv2iUL3466zUz0p9CMeVe'
 
 GROQ_BASE_URL = 'https://api.groq.com/openai/v1'
 GROQ_API_KEY = 'gsk_...'
+GROQ_API_KEY = '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'
 
 os.environ['OPENAI_API_KEY'] = OPENAI_API_KEY
 
@@ -24,3 +25,7 @@ LOCAL_AI_ML_PC = 'http://aifb-bis-gpu01.aifb.kit.edu:8080'
 
 # BASE_URL_LLM = None # When using the OpenAI API instead of the Local AI
 BASE_URL_LLM = LOCAL_AI_ML_PC
+
+
+BASE_URL_LLM = GROQ_BASE_URL
+OPENAI_API_KEY = GROQ_API_KEY

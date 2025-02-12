@@ -3,7 +3,7 @@ from typing import Any
 
 from src.util.log import LogLevel, log
 from src.defines import LOCAL_AI_CODER, LOCAL_AI_ML_PC, OPENAI_API_KEY
-from src.logic.language_model import OpenAILanguageModel
+from src.logic.openai_language_model import OpenAILanguageModel
 
 
 def parse_llm_from_sysargs() -> OpenAILanguageModel:
