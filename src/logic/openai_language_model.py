@@ -1,19 +1,14 @@
-import json
-import os
 from time import sleep
 import src.defines  # noqa # sets the OpenAI API key and base URL to the environment variables
 
 import tiktoken
 
-from typing import Literal, overload
-from partialjson.json_parser import JSONParser
+from typing import Literal
 
 from openai import OpenAI, RateLimitError
 
-from src.util.log import LogLevel, log, time_str
-from src.logic.types import AIMessage, LanguageModel, Message
-from src.logic.display import generate_html_file_for_chat
-from src.util import generate_hashcode
+from src.util.log import LogLevel, log
+from src.logic.types import LanguageModel, Message
 
 
 class OpenAILanguageModel(LanguageModel):
@@ -30,165 +25,8 @@ class OpenAILanguageModel(LanguageModel):
         self.debug_context_name = debug_context_name
         self.max_retries = max_retries
 
-    @overload
-    def batch(
-        self,
-        prompts: list[list[Message]],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['text'] = 'text',
-        temperature: float = 0.5,
-    ) -> list[str]:
-        ...
-
-    @overload
-    def batch(
-        self,
-        prompts: list[list[Message]],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['json_object'] = 'json_object',
-        temperature: float = 0.5,
-    ) -> list[dict]:
-        ...
-
-    def batch(
-        self,
-        prompts: list[list[Message]],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['text', 'json_object'] = 'text',
-        temperature: float = 0.5,
-    ) -> list[str] | list[dict]:
-        log('------------------ Start of batch ------------------', level=LogLevel.DEBUG)
-        results = [
-            self.invoke(prompt, stop=stop, response_format=response_format, temperature=temperature)
-            for prompt in prompts
-        ]
-        log('------------------- End of batch -------------------', level=LogLevel.DEBUG)
-        return results  # type: ignore
-
-    @overload
-    def invoke(
-        self,
-        prompt: list[Message],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['text'] = 'text',
-        temperature: float = 0.5,
-    ) -> str:
-        ...
-
-    @overload
-    def invoke(
-        self,
-        prompt: list[Message],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['json_object'] = 'json_object',
-        temperature: float = 0.5,
-    ) -> dict:
-        ...
-
-    def invoke(
-        self,
-        prompt: list[Message],
-        /,
-        stop: list[str] = [],
-        response_format: Literal['text', 'json_object'] = 'text',
-        temperature: float = 0.5,
-    ) -> str | dict:
-        assert len(stop) <= 4, 'The maximum number of stop tokens is 4'
-        assert len(prompt) > 0, 'The prompt must contain at least one message'
-
-        log(f'Running model: {self.model}', level=LogLevel.DEBUG)
-        log(f'Prompt:\n{[m.to_dict() for m in prompt]}', level=LogLevel.DEBUG)
-
-        key = json.dumps(
-            {
-                'model': self.model,
-                'base_url': self.openai.base_url.host,
-                'messages': generate_hashcode([message.to_dict() for message in prompt]),
-                'stop': stop,
-                'temperature': temperature,
-                'response_format': response_format,
-            }
-        )
-        if os.path.exists('llm.json.cache'):
-            with open('llm.json.cache', 'r') as f:
-                cache = json.load(f)
-                if key in cache:
-                    return cache[key]
-        else:
-            cache = {}
-
-        success, result = self._invoke_with_retry(
-            prompt,
-            stop,
-            response_format,
-            temperature,
-            self.max_retries,
-        )
-
-        if success:
-            with open('llm.json.cache', 'w') as f:
-                cache[key] = result
-                json.dump(cache, f)
-
-        return result
-
-    def _invoke_with_retry(
-        self,
-        prompt: list[Message],
-        stop: list[str],
-        response_format: Literal['text', 'json_object'],
-        temperature: float,
-        retries: int,
-    ) -> tuple[bool, str | dict]:
-        # Returns [success, result string or error message or json object]
-        if retries <= 0:
-            log(
-                f'Error: Maximum retries reached for model {self.model} with debug context {self.debug_context_name}! Is the backend down?',
-                level=LogLevel.WARNING,
-            )
-            return False, 'Error: Maximum retries reached'
-
-        success, result = self._invoke(prompt, stop, response_format, temperature)
-
-        try_str = '' if retries == self.max_retries else f' (try {self.max_retries-retries+1})'
-        generate_html_file_for_chat(
-            prompt + [AIMessage(content=result)],
-            f'{time_str()}_{self.model}_{self.debug_context_name}{try_str}',
-        )
-
-        if not success:
-            if 'timeout' in result.lower():
-                log('Backend seems to be down!', level=LogLevel.ERROR)
-                exit(1)
-
-            return self._invoke_with_retry(
-                prompt,
-                stop,
-                response_format,
-                temperature,
-                retries - 1,
-            )
-
-        if response_format == 'json_object':
-            # result = result from first { to last } inclusive
-            # result = result[result.find('{') : result.rfind('}') + 1]
-            try:
-                result = JSONParser().parse(result)
-            except Exception as e:
-                log(
-                    f'Error: Failed to parse JSON response for model {self.model} with debug context {self.debug_context_name}: {e}',
-                    level=LogLevel.WARNING,
-                )
-                return False, 'Error: Failed to parse JSON response'
-
-        log(f'Response: {result}', level=LogLevel.DEBUG)
-
-        return True, result
+    def _get_llm_config(self) -> dict:
+        return {'base_url': self.openai.base_url.host}
 
     def _invoke(
         self,

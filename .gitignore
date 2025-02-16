@@ -18,6 +18,7 @@ results/**
 **.db
 
 **/jsonbin_cache/**
+**/llm_cache/**
 
 dpo_output/**
 

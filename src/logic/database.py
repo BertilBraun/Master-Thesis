@@ -244,6 +244,7 @@ def format_ranking_messages(rankings: list[Ranking]) -> list[Message]:
     for i, ranking in enumerate(rankings):
         # shuffle the preferred profile to avoid bias
         do_shuffle = random.choice([True, False])
+        do_shuffle = True  # TODO remove?
         if do_shuffle:
             profile1, profile2 = ranking.profiles
             preferred_profile = ranking.preferred_profile

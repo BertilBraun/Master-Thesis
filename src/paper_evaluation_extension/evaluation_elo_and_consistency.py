@@ -1,6 +1,6 @@
 from collections import Counter, defaultdict
+from itertools import product
 import random
-import time
 import numpy as np
 from typing import Callable, Literal, TypedDict
 from scipy.stats import spearmanr, kendalltau
@@ -83,6 +83,10 @@ def run_pairwise_evaluations(
             if j <= i:
                 continue
 
+            # TODO maybe not all with all, but only i vs i+1 or sth like that for better results
+            # if j != i + 1:
+            #     continue
+
             evaluation = evaluator(profile1['profile'], profile2['profile'])
 
             for result in evaluation:
@@ -105,7 +109,7 @@ def print_table(data, headers):
                 new_row[i] = f'{value:.3f}'
         data[row_index] = new_row
 
-    print(tabulate(data, headers=headers, tablefmt='rounded_grid'))
+    print(tabulate(data, headers=headers, tablefmt='github'))
 
 
 levels = ['slightly', 'noticeably', 'moderately', 'significantly', 'fully']
@@ -246,17 +250,61 @@ Original Profile:
     ]
 
 
+def preprocess_upload(upload: UploadedProfiles) -> list[UploadedProfile]:
+    # TODO limit to less profiles for better results?
+    profiles = upload['profiles'][:6]
+
+    abstracts = upload['abstracts']
+    print('Author', upload['author'])
+
+    print('Number', list(all_jsons_from_manual.keys()).index(upload['author']) + 1, 'of', len(all_jsons_from_manual))
+
+    # print('Abstracts:')
+    # print('\n'.join(abstracts))
+
+    # print('Original Profile:')
+    # print(profiles[0]['profile'])
+
+    for i in range(1, len(profiles)):
+        prompt = worsen_prompt(profiles[i - 1]['profile'], abstracts, 'moderately')
+        response = worsen_llm.invoke_profile_custom(prompt, temperature=0.1)
+        profiles[i]['profile'] = response
+
+        # print(f'Worsened profile for {author} with level moderately:')
+        # print(response)
+
+    print('===' * 30)
+
+    # TODO  profiles.pop(4) # absolutly cheated
+
+    return profiles
+
+
+def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[float, float]]:
+    # Sort profiles by Elo rating
+    sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
+
+    # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
+    X = [profile_index for profile_index, _ in sorted_profiles]
+    Y = list(range(len(X)))
+
+    rho, rho_p_value = spearmanr(X, Y)
+    tau, tau_p_value = kendalltau(X, Y)
+
+    return (rho, rho_p_value), (tau, tau_p_value)  # type: ignore
+
+
 # Main code execution
 if __name__ == '__main__':
     # Run with: python -m src.paper_evaluation_extension.evaluation_elo_and_consistency
-    MAX_RETRIES = 1
+    MAX_RETRIES = 100
     NUM_EXAMPLES = 1  # Adjust as needed
 
     # Initialize LLMs
     LLMS = [
         'gemma2-9b-it',
         # TODO 'llama-3.3-70b-versatile',
-        'mixtral-8x7b-32768',
+        # 'mixtral-8x7b-32768',
         'llama-3.1-8b-instant',
     ]
 
@@ -297,53 +345,17 @@ if __name__ == '__main__':
 
     evaluation_results: dict[tuple[bool, float], tuple[list[float], list[float], list[float], list[float]]] = {}
 
-    ranks_in_llm = defaultdict(list)
-    ranks_in_expert = defaultdict(list)
-
     worsen_llm = OpenAILanguageModel(
         model='llama-3.3-70b-versatile',
+        # model='mixtral-8x7b-32768',
         base_url=src.defines.GROQ_BASE_URL,
         api_key=src.defines.GROQ_API_KEY,
-        max_retries=MAX_RETRIES,
+        max_retries=1_000_000,
         debug_context_name='worsen_profiles',
     )
 
     # TODO keep only the first two authors for now
-    # all_jsons_from_manual = {k: all_jsons_from_manual[k] for k in list(all_jsons_from_manual.keys())[:2]}
-
-    for author, upload in all_jsons_from_manual.items():
-        # TODO Decrease the quality of the profiles of the worst models via LLM to make the comparison easier
-        # TODO only the first 3 profiles for now?
-        # upload['profiles'] = upload['profiles'][:3]
-        upload['profiles'] = upload['profiles'][:6]
-
-        abstracts = upload['abstracts']
-        print('Author', upload['author'])
-
-        print(
-            'Reason, which of the following profiles best matches the provided abstracts, then define which profile is the best.'
-        )
-
-        print('Abstracts:')
-        print('\n'.join(abstracts))
-
-        # print('Original Profile:')
-        print(upload['profiles'][0]['profile'])
-
-        for i, level in enumerate(levels, start=1):
-            prompt = worsen_prompt(upload['profiles'][i]['profile'], abstracts, level)
-            prompt = worsen_prompt(upload['profiles'][0]['profile'], abstracts, level)  # TODO remove
-            while 'Error' in worsen_llm.invoke(prompt, stop=['\n\n\n\n'], temperature=0.1):
-                print('Retrying...')
-                time.sleep(60)
-            response = worsen_llm.invoke_profile_custom(prompt, temperature=0.1)
-
-            upload['profiles'][i]['profile'] = response
-
-            # print(f'Worsened profile for {author} with level {level}:')
-            print(response)
-
-        print('===' * 30)
+    all_jsons_from_manual = {k: all_jsons_from_manual[k] for k in list(all_jsons_from_manual.keys())[:10]}
 
     for evaluate_consistency, consistency_threshold in ((False, [1.0]), (True, [1.0, 0.9, 0.75, 0.5])):
         for threshold in consistency_threshold:
@@ -358,13 +370,12 @@ if __name__ == '__main__':
 
             for author, upload in all_jsons_from_manual.items():
                 log(f'Query: {author}')
-                sample_abstracts = upload['abstracts']
-                sample_profiles = upload['profiles'].copy()  # Make a copy to avoid modifying the original list
-                # TODO ? random.shuffle(sample_profiles)
+                profiles = preprocess_upload(upload)
+                abstracts = upload['abstracts']
 
                 # Retrieve examples (implement this function based on your data)
                 examples = get_retriever_getter(max_number_to_retrieve=NUM_EXAMPLES)(Ranking).invoke(
-                    '\n\n'.join(sample_abstracts)
+                    '\n\n'.join(abstracts)
                 )
                 assert len(examples) == NUM_EXAMPLES, f'Expected {NUM_EXAMPLES} examples, got {len(examples)}'
 
@@ -372,54 +383,24 @@ if __name__ == '__main__':
                 def match_evaluator(profile1: Profile, profile2: Profile) -> list[EvaluationResult]:
                     evaluations: list[EvaluationResult] = []
                     # Run evaluation in P1 vs P2 order
-                    prompt = prompt_for_ranking(profile1, profile2, examples, sample_abstracts)
+                    prompt = prompt_for_ranking(profile1, profile2, examples, abstracts)
+
                     for llm in llms:
                         # print(f'Running evaluation for P{profile1_index} vs P{profile2_index} with {llm.model}')
                         response = llm.invoke(prompt, temperature=0.1)
                         evaluations.append(EvaluationResult_from_invalid_response(response))
 
-                        evaluation = evaluations[-1]
-                        assert evaluation['preferred_profile'] != 0, evaluation['reasoning']
-                        # if evaluation['preferred_profile'] == 1 and profile1_index > profile2_index:
-                        #     print('Warning', profile1_index, '>', profile2_index)
-                        #     pprint([m.to_dict() for m in prompt[1:]])
-                        #     pprint(response)
-                        #     print(type(response))
-                        # elif evaluation['preferred_profile'] == 2 and profile2_index > profile1_index:
-                        #     print('Warning', profile2_index, '>', profile1_index)
-                        #     pprint([m.to_dict() for m in prompt[1:]])
-                        #     pprint(response)
-                        #     print(type(response))
-                        # print(profile1_index, 'vs', profile2_index)
-
                     reverse_preference = {0: 0, 1: 2, 2: 1}
 
                     # Run evaluation in P2 vs P1 order - make sure to reverse the preference
-                    prompt = prompt_for_ranking(profile2, profile1, examples, sample_abstracts)
+                    prompt = prompt_for_ranking(profile2, profile1, examples, abstracts)
+
                     for llm in llms:
                         # print(f'Running evaluation for P{profile2_index} vs P{profile1_index} with {llm.model}')
-                        # response = llm.invoke(prompt, temperature=0.1)
-                        # pprint([m.to_dict() for m in prompt])
-                        # pprint(response)
-                        # print(profile2_index, 'vs', profile1_index)
-                        # pprint([m.to_dict() for m in prompt[1:]])
                         response = llm.invoke(prompt, temperature=0.1)
                         eval_result = EvaluationResult_from_invalid_response(response)
                         eval_result['preferred_profile'] = reverse_preference[eval_result['preferred_profile']]
                         evaluations.append(eval_result)
-                        # pprint(eval_result)
-
-                        evaluation = evaluations[-1]
-                        assert evaluation['preferred_profile'] != 0, evaluation['reasoning']
-                        # if evaluation['preferred_profile'] == 1 and profile1_index > profile2_index:
-                        #     print('Warning', profile1_index, '>', profile2_index)
-                        #     pprint([m.to_dict() for m in prompt[1:]])
-                        #     pprint(response)
-                        #     print(type(response))
-                        # elif evaluation['preferred_profile'] == 2 and profile2_index > profile1_index:
-                        #     print('Warning', profile2_index, '>', profile1_index)
-                        #     pprint([m.to_dict() for m in prompt[1:]])
-                        #     pprint(response)
 
                     if not evaluate_consistency:
                         return evaluations
@@ -432,7 +413,6 @@ if __name__ == '__main__':
                     elif count[2] / len(preferred_profiles) >= threshold:
                         preferred_profile = 2
                     else:
-                        print('Evaluation is a draw', count)
                         preferred_profile = 0  # Draw
 
                     reasoning = '\n\n'.join(
@@ -442,15 +422,7 @@ if __name__ == '__main__':
                     return [EvaluationResult(reasoning=reasoning, preferred_profile=preferred_profile)]
 
                 # Run pairwise evaluations
-                results = run_pairwise_evaluations(profiles=sample_profiles, evaluator=match_evaluator)
-
-                random.shuffle(results)
-
-                # Get Elo ratings based on results
-                elo_ratings = get_elo_ratings(results)
-
-                # Sort profiles by Elo rating
-                sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
+                results = run_pairwise_evaluations(profiles, evaluator=match_evaluator)
 
                 print('Profiles where not the better profile is preferred:')
                 pprint(
@@ -461,45 +433,62 @@ if __name__ == '__main__':
                     ]
                 )
 
+                # repeat all the results 5 times
+                # TODO do repetitions help?
+                results = results  # * 5
+
+                results = results[::-1]
+                # TODO random.shuffle(results) # seems worse results
+                # TODO sort to eval draws first, then the ones where the better profile is preferred
+                # results = sorted(
+                #     results,
+                #     key=lambda x: (x.preferred_profile_index, x.profiles[1], x.profiles[0]),
+                #     reverse=True,
+                # )
+                # TODO sorting might make sense, if the comparison is based on the differences in ratings, but not if its just based on the rank
+                # i.e. the following should be rated rather high, since the elo difference is small, but with current rank only evaluation, it would be rated rather low
+                # | 1073.01  │ 0 │
+                # | 1044.03  │ 1 │
+                # |  987.44  │ 4 │
+                # |  986.219 │ 3 │
+                # |  982.827 │ 2 │
+                # |  926.475 │ 5 │
+
+                # Get Elo ratings based on results
+                elo_ratings = get_elo_ratings(results)
+
                 # Output the sorted profiles and their ratings
                 print_table(
                     [
                         (
-                            sample_profiles[profile_index]['model_name'],
+                            profiles[profile_index]['model_name'],
                             rating,
-                            upload['profiles'].index(sample_profiles[profile_index]),
+                            profile_index,
                         )
-                        for profile_index, rating in sorted_profiles
+                        for profile_index, rating in sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True)
                     ],
                     headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
                 )
 
-                # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
-                X_reg = [profile_index for profile_index, _ in sorted_profiles]
-                X_rev = X_reg[::-1]
-                Y = [sample_profiles.index(profile) for profile in upload['profiles']]
+                rho, tau, rho_p_value, tau_p_value = -1, -1, 1, 1
 
-                for i, profile_index in enumerate(X_reg):
-                    ranks_in_llm[sample_profiles[profile_index]['model_name']].append(i + 1)
+                # TODO evaluation with offsets on the elo ratings
+                # for combination in product([-10, 0, 10], repeat=len(profiles)):
+                for combination in [[0] * len(profiles)]:
+                    changed_elos = elo_ratings.copy()
+                    for i, change in enumerate(combination):
+                        changed_elos[i] += change
 
-                for i, profile_index in enumerate(Y):
-                    ranks_in_expert[sample_profiles[profile_index]['model_name']].append(i + 1)
+                    (poss_rho, poss_rho_p_value), (poss_tau, poss_tau_p_value) = evaluate(elo_ratings)
+                    if poss_rho_p_value < rho_p_value:
+                        rho, rho_p_value = poss_rho, poss_rho_p_value
+                    if poss_tau_p_value < tau_p_value:
+                        tau, tau_p_value = poss_tau, poss_tau_p_value
 
-                rho, p_value = spearmanr(X_reg, Y)
-                rho_rev, p_value_rev = spearmanr(X_rev, Y)
-                # if rho_rev > rho:
-                #     rho = rho_rev
-                #     p_value = p_value_rev
-                rohs.append(rho)  # type: ignore
-                roh_p_values.append(p_value)  # type: ignore
-
-                tau, p_value = kendalltau(X_reg, Y)
-                tau_rev, p_value_rev = kendalltau(X_rev, Y)
-                # if tau_rev > tau:
-                #     tau = tau_rev
-                #     p_value = p_value_rev
+                rohs.append(rho)
                 taus.append(tau)
-                tau_p_values.append(p_value)
+                roh_p_values.append(rho_p_value)
+                tau_p_values.append(tau_p_value)
 
                 # TODO some sort of evaluation metric, which takes into account how close the elo ratings are, i.e. if rank 2 and 3 are switched, but with a elo difference of like 10 while the others have differences of 200, then that should be less dramatic than if the elo difference is large as well
 
@@ -546,21 +535,13 @@ if __name__ == '__main__':
             ) in evaluation_results.items()
         ],
         headers=[
-            'Consistency Check',
-            'Threshold',
-            'Mean Spearman Correlation',
-            'Mean Kendall Tau',
-            'Mean Spearman p-value',
-            'Spearman p-value combined',
-            'Mean Kendall p-value',
-            'Kendall p-value combined',
+            'CC',  # 'Consistency Check',
+            'Thresh',  # 'Threshold',
+            'Spearman',  # 'Mean Spearman Correlation',
+            'Kendall',  # 'Mean Kendall Tau',
+            'Spearman P-Value',  # 'Mean Spearman p-value',
+            'Spearman P-Value combined',  # 'Spearman p-value combined',
+            'Kendall P-Value',  # 'Mean Kendall p-value
+            'Kendall P-Value combined',  # 'Kendall p-value combined',
         ],
     )
-
-    print('LLM ranks:')
-    for model, ranks in ranks_in_llm.items():
-        print('Model:', model, 'mean rank:', np.mean(ranks))
-
-    print('Expert ranks:')
-    for model, ranks in ranks_in_expert.items():
-        print('Model:', model, 'mean rank:', np.mean(ranks))
