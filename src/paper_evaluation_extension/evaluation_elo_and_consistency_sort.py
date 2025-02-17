@@ -1,16 +1,14 @@
-from collections import Counter, defaultdict
-from itertools import product
+from collections import Counter
 import random
 import numpy as np
 from typing import Callable, Literal, TypedDict
 from scipy.stats import spearmanr, kendalltau
 from tabulate import tabulate
-from tqdm import tqdm
 
 import src.defines
 from src.logic.jsonbin import JsonBin
 from src.logic.types.base_types import Profile
-from src.logic.types import EvaluationResult, RankingResult
+from src.logic.types import EvaluationResult
 from src.logic.database import get_retriever_getter
 from src.logic.openai_language_model import OpenAILanguageModel
 from src.logic.types.database_types import EvaluationResult_from_invalid_response, Ranking
@@ -46,59 +44,194 @@ def p_values_combined(p_values: list[float]) -> float:
     return -2 * np.sum(np.log(p_values))
 
 
-# Function to update Elo ratings based on the results
-def get_elo_ratings(results: list[RankingResult], k: float = 32.0) -> dict[int, float]:
-    elo_ratings: dict[int, float] = {}
+total_number_of_comparisons = 0
 
-    for result in results:
-        profile1_index, profile2_index = result.profiles
-        rating1 = elo_ratings.get(profile1_index, 1000.0)
-        rating2 = elo_ratings.get(profile2_index, 1000.0)
 
-        expected1 = 1 / (1 + 10 ** ((rating2 - rating1) / 400))
-        expected2 = 1 - expected1  # Since expected1 + expected2 = 1
+def local_tie_breaker(key, sorted_list, idx, cmp):
+    """
+    Given that cmp(key, sorted_list[idx]) == 0, try to find a non-zero
+    result by scanning outwards from idx in the sorted_list.
+    Return the first non-zero result found, or 0 if none is found.
+    """
+    offset = 1
+    while (idx - offset) >= 0 or (idx + offset) < len(sorted_list):
+        # Check left neighbor
+        if (idx - offset) >= 0:
+            result = cmp(key, sorted_list[idx - offset])
+            if result != 0:
+                print('Tie-breaker found:', result, 'at', idx - offset)
+                return result
+        # Check right neighbor
+        if (idx + offset) < len(sorted_list):
+            result = cmp(key, sorted_list[idx + offset])
+            if result != 0:
+                print('Tie-breaker found:', result, 'at', idx + offset)
+                return result
+        offset += 1
+    # No neighbor yielded a difference: return 0 (i.e. treat as equal)
+    print('No tie-breaker found')
+    return 0
 
-        if result.preferred_profile_index == 1:
-            score1, score2 = 1.0, 0.0
-        elif result.preferred_profile_index == 2:
-            score1, score2 = 0.0, 1.0
-        else:  # Draw
-            score1 = score2 = 0.5
 
-        # Update ratings
-        elo_ratings[profile1_index] = rating1 + k * (score1 - expected1)
-        elo_ratings[profile2_index] = rating2 + k * (score2 - expected2)
+def insertion_sort_with_local_tiebreaker(items, cmp):
+    """
+    Insertion sort that uses the provided comparator 'cmp' (which returns
+    1 if the first argument is preferred, -1 if the second is preferred, and 0 if equal).
+    When cmp returns 0, the algorithm attempts to look at nearby elements in the
+    already-sorted portion to break the tie.
+    """
+    for i in range(1, len(items)):
+        key = items[i]
+        pos = i  # default insertion position
+        j = i - 1
+        while j >= 0:
+            res = cmp(key, items[j])
+            if res < 0:
+                # key should come before items[j]; keep moving left
+                pos = j
+                j -= 1
+            elif res == 0:
+                # Tie encountered. Look around the current position in the sorted part.
+                tie = local_tie_breaker(key, items[:i], j, cmp)
+                if tie < 0:
+                    # The tie-breaker says key is "less" than items[j]
+                    pos = j
+                    j -= 1
+                else:
+                    # Either tie-breaker says key is greater or we didn't find any difference.
+                    # In that case, we stop shifting.
+                    break
+            else:
+                # res > 0 means key is greater than items[j]: insert after items[j]
+                break
+        # Remove key from its current position and insert it at 'pos'
+        items.insert(pos, items.pop(i))
+    return items
 
-    return elo_ratings
+
+def insertion_sort_with_left_tiebreaker(
+    items: list[UploadedProfile], cmp: Callable[[Profile, Profile], float]
+) -> list[UploadedProfile]:
+    """
+    Insertion sort that uses the comparator 'cmp', which returns
+    a positive number if the first argument is preferred, a negative
+    number if the second is preferred, and 0 if they are considered equal.
+
+    When cmp returns 0 (i.e. a tie) for the key vs. an element in the sorted
+    region, we scan left (i.e. to earlier elements) until we find one that isn't tied.
+    If found, we use that result to decide whether to shift further.
+    If no difference is found in the leftward chain, we stop shifting.
+    """
+    for i in range(1, len(items)):
+        key = items[i]
+        pos = i  # default insertion position if no shift is needed
+        j = i - 1
+        while j >= 0:
+            res = cmp(key['profile'], items[j]['profile'])
+            if res < 0:
+                # key should come before items[j]; shift left
+                pos = j
+                j -= 1
+            elif res > 0:
+                # key should come after items[j]; we are done
+                break
+            else:
+                # Tie encountered.
+                # Look left in the sorted region for a non-tie.
+                k = j - 1
+                while k >= 0 and cmp(key['profile'], items[k]['profile']) == 0:
+                    k -= 1
+                if k >= 0:
+                    res2 = cmp(key['profile'], items[k]['profile'])
+                    if res2 < 0:
+                        # key is less than the non-tied element found further left,
+                        # so continue shifting left.
+                        pos = j
+                        j -= 1
+                    else:
+                        # key is not less than the element found;
+                        # break out of the shifting loop.
+                        break
+                else:
+                    # All items in the left block are tied.
+                    # Decide to leave the key in the current tie block order.
+                    break
+        # Remove key from its current position and insert it at the determined position.
+        items.insert(pos, items.pop(i))
+    return items
+
+
+def global_ranking(
+    true_rankings: list[UploadedProfile], profiles: list[UploadedProfile], cmp: Callable[[Profile, Profile], float]
+) -> Callable[[Profile, Profile], float]:
+    global_rank = {}
+
+    for i, profile in enumerate(profiles):
+        rank = 0
+        for j, other_profile in enumerate(profiles):
+            if i == j:
+                continue
+            rank += cmp(profile['profile'], other_profile['profile'])
+        global_rank[str(profile['profile'])] = rank
+
+    print('Global ranking:', list(global_rank.values()))
+    profile_ranks = []
+    for key, value in global_rank.items():
+        profile_ranks.append([i for i, profile in enumerate(true_rankings) if str(profile['profile']) == key][0])
+    print('Of profiles', profile_ranks)
+
+    def compare(profile1: Profile, profile2: Profile):
+        res = global_rank[str(profile1)] - global_rank[str(profile2)]
+        return -1 if res < 0 else 1 if res > 0 else 0
+
+    return compare
 
 
 # Function to run pairwise evaluations
-def run_pairwise_evaluations(
-    profiles: list[UploadedProfile], evaluator: Callable[[Profile, Profile], list[EvaluationResult]]
-) -> list[RankingResult]:
-    results: list[RankingResult] = []
+def insertion_sort_profiles(
+    true_profiles: list[UploadedProfile],
+    profiles: list[UploadedProfile],
+    evaluator: Callable[[Profile, Profile], list[EvaluationResult]],
+) -> list[UploadedProfile]:
+    def compare(profile1: Profile, profile2: Profile) -> float:
+        # Return the average of the preferred profile values (-1 if profile2 is preferred, 1 if profile1 is preferred, 0 if equal)
+        global total_number_of_comparisons
+        total_number_of_comparisons += 1
 
-    for i, profile1 in enumerate(tqdm(profiles, desc='Evaluating profiles')):
-        for j, profile2 in enumerate(profiles):
-            if j <= i:
-                continue
+        MAPPING = {0: 0, 1: 1, 2: -1}
+        evaluations = evaluator(profile1, profile2)
+        result = sum(MAPPING[evaluation['preferred_profile']] for evaluation in evaluations) / len(evaluations)
+        index1 = [i for i, profile in enumerate(true_profiles) if profile['profile'] == profile1][0]
+        index2 = [i for i, profile in enumerate(true_profiles) if profile['profile'] == profile2][0]
+        print(f'Comparison result: {result} for {index1} vs {index2}')
+        return -1 if result < 0 else 1 if result > 0 else 0
 
-            # TODO maybe not all with all, but only i vs i+1 or sth like that for better results
-            # if j != i + 1:
-            #     continue
+    TYPE: Literal['standard', 'binary', 'preranking'] = 'standard'
 
-            evaluation = evaluator(profile1['profile'], profile2['profile'])
+    compare = global_ranking(true_profiles, profiles, lambda x, y: -compare(x, y))  # type: ignore
 
-            for result in evaluation:
-                results.append(
-                    RankingResult(
-                        profiles=(i, j),
-                        preferred_profile_index=result['preferred_profile'],
-                        reasoning=result['reasoning'],
-                    )
-                )
+    if TYPE == 'standard':
+        profiles = insertion_sort_with_left_tiebreaker(profiles, compare)
 
-    return results
+    elif TYPE == 'binary':
+        # Binary search over insert to decrease number of comparisons
+
+        for i in range(1, len(profiles)):
+            left = 0
+            right = i - 1
+            while left <= right:
+                mid = (left + right) // 2
+                if compare(profiles[i]['profile'], profiles[mid]['profile']) >= 0:
+                    right = mid - 1
+                else:
+                    left = mid + 1
+            profiles.insert(left, profiles.pop(i))
+
+    elif TYPE == 'preranking':
+        # TODO preranking of the profiles based on LLM evaluation, therefore not many profiles have to be moved and therefore compared (binary search would probably not help here)
+        assert False, 'Not implemented yet'
+
+    return profiles
 
 
 def print_table(data, headers):
@@ -280,12 +413,10 @@ def preprocess_upload(upload: UploadedProfiles) -> list[UploadedProfile]:
     return profiles
 
 
-def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[float, float]]:
-    # Sort profiles by Elo rating
-    sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
-
-    # compare the sorting order of the elo ratings with the expert evaluation from jsonbin
-    X = [profile_index for profile_index, _ in sorted_profiles]
+def evaluate(
+    ranked_profiles: list[UploadedProfile], true_profile_ranking: list[UploadedProfile]
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    X = [true_profile_ranking.index(profile) for profile in ranked_profiles]
     Y = list(range(len(X)))
 
     rho, rho_p_value = spearmanr(X, Y)
@@ -294,8 +425,6 @@ def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[
     return (rho, rho_p_value), (tau, tau_p_value)  # type: ignore
 
 
-number_of_evaluations = 0
-
 # Main code execution
 if __name__ == '__main__':
     # Run with: python -m src.paper_evaluation_extension.evaluation_elo_and_consistency
@@ -303,6 +432,7 @@ if __name__ == '__main__':
     NUM_EXAMPLES = 1  # Adjust as needed
 
     # Initialize LLMs
+    # TODO compare, wheather multiple LLMs are better than just one, and compare the results of different models alone
     LLMS = [
         'gemma2-9b-it',
         # TODO 'llama-3.3-70b-versatile',
@@ -383,9 +513,6 @@ if __name__ == '__main__':
 
                 # Define the match evaluator function
                 def match_evaluator(profile1: Profile, profile2: Profile) -> list[EvaluationResult]:
-                    global number_of_evaluations
-                    number_of_evaluations += 1
-
                     evaluations: list[EvaluationResult] = []
                     # Run evaluation in P1 vs P2 order
                     prompt = prompt_for_ranking(profile1, profile2, examples, abstracts)
@@ -427,75 +554,22 @@ if __name__ == '__main__':
                     return [EvaluationResult(reasoning=reasoning, preferred_profile=preferred_profile)]
 
                 # Run pairwise evaluations
-                results = run_pairwise_evaluations(profiles, evaluator=match_evaluator)
-
-                print('Profiles where not the better profile is preferred:')
-                pprint(
-                    [
-                        (result.profiles, result.preferred_profile_index)
-                        for result in results
-                        if result.preferred_profile_index != 1
-                    ]
-                )
-
-                # repeat all the results 5 times
-                # TODO do repetitions help?
-                results = results  # * 5
-
-                results = results[::-1]
-                # TODO random.shuffle(results) # seems worse results
-                # TODO sort to eval draws first, then the ones where the better profile is preferred
-                # results = sorted(
-                #     results,
-                #     key=lambda x: (x.preferred_profile_index, x.profiles[1], x.profiles[0]),
-                #     reverse=True,
-                # )
-                # TODO sorting might make sense, if the comparison is based on the differences in ratings, but not if its just based on the rank
-                # i.e. the following should be rated rather high, since the elo difference is small, but with current rank only evaluation, it would be rated rather low
-                # | 1073.01  │ 0 │
-                # | 1044.03  │ 1 │
-                # |  987.44  │ 4 │
-                # |  986.219 │ 3 │
-                # |  982.827 │ 2 │
-                # |  926.475 │ 5 │
-
-                # Get Elo ratings based on results
-                elo_ratings = get_elo_ratings(results)
+                profiles_to_sort = profiles.copy()
+                random.shuffle(profiles_to_sort)
+                ranked_profiles = insertion_sort_profiles(profiles, profiles_to_sort, evaluator=match_evaluator)
 
                 # Output the sorted profiles and their ratings
                 print_table(
-                    [
-                        (
-                            profiles[profile_index]['model_name'],
-                            rating,
-                            profile_index,
-                        )
-                        for profile_index, rating in sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True)
-                    ],
-                    headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
+                    [(profile['model_name'], profiles.index(profile)) for profile in ranked_profiles],
+                    headers=['Model Name', 'True Rank'],
                 )
 
-                rho, tau, rho_p_value, tau_p_value = -1, -1, 1, 1
-
-                # TODO evaluation with offsets on the elo ratings
-                # for combination in product([-10, 0, 10], repeat=len(profiles)):
-                for combination in [[0] * len(profiles)]:
-                    changed_elos = elo_ratings.copy()
-                    for i, change in enumerate(combination):
-                        changed_elos[i] += change
-
-                    (poss_rho, poss_rho_p_value), (poss_tau, poss_tau_p_value) = evaluate(elo_ratings)
-                    if poss_rho_p_value < rho_p_value:
-                        rho, rho_p_value = poss_rho, poss_rho_p_value
-                    if poss_tau_p_value < tau_p_value:
-                        tau, tau_p_value = poss_tau, poss_tau_p_value
+                (rho, rho_p_value), (tau, tau_p_value) = evaluate(ranked_profiles, profiles)
 
                 rohs.append(rho)
                 taus.append(tau)
                 roh_p_values.append(rho_p_value)
                 tau_p_values.append(tau_p_value)
-
-                # TODO some sort of evaluation metric, which takes into account how close the elo ratings are, i.e. if rank 2 and 3 are switched, but with a elo difference of like 10 while the others have differences of 200, then that should be less dramatic than if the elo difference is large as well
 
             evaluation_results[(evaluate_consistency, threshold)] = (rohs, taus, roh_p_values, tau_p_values)
 
@@ -551,4 +625,4 @@ if __name__ == '__main__':
         ],
     )
 
-    print('Number of evaluations:', number_of_evaluations)
+    print('Total number of comparisons:', total_number_of_comparisons)
