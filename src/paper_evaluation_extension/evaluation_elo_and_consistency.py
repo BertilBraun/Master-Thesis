@@ -331,6 +331,15 @@ if __name__ == '__main__':
             #     debug_context_name='evaluate_for_elo_and_consistency',
             # )
         ]
+        + [
+            OpenAILanguageModel(
+                model='gemini-2.0-flash',
+                base_url=src.defines.GOOGLE_BASE_URL,
+                api_key=src.defines.GOOGLE_API_KEY,
+                max_retries=MAX_RETRIES,
+                debug_context_name='evaluate_for_elo_and_consistency',
+            )
+        ]
     )
 
     json_bin = JsonBin(src.defines.JSONBIN_API_KEY)
