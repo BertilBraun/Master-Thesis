@@ -14,7 +14,14 @@ from src.logic.types import EvaluationResult, RankingResult
 from src.logic.database import get_retriever_getter
 from src.logic.openai_language_model import OpenAILanguageModel
 from src.logic.types.database_types import EvaluationResult_from_invalid_response, Ranking
-from src.logic.types.message_types import AIExampleMessage, HumanExampleMessage, HumanMessage, Message, SystemMessage
+from src.logic.types.message_types import (
+    AIExampleMessage,
+    AIMessage,
+    HumanExampleMessage,
+    HumanMessage,
+    Message,
+    SystemMessage,
+)
 from src.extraction.evaluation import prompt_for_ranking
 from src.util import log
 
@@ -306,8 +313,9 @@ if __name__ == '__main__':
     LLMS = [
         'gemma2-9b-it',
         # TODO 'llama-3.3-70b-versatile',
-        # 'mixtral-8x7b-32768',
+        # 5k Token Limit exceeded 'mixtral-8x7b-32768',
         'llama-3.1-8b-instant',
+        # Not responding 'qwen-2.5-32b',
     ]
 
     llms = (
@@ -332,13 +340,14 @@ if __name__ == '__main__':
             # )
         ]
         + [
-            OpenAILanguageModel(
-                model='gemini-2.0-flash',
-                base_url=src.defines.GOOGLE_BASE_URL,
-                api_key=src.defines.GOOGLE_API_KEY,
-                max_retries=MAX_RETRIES,
-                debug_context_name='evaluate_for_elo_and_consistency',
-            )
+            # TODO
+            # OpenAILanguageModel(
+            #     model='gemini-2.0-flash',
+            #     base_url=src.defines.GOOGLE_BASE_URL,
+            #     api_key=src.defines.GOOGLE_API_KEY,
+            #     max_retries=MAX_RETRIES,
+            #     debug_context_name='evaluate_for_elo_and_consistency',
+            # )
         ]
     )
 
@@ -401,7 +410,7 @@ if __name__ == '__main__':
 
                     for llm in llms:
                         # print(f'Running evaluation for P{profile1_index} vs P{profile2_index} with {llm.model}')
-                        response = llm.invoke(prompt, temperature=0.1)
+                        response = llm.invoke(prompt + [AIMessage(content='```json')], stop='```', temperature=0.1)
                         evaluations.append(EvaluationResult_from_invalid_response(response))
 
                     reverse_preference = {0: 0, 1: 2, 2: 1}
@@ -411,7 +420,7 @@ if __name__ == '__main__':
 
                     for llm in llms:
                         # print(f'Running evaluation for P{profile2_index} vs P{profile1_index} with {llm.model}')
-                        response = llm.invoke(prompt, temperature=0.1)
+                        response = llm.invoke(prompt + [AIMessage(content='```json')], stop='```', temperature=0.1)
                         eval_result = EvaluationResult_from_invalid_response(response)
                         eval_result['preferred_profile'] = reverse_preference[eval_result['preferred_profile']]
                         evaluations.append(eval_result)

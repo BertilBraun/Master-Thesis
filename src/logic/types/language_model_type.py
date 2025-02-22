@@ -28,7 +28,7 @@ class LanguageModel(Protocol):
         self,
         prompts: list[list[Message]],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['text'] = 'text',
         temperature: float = 0.5,
     ) -> list[str]:
@@ -39,7 +39,7 @@ class LanguageModel(Protocol):
         self,
         prompts: list[list[Message]],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['json_object'] = 'json_object',
         temperature: float = 0.5,
     ) -> list[dict]:
@@ -49,7 +49,7 @@ class LanguageModel(Protocol):
         self,
         prompts: list[list[Message]],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['text', 'json_object'] = 'text',
         temperature: float = 0.5,
     ) -> list[str] | list[dict]:
@@ -66,7 +66,7 @@ class LanguageModel(Protocol):
         self,
         prompt: list[Message],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['text'] = 'text',
         temperature: float = 0.5,
     ) -> str:
@@ -77,7 +77,7 @@ class LanguageModel(Protocol):
         self,
         prompt: list[Message],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['json_object'] = 'json_object',
         temperature: float = 0.5,
     ) -> dict:
@@ -87,11 +87,10 @@ class LanguageModel(Protocol):
         self,
         prompt: list[Message],
         /,
-        stop: list[str] = [],
+        stop: str | None = None,
         response_format: Literal['text', 'json_object'] = 'text',
         temperature: float = 0.5,
     ) -> str | dict:
-        assert len(stop) <= 4, 'The maximum number of stop tokens is 4'
         assert len(prompt) > 0, 'The prompt must contain at least one message'
 
         key_parameters = {
@@ -103,6 +102,11 @@ class LanguageModel(Protocol):
 
         if response := self._try_get_cached_response(**key_parameters):
             return response
+
+        if response_format == 'json_object':
+            prompt.append(AIMessage(content='```json'))
+            assert stop is None, 'Stop should be None when response_format is json_object'
+            stop = '```'
 
         success, result = self._invoke_with_retry(
             prompt,
@@ -120,7 +124,7 @@ class LanguageModel(Protocol):
     def _invoke_with_retry(
         self,
         prompt: list[Message],
-        stop: list[str],
+        stop: str | None,
         response_format: Literal['text', 'json_object'],
         temperature: float,
         retries: int,
@@ -177,7 +181,7 @@ class LanguageModel(Protocol):
     ) -> Profile:
         for _ in range(self.max_retries):
             try:
-                return Profile.parse(self.invoke(prompt, stop=['\n\n\n\n'], temperature=temperature))
+                return Profile.parse(self.invoke(prompt, stop='\n\n\n\n', temperature=temperature))
             except AssertionError as e:
                 log(e, level=LogLevel.WARNING)
                 if 'not found in' not in str(e):
@@ -199,9 +203,7 @@ class LanguageModel(Protocol):
     ) -> Profile:
         for _ in range(self.max_retries):
             try:
-                return Profile.parse_json(
-                    self.invoke(prompt, response_format='json_object', stop=['\n\n\n\n'], temperature=temperature)
-                )
+                return Profile.parse_json(self.invoke(prompt, response_format='json_object', temperature=temperature))
             except AssertionError as e:
                 log(e, level=LogLevel.WARNING)
                 if 'not found in' not in str(e):
@@ -209,7 +211,7 @@ class LanguageModel(Protocol):
 
                 self._remove_cached_response(
                     messages=generate_hashcode([message.to_dict() for message in prompt]),
-                    stop=['\n\n\n\n'],
+                    stop='```',
                     temperature=temperature,
                     response_format='json_object',
                 )
@@ -280,7 +282,7 @@ class LanguageModel(Protocol):
     def _invoke(
         self,
         prompt: list[Message],
-        stop: list[str],
+        stop: str | None,
         response_format: Literal['text', 'json_object'],
         temperature: float,
     ) -> tuple[bool, str]:

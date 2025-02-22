@@ -31,7 +31,7 @@ class OpenAILanguageModel(LanguageModel):
     def _invoke(
         self,
         prompt: list[Message],
-        stop: list[str],
+        stop: str | None,
         response_format: Literal['text', 'json_object'],
         temperature: float,
     ) -> tuple[bool, str]:
@@ -40,6 +40,7 @@ class OpenAILanguageModel(LanguageModel):
             response = self.openai.chat.completions.create(
                 model=self.model,
                 messages=[message.to_dict() for message in prompt],
+                n=1,
                 stop=stop,
                 stream=src.defines.DEBUG,
                 temperature=temperature,  # TODO play with this?
