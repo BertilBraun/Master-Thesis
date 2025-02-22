@@ -41,8 +41,7 @@ class OpenAILanguageModel(LanguageModel):
                 model=self.model,
                 messages=[message.to_dict() for message in prompt],
                 n=1,
-                stop=stop,
-                stream=src.defines.DEBUG,
+                # stop=stop,
                 temperature=temperature,  # TODO play with this?
                 response_format={'type': response_format},
                 max_tokens=1024,
@@ -63,21 +62,14 @@ class OpenAILanguageModel(LanguageModel):
             )
             return False, f'Error: Exception occurred while generating response {e}'
 
-        if src.defines.DEBUG:
-            result = ''
-            for chunk in response:  # type: ignore
-                delta = chunk.choices[0].delta.content or ''  # type: ignore
-                print(delta, end='', flush=True)
-                result += delta
-            print('\n\n')
-        else:
-            if not response.choices or not response.choices[0].message.content:
-                log(
-                    f'Error: No response from model for model {self.model} with debug context {self.debug_context_name}',
-                    level=LogLevel.WARNING,
-                )
-                return False, 'Error: No response from model'
-            result = response.choices[0].message.content
+        if not response.choices or not response.choices[0].message.content:
+            log(
+                f'Error: No response from model for model {self.model} with debug context {self.debug_context_name}',
+                level=LogLevel.WARNING,
+            )
+            return False, 'Error: No response from model'
+
+        result = response.choices[0].message.content
 
         result = result.replace('<dummy32000>', '')
         result = result.replace('</s>', '')

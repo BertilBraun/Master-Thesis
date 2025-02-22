@@ -33,6 +33,3 @@ LOCAL_AI_ML_PC = 'http://aifb-bis-gpu01.aifb.kit.edu:8080'
 
 # BASE_URL_LLM = None # When using the OpenAI API instead of the Local AI
 BASE_URL_LLM = LOCAL_AI_ML_PC
-
-BASE_URL_LLM = GROQ_BASE_URL
-OPENAI_API_KEY = GROQ_API_KEY

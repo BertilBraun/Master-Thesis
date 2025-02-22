@@ -237,9 +237,9 @@ class LanguageModel(Protocol):
                 if key in cache:
                     return cache[key]
 
-        return None
+        # return None
 
-        key = self._get_key(**key_parameters)
+        key = hash(self._get_key(**key_parameters))
         if os.path.exists(f'llm_cache/{key}.json'):
             with open(f'llm_cache/{key}.json', 'r') as f:
                 return json.load(f)
