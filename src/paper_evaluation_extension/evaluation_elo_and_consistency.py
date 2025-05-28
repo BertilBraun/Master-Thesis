@@ -53,13 +53,28 @@ def p_values_combined(p_values: list[float]) -> float:
 
 
 # Function to update Elo ratings based on the results
-def get_elo_ratings(results: list[RankingResult], k: float = 32.0) -> dict[int, float]:
-    elo_ratings: dict[int, float] = {}
+import matplotlib.pyplot as plt
 
+
+def get_elo_ratings(results: list[RankingResult], k: float = 2.0) -> dict[int, float]:
+    elo_ratings: dict[int, float] = {}
+    # Store the rating history for each profile. Keys are profile indices; values are lists of ratings over time.
+    elo_history: dict[int, list[float]] = {}
+
+    # Process each result update
     for result in results:
         profile1_index, profile2_index = result.profiles
-        rating1 = elo_ratings.get(profile1_index, 1000.0)
-        rating2 = elo_ratings.get(profile2_index, 1000.0)
+
+        # Initialize ratings and history if profile is seen for the first time
+        if profile1_index not in elo_ratings:
+            elo_ratings[profile1_index] = 1000.0
+            elo_history[profile1_index] = [1000.0]
+        if profile2_index not in elo_ratings:
+            elo_ratings[profile2_index] = 1000.0
+            elo_history[profile2_index] = [1000.0]
+
+        rating1 = elo_ratings[profile1_index]
+        rating2 = elo_ratings[profile2_index]
 
         expected1 = 1 / (1 + 10 ** ((rating2 - rating1) / 400))
         expected2 = 1 - expected1  # Since expected1 + expected2 = 1
@@ -74,6 +89,29 @@ def get_elo_ratings(results: list[RankingResult], k: float = 32.0) -> dict[int, 
         # Update ratings
         elo_ratings[profile1_index] = rating1 + k * (score1 - expected1)
         elo_ratings[profile2_index] = rating2 + k * (score2 - expected2)
+
+        # Append the updated ratings to history
+        elo_history[profile1_index].append(elo_ratings[profile1_index])
+        elo_history[profile2_index].append(elo_ratings[profile2_index])
+
+    # Plot the evolution of Elo ratings after processing all result updates
+    if False:
+        plt.figure()
+        handles = []
+        labels = []
+        for profile, history in elo_history.items():
+            (line,) = plt.plot(history, label=f'Profile {profile}')
+            handles.append(line)
+            labels.append(f'Profile {profile}')
+        # Sort legend entries by label
+        sorted_entries = sorted(zip(labels, handles), key=lambda x: x[0])
+        sorted_labels, sorted_handles = zip(*sorted_entries)
+        plt.xlabel('Match Update')
+        plt.ylabel('Elo Rating')
+        plt.title('Elo Rating Evolution')
+        plt.legend(sorted_handles, sorted_labels)
+        plt.grid(True)
+        plt.show()
 
     return elo_ratings
 
@@ -258,7 +296,7 @@ Original Profile:
 
 def preprocess_upload(upload: UploadedProfiles) -> list[UploadedProfile]:
     # TODO limit to less profiles for better results?
-    profiles = upload['profiles'][:6]
+    profiles = upload['profiles'][:5]
 
     abstracts = upload['abstracts']
     print('Author', upload['author'])
@@ -310,7 +348,7 @@ if __name__ == '__main__':
 
     # Initialize LLMs
     LLMS = [
-        'gemma2-9b-it',
+        # 'gemma2-9b-it', # Gemma is just baad
         # TODO 'llama-3.3-70b-versatile',
         # 5k Token Limit exceeded 'mixtral-8x7b-32768',
         'llama-3.1-8b-instant',
@@ -319,19 +357,19 @@ if __name__ == '__main__':
 
     llms = (
         [
-            OpenAILanguageModel(
-                model=model,
-                base_url=src.defines.GROQ_BASE_URL,
-                api_key=src.defines.GROQ_API_KEY,
-                max_retries=MAX_RETRIES,
-                debug_context_name='evaluate_for_elo_and_consistency',
-            )
-            for model in LLMS
+            # OpenAILanguageModel(
+            #     model=model,
+            #     base_url=src.defines.GROQ_BASE_URL,
+            #     api_key=src.defines.GROQ_API_KEY,
+            #     max_retries=MAX_RETRIES,
+            #     debug_context_name='evaluate_for_elo_and_consistency',
+            # )
+            # for model in LLMS
         ]
         + [
-            # TODO - API Key not working
+            # TODO
             OpenAILanguageModel(
-                model='gpt-4o-mini',
+                model='gpt-4o',
                 base_url=None,
                 api_key=src.defines.OPENAI_API_KEY,
                 max_retries=MAX_RETRIES,
@@ -340,13 +378,23 @@ if __name__ == '__main__':
         ]
         + [
             # TODO
-            OpenAILanguageModel(
-                model='gemini-2.0-flash',
-                base_url=src.defines.GOOGLE_BASE_URL,
-                api_key=src.defines.GOOGLE_API_KEY,
-                max_retries=MAX_RETRIES,
-                debug_context_name='evaluate_for_elo_and_consistency',
-            )
+            # OpenAILanguageModel(
+            #     model='gemini-2.0-flash',
+            #     base_url=src.defines.GOOGLE_BASE_URL,
+            #     api_key=src.defines.GOOGLE_API_KEY,
+            #     max_retries=MAX_RETRIES,
+            #     debug_context_name='evaluate_for_elo_and_consistency',
+            # )
+        ]
+        + [
+            # TODO not working
+            # OpenAILanguageModel(
+            #     model='gemma-3-27b-it',
+            #     base_url='https://localai.aifb-bis-gpu01.aifb.kit.edu/chat/v1',
+            #     api_key='None',
+            #     max_retries=MAX_RETRIES,
+            #     debug_context_name='evaluate_for_elo_and_consistency',
+            # )
         ]
     )
 
@@ -354,7 +402,22 @@ if __name__ == '__main__':
     # Get all uploaded profiles from jsonbin
     jsons: list[UploadedProfiles] = [json_bin.bin(bin_id) for bin_id in json_bin.bins()]  # type: ignore
     # Filter out invalid data
-    jsons = [data for data in jsons if all(key in data for key in ['author', 'abstracts', 'profiles'])]
+    jsons = [
+        data
+        for data in jsons
+        if all(key in data for key in ['author', 'abstracts', 'profiles'])
+        and data['author']
+        in (
+            'Meike Ullrich',
+            'Andreas Fritsch',
+            'Martin Forell',
+            'Gunther Schiefer',
+            'Marcel Tiepelt',
+            'Frederik Arbeiter',
+            'Heiko Maass',
+            'Thomas Thümmler',
+        )
+    ]
     # Create a dictionary with author names as keys
     all_jsons_from_manual = {data['author']: data for data in jsons}
 
@@ -376,7 +439,10 @@ if __name__ == '__main__':
     # TODO keep only the first two authors for now
     all_jsons_from_manual = {k: all_jsons_from_manual[k] for k in list(all_jsons_from_manual.keys())[:10]}
 
-    for evaluate_consistency, consistency_threshold in ((False, [1.0]), (True, [1.0, 0.9, 0.75, 0.5])):
+    rho_stds = []
+    tau_stds = []
+
+    for evaluate_consistency, consistency_threshold in ((True, [0.99, 0.9, 0.75, 0.5]), (False, [1.0])):
         for threshold in consistency_threshold:
             rohs: list[float] = []
             taus: list[float] = []
@@ -409,8 +475,7 @@ if __name__ == '__main__':
 
                     for llm in llms:
                         # print(f'Running evaluation for P{profile1_index} vs P{profile2_index} with {llm.model}')
-                        response = llm.invoke(prompt + [AIMessage(content='```json')], stop='```', temperature=0.1)
-                        # response = llm.invoke(prompt, temperature=0.1)
+                        response = llm.invoke(prompt, temperature=0.1)
                         evaluations.append(EvaluationResult_from_invalid_response(response))
 
                     reverse_preference = {0: 0, 1: 2, 2: 1}
@@ -420,8 +485,7 @@ if __name__ == '__main__':
 
                     for llm in llms:
                         # print(f'Running evaluation for P{profile2_index} vs P{profile1_index} with {llm.model}')
-                        response = llm.invoke(prompt + [AIMessage(content='```json')], stop='```', temperature=0.1)
-                        # response = llm.invoke(prompt, temperature=0.1)
+                        response = llm.invoke(prompt, temperature=0.1)
                         eval_result = EvaluationResult_from_invalid_response(response)
                         eval_result['preferred_profile'] = reverse_preference[eval_result['preferred_profile']]
                         evaluations.append(eval_result)
@@ -432,9 +496,9 @@ if __name__ == '__main__':
                     preferred_profiles = [evaluation['preferred_profile'] for evaluation in evaluations]
 
                     count = Counter(preferred_profiles)
-                    if count[1] / len(preferred_profiles) >= threshold:
+                    if count[1] / len(preferred_profiles) > threshold:
                         preferred_profile = 1
-                    elif count[2] / len(preferred_profiles) >= threshold:
+                    elif count[2] / len(preferred_profiles) > threshold:
                         preferred_profile = 2
                     else:
                         preferred_profile = 0  # Draw
@@ -459,27 +523,51 @@ if __name__ == '__main__':
 
                 # repeat all the results 5 times
                 # TODO do repetitions help?
-                results = results  # * 5
+                results = results * 100
 
-                results = results[::-1]
-                # TODO random.shuffle(results) # seems worse results
-                # TODO sort to eval draws first, then the ones where the better profile is preferred
-                # results = sorted(
-                #     results,
-                #     key=lambda x: (x.preferred_profile_index, x.profiles[1], x.profiles[0]),
-                #     reverse=True,
-                # )
-                # TODO sorting might make sense, if the comparison is based on the differences in ratings, but not if its just based on the rank
-                # i.e. the following should be rated rather high, since the elo difference is small, but with current rank only evaluation, it would be rated rather low
-                # | 1073.01  │ 0 │
-                # | 1044.03  │ 1 │
-                # |  987.44  │ 4 │
-                # |  986.219 │ 3 │
-                # |  982.827 │ 2 │
-                # |  926.475 │ 5 │
+                current_run_rhos = []
+                current_run_taus = []
+                current_run_rho_p_values = []
+                current_run_tau_p_values = []
 
-                # Get Elo ratings based on results
-                elo_ratings = get_elo_ratings(results)
+                for _ in range(50):
+                    random.shuffle(results)  # seems worse results
+                    # TODO sort to eval draws first, then the ones where the better profile is preferred
+                    # results = sorted(
+                    #     results,
+                    #     key=lambda x: (x.preferred_profile_index, x.profiles[1], x.profiles[0]),
+                    #     reverse=True,
+                    # )
+                    # TODO sorting might make sense, if the comparison is based on the differences in ratings, but not if its just based on the rank
+                    # i.e. the following should be rated rather high, since the elo difference is small, but with current rank only evaluation, it would be rated rather low
+                    # | 1073.01  │ 0 │
+                    # | 1044.03  │ 1 │
+                    # |  987.44  │ 4 │
+                    # |  986.219 │ 3 │
+                    # |  982.827 │ 2 │
+                    # |  926.475 │ 5 │
+
+                    # Get Elo ratings based on results
+                    elo_ratings = get_elo_ratings(results)
+
+                    (rho, rho_p_value), (tau, tau_p_value) = evaluate(elo_ratings)
+                    current_run_rhos.append(rho)
+                    current_run_taus.append(tau)
+                    current_run_rho_p_values.append(rho_p_value)
+                    current_run_tau_p_values.append(tau_p_value)
+
+                rho = np.mean(current_run_rhos)
+                tau = np.mean(current_run_taus)
+                rho_p_value = np.mean(current_run_rho_p_values)
+                tau_p_value = np.mean(current_run_tau_p_values)
+
+                rho_stds.append(np.std(current_run_rhos))
+                tau_stds.append(np.std(current_run_taus))
+
+                print('Rho std:', np.std(current_run_rhos))
+                print('Tau std:', np.std(current_run_taus))
+                print('Rho max:', np.max(current_run_rhos))
+                print('Tau max:', np.max(current_run_taus))
 
                 # Output the sorted profiles and their ratings
                 print_table(
@@ -493,21 +581,6 @@ if __name__ == '__main__':
                     ],
                     headers=['Model Name', 'Elo Rating', 'Expert chosen Rank'],
                 )
-
-                rho, tau, rho_p_value, tau_p_value = -1, -1, 1, 1
-
-                # TODO evaluation with offsets on the elo ratings
-                # for combination in product([-10, 0, 10], repeat=len(profiles)):
-                for combination in [[0] * len(profiles)]:
-                    changed_elos = elo_ratings.copy()
-                    for i, change in enumerate(combination):
-                        changed_elos[i] += change
-
-                    (poss_rho, poss_rho_p_value), (poss_tau, poss_tau_p_value) = evaluate(elo_ratings)
-                    if poss_rho_p_value < rho_p_value:
-                        rho, rho_p_value = poss_rho, poss_rho_p_value
-                    if poss_tau_p_value < tau_p_value:
-                        tau, tau_p_value = poss_tau, poss_tau_p_value
 
                 rohs.append(rho)
                 taus.append(tau)
@@ -545,11 +618,13 @@ if __name__ == '__main__':
                 evaluate_consistency,
                 threshold,
                 np.mean(rohs),
+                np.std(rohs),
                 np.mean(taus),
+                np.std(taus),
                 np.mean(roh_p_values),
-                p_values_combined(roh_p_values),
+                # p_values_combined(roh_p_values),
                 np.mean(tau_p_values),
-                p_values_combined(tau_p_values),
+                # p_values_combined(tau_p_values),
             )
             for (evaluate_consistency, threshold), (
                 rohs,
@@ -562,12 +637,17 @@ if __name__ == '__main__':
             'CC',  # 'Consistency Check',
             'Thresh',  # 'Threshold',
             'Spearman',  # 'Mean Spearman Correlation',
+            'Spearman Std',  # 'Spearman Correlation Std',
             'Kendall',  # 'Mean Kendall Tau',
+            'Kendall Std',  # 'Kendall Tau Std',
             'Spearman P-Value',  # 'Mean Spearman p-value',
-            'Spearman P-Value combined',  # 'Spearman p-value combined',
+            #'Spearman P-Value combined',  # 'Spearman p-value combined',
             'Kendall P-Value',  # 'Mean Kendall p-value
-            'Kendall P-Value combined',  # 'Kendall p-value combined',
+            #'Kendall P-Value combined',  # 'Kendall p-value combined',
         ],
     )
 
     print('Number of evaluations:', number_of_evaluations)
+
+    print('Rho std:', np.mean(rho_stds))
+    print('Tau std:', np.mean(tau_stds))
