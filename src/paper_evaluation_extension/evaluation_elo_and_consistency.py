@@ -324,7 +324,7 @@ def preprocess_upload(upload: UploadedProfiles) -> list[UploadedProfile]:
     return profiles
 
 
-def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[float, float]]:
+def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[float, float], float]:
     # Sort profiles by Elo rating
     sorted_profiles = list(sorted(elo_ratings.items(), key=lambda x: x[1], reverse=True))
 
@@ -335,7 +335,9 @@ def evaluate(elo_ratings: dict[int, float]) -> tuple[tuple[float, float], tuple[
     rho, rho_p_value = spearmanr(X, Y)
     tau, tau_p_value = kendalltau(X, Y)
 
-    return (rho, rho_p_value), (tau, tau_p_value)  # type: ignore
+    average_elo_difference = np.mean([abs(elo_ratings[X[i]] - elo_ratings[X[i + 1]]) for i in range(len(X) - 1)])
+
+    return (rho, rho_p_value), (tau, tau_p_value), average_elo_difference  # type: ignore
 
 
 number_of_evaluations = 0
@@ -425,7 +427,9 @@ if __name__ == '__main__':
         for profile in upload['profiles']:
             profile['profile'] = Profile.from_json(profile['profile'])  # type: ignore # Convert JSON to Profile object
 
-    evaluation_results: dict[tuple[bool, float], tuple[list[float], list[float], list[float], list[float]]] = {}
+    evaluation_results: dict[
+        tuple[bool, float], tuple[list[float], list[float], list[float], list[float], list[float]]
+    ] = {}
 
     worsen_llm = OpenAILanguageModel(
         model='llama-3.3-70b-versatile',
@@ -448,6 +452,7 @@ if __name__ == '__main__':
             taus: list[float] = []
             roh_p_values: list[float] = []
             tau_p_values: list[float] = []
+            average_elo_diffs: list[float] = []
 
             log(
                 f'Running Elo and {"NO " if not evaluate_consistency else ""}consistency check with threshold {threshold} for {len(all_jsons_from_manual)} queries'
@@ -529,6 +534,7 @@ if __name__ == '__main__':
                 current_run_taus = []
                 current_run_rho_p_values = []
                 current_run_tau_p_values = []
+                current_run_average_elo_diffs = []
 
                 for _ in range(50):
                     random.shuffle(results)  # seems worse results
@@ -550,16 +556,18 @@ if __name__ == '__main__':
                     # Get Elo ratings based on results
                     elo_ratings = get_elo_ratings(results)
 
-                    (rho, rho_p_value), (tau, tau_p_value) = evaluate(elo_ratings)
+                    (rho, rho_p_value), (tau, tau_p_value), average_elo_diff = evaluate(elo_ratings)
                     current_run_rhos.append(rho)
                     current_run_taus.append(tau)
                     current_run_rho_p_values.append(rho_p_value)
                     current_run_tau_p_values.append(tau_p_value)
+                    current_run_average_elo_diffs.append(average_elo_diff)
 
                 rho = np.mean(current_run_rhos)
                 tau = np.mean(current_run_taus)
                 rho_p_value = np.mean(current_run_rho_p_values)
                 tau_p_value = np.mean(current_run_tau_p_values)
+                average_elo_diff = np.mean(current_run_average_elo_diffs)
 
                 rho_stds.append(np.std(current_run_rhos))
                 tau_stds.append(np.std(current_run_taus))
@@ -586,12 +594,25 @@ if __name__ == '__main__':
                 taus.append(tau)
                 roh_p_values.append(rho_p_value)
                 tau_p_values.append(tau_p_value)
+                average_elo_diffs.append(average_elo_diff)
 
                 # TODO some sort of evaluation metric, which takes into account how close the elo ratings are, i.e. if rank 2 and 3 are switched, but with a elo difference of like 10 while the others have differences of 200, then that should be less dramatic than if the elo difference is large as well
 
-            evaluation_results[(evaluate_consistency, threshold)] = (rohs, taus, roh_p_values, tau_p_values)
+            evaluation_results[(evaluate_consistency, threshold)] = (
+                rohs,
+                taus,
+                roh_p_values,
+                tau_p_values,
+                average_elo_diffs,
+            )
 
-    for (evaluate_consistency, threshold), (rohs, taus, roh_p_values, tau_p_values) in evaluation_results.items():
+    for (evaluate_consistency, threshold), (
+        rohs,
+        taus,
+        roh_p_values,
+        tau_p_values,
+        average_elo_diffs,
+    ) in evaluation_results.items():
         print(f'Consistency Check: {evaluate_consistency}, Threshold: {threshold}')
         print_table(
             [
@@ -625,12 +646,14 @@ if __name__ == '__main__':
                 # p_values_combined(roh_p_values),
                 np.mean(tau_p_values),
                 # p_values_combined(tau_p_values),
+                np.mean(average_elo_diffs),
             )
             for (evaluate_consistency, threshold), (
                 rohs,
                 taus,
                 roh_p_values,
                 tau_p_values,
+                average_elo_diffs,
             ) in evaluation_results.items()
         ],
         headers=[
@@ -644,6 +667,7 @@ if __name__ == '__main__':
             #'Spearman P-Value combined',  # 'Spearman p-value combined',
             'Kendall P-Value',  # 'Mean Kendall p-value
             #'Kendall P-Value combined',  # 'Kendall p-value combined',
+            'Average Elo Diff',  # 'Average Elo Difference',
         ],
     )
 
